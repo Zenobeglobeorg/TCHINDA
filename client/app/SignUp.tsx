@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
+import { Picker } from '@react-native-picker/picker';
 
 export default function SignUpScreen() {
   const router = useRouter();

@@ -16,28 +16,30 @@ const LOCAL_IP = '192.168.1.100'; // Changez cette valeur avec votre IP locale
 
 // Fonction pour obtenir l'URL de base selon l'environnement
 const getBaseURL = () => {
+  // ✅ SOLUTION RECOMMANDÉE : Utiliser Railway même en développement
+  // Puisque votre backend est déjà déployé sur Railway, utilisez-le partout
+  return 'https://tchinda-production.up.railway.app';
+  
+  // 🔧 ALTERNATIVE : Utiliser le backend local (nécessite npm run dev dans server/)
+  // Décommentez le code ci-dessous si vous voulez utiliser le backend local :
+  /*
   if (!__DEV__) {
     return 'https://tchinda-production.up.railway.app'; // Production Railway
   }
 
-  // En développement
+  // En développement local
   if (Platform.OS === 'web') {
-    // Pour le web, utiliser localhost
     return 'http://localhost:5000';
   } else if (Platform.OS === 'android') {
-    // Pour Android Emulator
-    // Si vous utilisez un appareil physique, décommentez la ligne suivante et remplacez LOCAL_IP
     return 'http://10.0.2.2:5000'; // Android Emulator
-    // return `http://${LOCAL_IP}:5000`; // Appareil physique Android (décommentez et modifiez LOCAL_IP)
+    // Pour appareil physique : return `http://${LOCAL_IP}:5000`;
   } else if (Platform.OS === 'ios') {
-    // Pour iOS Simulator
     return 'http://localhost:5000';
-    // Pour appareil physique iOS, décommentez la ligne suivante et remplacez LOCAL_IP
-    // return `http://${LOCAL_IP}:5000`; // Appareil physique iOS (décommentez et modifiez LOCAL_IP)
+    // Pour appareil physique : return `http://${LOCAL_IP}:5000`;
   }
 
-  // Par défaut
   return 'http://localhost:5000';
+  */
 };
 
 export const API_CONFIG = {

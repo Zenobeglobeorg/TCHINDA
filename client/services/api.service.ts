@@ -31,10 +31,17 @@ class ApiService {
   // Charger le token depuis le stockage
   private async loadToken() {
     try {
+      // Vérifier si on est sur le web et si window est disponible
+      if (typeof window === 'undefined') {
+        return; // SSR ou environnement sans window
+      }
       const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
       this.token = token;
     } catch (error) {
-      console.error('Erreur lors du chargement du token:', error);
+      // Ignorer les erreurs silencieusement en développement
+      if (__DEV__) {
+        console.warn('Erreur lors du chargement du token (normal en SSR):', error);
+      }
     }
   }
 

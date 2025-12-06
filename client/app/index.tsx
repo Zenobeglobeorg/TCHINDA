@@ -17,7 +17,7 @@ export default function SplashScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
-        useNativeDriver: true,
+        useNativeDriver: false, // Changé à false pour permettre width
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
@@ -76,7 +76,7 @@ export default function SplashScreen() {
               {
                 width: fadeAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
+                  outputRange: [0, 200],
                 }),
               },
             ]} 
