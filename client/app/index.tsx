@@ -3,9 +3,11 @@ import { StyleSheet, View, Animated, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
 
@@ -24,13 +26,19 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Simulation du chargement et navigation vers Login
+    // Navigation selon l'état d'authentification
     const timer = setTimeout(() => {
-      router.push('/Login');
-    }, 3000);
+      if (!isLoading) {
+        if (isAuthenticated) {
+          router.replace('/(tabs)');
+        } else {
+          router.replace('/Login');
+        }
+      }
+    }, 2000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isLoading, isAuthenticated]);
 
   return (
     <ThemedView style={styles.container}>

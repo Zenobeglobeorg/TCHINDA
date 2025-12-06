@@ -8,42 +8,111 @@ import {
   Platform,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
+  const { register, isLoading: authLoading } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [country, setCountry] = useState('SN');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Type de compte fixé à BUYER pour l'inscription
+  const accountType: 'BUYER' = 'BUYER';
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
+    // Validations
+    if (!firstName.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre prénom');
+      return;
+    }
+
+    if (!lastName.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      return;
+    }
+
+    // Validation email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Erreur', 'Veuillez entrer un email valide');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer un mot de passe');
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+
+    // Validation force du mot de passe
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        'Erreur',
+        'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
+      );
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
       return;
     }
 
-    if (!email || !password || !fullName) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
-      return;
-    }
-
     setIsLoading(true);
-    // Simulation de l'inscription
-    setTimeout(() => {
+    try {
+      const result = await register({
+        email: email.trim(),
+        password,
+        accountType,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        country: country || undefined,
+      });
+
+      if (result.success) {
+        Alert.alert('Succès', 'Compte créé avec succès', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)'),
+          },
+        ]);
+      } else {
+        Alert.alert('Erreur d\'inscription', result.error || 'Une erreur est survenue');
+      }
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
       setIsLoading(false);
-      Alert.alert('Succès', 'Compte créé avec succès');
-      router.push('/Login');
-    }, 1500);
+    }
   };
 
   const handleLogin = () => {
     router.push('/Login');
   };
+
+  const loading = isLoading || authLoading;
 
   return (
     <ThemedView style={styles.container}>
@@ -58,26 +127,43 @@ export default function SignUpScreen() {
               Inscription
             </ThemedText>
             <ThemedText style={styles.subtitle}>
-              Créez votre compte TCHINDA
+              Créez votre compte Acheteur TCHINDA
+            </ThemedText>
+            <ThemedText style={styles.infoText}>
+              Vous pourrez devenir vendeur plus tard dans les paramètres
             </ThemedText>
           </View>
 
           {/* Formulaire */}
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Nom complet</ThemedText>
+              <ThemedText style={styles.label}>Prénom</ThemedText>
               <TextInput
                 style={styles.input}
-                placeholder="Votre nom complet"
+                placeholder="Votre prénom"
                 placeholderTextColor="#999"
-                value={fullName}
-                onChangeText={setFullName}
+                value={firstName}
+                onChangeText={setFirstName}
                 autoCapitalize="words"
+                editable={!loading}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Email</ThemedText>
+              <ThemedText style={styles.label}>Nom</ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Votre nom"
+                placeholderTextColor="#999"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <ThemedText style={styles.label}>Email *</ThemedText>
               <TextInput
                 style={styles.input}
                 placeholder="votre@email.com"
@@ -86,23 +172,58 @@ export default function SignUpScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Mot de passe</ThemedText>
+              <ThemedText style={styles.label}>Téléphone (optionnel)</ThemedText>
               <TextInput
                 style={styles.input}
-                placeholder="Votre mot de passe"
+                placeholder="+221 77 123 45 67"
+                placeholderTextColor="#999"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <ThemedText style={styles.label}>Pays</ThemedText>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={country}
+                  onValueChange={(value) => setCountry(value)}
+                  style={styles.picker}
+                  enabled={!loading}
+                >
+                  <Picker.Item label="Sénégal" value="SN" />
+                  <Picker.Item label="Côte d'Ivoire" value="CI" />
+                  <Picker.Item label="Cameroun" value="CM" />
+                  <Picker.Item label="Gabon" value="GA" />
+                  <Picker.Item label="Maroc" value="MA" />
+                  <Picker.Item label="Autre" value="" />
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <ThemedText style={styles.label}>Mot de passe *</ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Min. 8 caractères avec majuscule, chiffre et caractère spécial"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Confirmer le mot de passe</ThemedText>
+              <ThemedText style={styles.label}>Confirmer le mot de passe *</ThemedText>
               <TextInput
                 style={styles.input}
                 placeholder="Confirmez votre mot de passe"
@@ -110,20 +231,25 @@ export default function SignUpScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.signUpButton,
-                isLoading && styles.signUpButtonDisabled,
+                loading && styles.signUpButtonDisabled,
               ]}
               onPress={handleSignUp}
-              disabled={isLoading}
+              disabled={loading}
             >
-              <ThemedText style={styles.signUpButtonText}>
-                {isLoading ? 'Inscription...' : 'S\'inscrire'}
-              </ThemedText>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <ThemedText style={styles.signUpButtonText}>
+                  S'inscrire
+                </ThemedText>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -139,7 +265,7 @@ export default function SignUpScreen() {
             <ThemedText style={styles.loginText}>
               Vous avez déjà un compte ?{' '}
             </ThemedText>
-            <TouchableOpacity onPress={handleLogin}>
+            <TouchableOpacity onPress={handleLogin} disabled={loading}>
               <ThemedText style={styles.loginLink}>
                 Se connecter
               </ThemedText>
@@ -165,7 +291,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   title: {
     fontSize: 28,
@@ -176,6 +302,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.7,
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 12,
+    textAlign: 'center',
+    opacity: 0.6,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   form: {
     width: '100%',
@@ -196,12 +330,24 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
   },
+  pickerContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+  },
   signUpButton: {
     backgroundColor: '#624cacff',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
+    minHeight: 50,
   },
   signUpButtonDisabled: {
     opacity: 0.6,
@@ -229,6 +375,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
   },
   loginText: {
     fontSize: 14,

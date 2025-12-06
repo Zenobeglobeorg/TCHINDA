@@ -1,0 +1,20 @@
+# Configuration Nixpacks pour Railway
+# Railway utilise Nixpacks pour détecter et builder votre application
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "postgresql"]
+
+[phases.install]
+cmds = [
+  "npm ci",
+  "npx prisma generate"
+]
+
+[phases.build]
+cmds = [
+  "npm run build || true"
+]
+
+[start]
+cmd = "npm start"
+

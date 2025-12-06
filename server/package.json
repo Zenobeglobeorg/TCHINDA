@@ -1,0 +1,55 @@
+{
+  "name": "tchinda-market-server",
+  "version": "1.0.0",
+  "description": "Backend server for TCHINDA e-commerce platform",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "node prisma/seed.js"
+  },
+  "keywords": [
+    "e-commerce",
+    "marketplace",
+    "tchinda"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "express": "^4.21.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.4.1",
+    "express-validator": "^7.2.0",
+    "nodemailer": "^6.9.16",
+    "twilio": "^5.3.5",
+    "messagebird": "^3.8.0",
+    "@vonage/server-sdk": "^3.15.0",
+    "@aws-sdk/client-sns": "^3.700.0",
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.4",
+    "joi": "^17.13.3",
+    "morgan": "^1.10.0",
+    "compression": "^1.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "prisma": "^5.19.1"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}
+

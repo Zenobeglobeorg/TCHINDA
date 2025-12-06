@@ -1,0 +1,494 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum pour les types de comptes
+enum AccountType {
+  BUYER           // Acheteur
+  SELLER          // Vendeur
+  ADMIN           // Administrateur Fondateur
+  MODERATOR       // Modérateur
+  ACCOUNTANT      // Factureur
+  DELIVERY        // Livreur
+  COMMERCIAL      // Commercial/Agent
+}
+
+// Enum pour le statut de vérification
+enum VerificationStatus {
+  PENDING         // En attente
+  VERIFIED        // Vérifié
+  REJECTED        // Rejeté
+  EXPIRED         // Expiré
+}
+
+// Enum pour le statut du compte
+enum AccountStatus {
+  ACTIVE          // Actif
+  INACTIVE        // Inactif
+  SUSPENDED       // Suspendu
+  BANNED          // Banni
+  PENDING_VERIFICATION // En attente de vérification
+}
+
+// Enum pour les méthodes de vérification
+enum VerificationMethod {
+  EMAIL
+  PHONE
+  KYC_IDENTITY    // CNI, Passeport, Permis
+  KYC_ADDRESS     // Justificatif de domicile
+  KYC_BUSINESS    // Justificatif d'activité (pour vendeurs)
+}
+
+// Enum pour les types d'abonnement
+enum SubscriptionType {
+  FREE            // Gratuit
+  GOLD            // OR (9.99€/mois)
+  DIAMOND         // DIAMANT (19.99€/mois)
+}
+
+// Table principale des utilisateurs
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  phone             String?           @unique
+  password          String
+  accountType       AccountType
+  accountStatus     AccountStatus     @default(PENDING_VERIFICATION)
+  
+  // Informations personnelles
+  firstName         String?
+  lastName          String?
+  fullName          String?
+  photo             String?
+  dateOfBirth       DateTime?
+  country           String?           // Pays de résidence
+  city              String?
+  address           String?
+  postalCode        String?
+  
+  // Vérification
+  emailVerified     Boolean           @default(false)
+  phoneVerified     Boolean           @default(false)
+  kycVerified       Boolean           @default(false)
+  verificationStatus VerificationStatus @default(PENDING)
+  
+  // Sécurité
+  twoFactorEnabled  Boolean           @default(false)
+  twoFactorSecret  String?
+  loginAttempts    Int                @default(0)
+  lockedUntil      DateTime?
+  lastLogin         DateTime?
+  
+  // Abonnement (pour acheteurs)
+  subscriptionType  SubscriptionType  @default(FREE)
+  subscriptionStart DateTime?
+  subscriptionEnd   DateTime?
+  
+  // Relations
+  verifications     Verification[]
+  addresses         Address[]
+  wallet            Wallet?
+  buyerProfile      BuyerProfile?
+  sellerProfile     SellerProfile?
+  adminProfile      AdminProfile?
+  moderatorProfile  ModeratorProfile?
+  accountantProfile AccountantProfile?
+  deliveryProfile   DeliveryProfile?
+  commercialProfile CommercialProfile?
+  sessions          Session[]
+  refreshTokens     RefreshToken[]
+  verificationCodes VerificationCode[]
+  passwordResetTokens PasswordResetToken[]
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([email])
+  @@index([phone])
+  @@index([accountType])
+  @@index([accountStatus])
+}
+
+// Table des vérifications (KYC)
+model Verification {
+  id                String            @id @default(uuid())
+  userId            String
+  method            VerificationMethod
+  status            VerificationStatus @default(PENDING)
+  
+  // Documents
+  documentType      String?           // CNI, Passeport, Permis, etc.
+  documentNumber    String?
+  documentFront     String?           // URL du document recto
+  documentBack      String?           // URL du document verso
+  selfie            String?           // Photo selfie avec document
+  
+  // Informations additionnelles
+  verifiedBy        String?           // ID de l'admin/modérateur qui a vérifié
+  verifiedAt        DateTime?
+  rejectionReason   String?
+  notes             String?
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+// Table des adresses
+model Address {
+  id                String            @id @default(uuid())
+  userId            String
+  label             String            // Maison, Bureau, etc.
+  firstName         String
+  lastName          String
+  phone             String
+  addressLine1      String
+  addressLine2      String?
+  city              String
+  state             String?
+  postalCode        String
+  country           String
+  isDefault         Boolean           @default(false)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([userId])
+}
+
+// Table des portefeuilles
+model Wallet {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  balance           Decimal           @default(0) @db.Decimal(15, 2)
+  currency          String            @default("XOF") // Devise principale
+  limit             Decimal?          @db.Decimal(15, 2) // Limite selon niveau
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  walletCurrencies  WalletCurrency[]
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([userId])
+}
+
+// Table pour les devises multiples dans le portefeuille
+model WalletCurrency {
+  id                String            @id @default(uuid())
+  walletId          String
+  currency          String            // XOF, XAF, USD, EUR, etc.
+  balance           Decimal           @default(0) @db.Decimal(15, 2)
+  
+  // Relations
+  wallet            Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@unique([walletId, currency])
+  @@index([walletId])
+}
+
+// Table des transactions
+model Transaction {
+  id                String            @id @default(uuid())
+  walletId          String
+  type              String            // DEPOSIT, WITHDRAWAL, PAYMENT, REFUND, COMMISSION
+  amount            Decimal           @db.Decimal(15, 2)
+  currency          String
+  status            String            // PENDING, COMPLETED, FAILED, CANCELLED
+  description       String?
+  reference         String?           @unique
+  
+  // Métadonnées
+  paymentMethod     String?           // Orange Money, PayPal, etc.
+  metadata          Json?             // Données additionnelles
+  
+  // Relations
+  wallet            Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([walletId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Profil Acheteur
+model BuyerProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  
+  // Préférences
+  preferredLanguage String?           @default("fr")
+  preferredCurrency String?           @default("XOF")
+  notificationPreferences Json?      // Préférences de notification
+  
+  // Statistiques
+  totalOrders       Int               @default(0)
+  totalSpent        Decimal           @default(0) @db.Decimal(15, 2)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Vendeur
+model SellerProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  
+  // Informations boutique
+  shopName          String?
+  shopDescription   String?
+  shopLogo          String?
+  shopBanner        String?
+  shopAddress       String?
+  shopPhone         String?
+  shopEmail         String?
+  businessRegistration String?        // Numéro d'enregistrement
+  
+  // Configuration
+  defaultCurrency   String            @default("XOF")
+  commissionRate    Decimal?         @db.Decimal(5, 2) // Taux de commission
+  
+  // Statut
+  isVerified        Boolean           @default(false)
+  isActive          Boolean           @default(true)
+  
+  // Statistiques
+  totalProducts     Int               @default(0)
+  totalSales        Int               @default(0)
+  totalRevenue      Decimal           @default(0) @db.Decimal(15, 2)
+  rating            Decimal?         @db.Decimal(3, 2) // Note moyenne
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Administrateur Fondateur
+model AdminProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  level             Int               @default(1) // Niveau d'administration
+  permissions       Json?             // Permissions granulaires
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Modérateur
+model ModeratorProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  assignedCategories Json?            // Catégories assignées
+  permissions       Json?             // Permissions de modération
+  
+  // Statistiques
+  itemsModerated    Int               @default(0)
+  itemsApproved     Int               @default(0)
+  itemsRejected     Int               @default(0)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Factureur
+model AccountantProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  department        String?
+  permissions       Json?             // Permissions comptables
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Livreur
+model DeliveryProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  
+  // Informations professionnelles
+  vehicleType       String?           // Moto, Voiture, etc.
+  vehiclePlate      String?
+  licenseNumber     String?
+  licenseExpiry     DateTime?
+  
+  // Statut
+  isAvailable       Boolean           @default(true)
+  isVerified        Boolean           @default(false)
+  currentLocation   Json?             // Géolocalisation
+  
+  // Statistiques
+  totalDeliveries   Int               @default(0)
+  completedDeliveries Int            @default(0)
+  rating            Decimal?         @db.Decimal(3, 2)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Profil Commercial/Agent
+model CommercialProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  
+  // Informations professionnelles
+  agentCode         String?           @unique // Code unique de l'agent
+  region            String?           // Zone géographique d'opération
+  commissionRate    Decimal?         @db.Decimal(5, 2)
+  
+  // Statut
+  isActive          Boolean           @default(true)
+  isVerified        Boolean           @default(false)
+  
+  // Statistiques
+  totalTransactions Int               @default(0)
+  totalDeposits     Decimal           @default(0) @db.Decimal(15, 2)
+  totalWithdrawals  Decimal           @default(0) @db.Decimal(15, 2)
+  totalCommission   Decimal           @default(0) @db.Decimal(15, 2)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([agentCode])
+}
+
+// Table des sessions (pour gestion des tokens)
+model Session {
+  id                String            @id @default(uuid())
+  userId            String
+  token             String            @unique
+  deviceInfo        Json?
+  ipAddress         String?
+  userAgent         String?
+  expiresAt         DateTime
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Table des refresh tokens
+model RefreshToken {
+  id                String            @id @default(uuid())
+  userId            String
+  token             String            @unique
+  expiresAt         DateTime
+  isRevoked         Boolean           @default(false)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Table des codes de vérification
+model VerificationCode {
+  id                String            @id @default(uuid())
+  userId            String?
+  email             String?
+  phone             String?
+  code              String
+  type              String            // EMAIL, PHONE, PASSWORD_RESET
+  used              Boolean           @default(false)
+  expiresAt         DateTime
+  
+  // Relations
+  user              User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([email, type])
+  @@index([phone, type])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Table des tokens de réinitialisation de mot de passe
+model PasswordResetToken {
+  id                String            @id @default(uuid())
+  userId            String
+  token             String            @unique
+  expiresAt         DateTime
+  used              Boolean           @default(false)
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+

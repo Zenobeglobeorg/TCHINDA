@@ -8,25 +8,55 @@ import {
   Platform,
   ScrollView,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    // Validation
+    if (!email.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre mot de passe');
+      return;
+    }
+
+    // Validation email basique
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Erreur', 'Veuillez entrer un email valide');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulation de l'authentification
-    setTimeout(() => {
+    try {
+      const result = await login(email.trim(), password);
+      
+      if (result.success) {
+        // Navigation vers l'écran principal après connexion réussie
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Erreur de connexion', result.error || 'Une erreur est survenue');
+      }
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
       setIsLoading(false);
-      // Navigation vers l'écran principal après connexion réussie
-      router.push('/(tabs)');
-    }, 1500);
+    }
   };
 
   const handleSignUp = () => {
@@ -34,31 +64,18 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = () => {
-    setIsLoading(true);
-    // Simulation de connexion Google
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push('/(tabs)');
-    }, 1500);
+    Alert.alert('Info', 'Connexion Google (à implémenter)');
   };
 
   const handleFacebookLogin = () => {
-    setIsLoading(true);
-    // Simulation de connexion Facebook
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push('/(tabs)');
-    }, 1500);
+    Alert.alert('Info', 'Connexion Facebook (à implémenter)');
   };
 
   const handleAppleLogin = () => {
-    setIsLoading(true);
-    // Simulation de connexion Apple
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push('/(tabs)');
-    }, 1500);
+    Alert.alert('Info', 'Connexion Apple (à implémenter)');
   };
+
+  const loading = isLoading || authLoading;
 
   return (
     <ThemedView style={styles.container}>
@@ -72,7 +89,7 @@ export default function LoginScreen() {
             {/* Logo TCHINDA */}
             <View style={styles.logoContainer}>
               <Image
-                source={require('@/assets/images/logo.png')} // Utilise votre logo
+                source={require('@/assets/images/logo.png')}
                 style={styles.logo}
                 resizeMode="contain"
               />
@@ -101,6 +118,8 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
@@ -113,10 +132,11 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
               <ThemedText style={styles.forgotPasswordText}>
                 Mot de passe oublié ?
               </ThemedText>
@@ -125,14 +145,18 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                isLoading && styles.loginButtonDisabled,
+                loading && styles.loginButtonDisabled,
               ]}
               onPress={handleLogin}
-              disabled={isLoading}
+              disabled={loading}
             >
-              <ThemedText style={styles.loginButtonText}>
-                {isLoading ? 'Connexion...' : 'Se connecter'}
-              </ThemedText>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <ThemedText style={styles.loginButtonText}>
+                  Se connecter
+                </ThemedText>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -143,7 +167,7 @@ export default function LoginScreen() {
             <View style={styles.separatorLine} />
           </View>
 
-          {/* Boutons de connexion sociale EN DESSOUS du formulaire */}
+          {/* Boutons de connexion sociale */}
           <View style={styles.socialButtonsContainer}>
             <ThemedText style={styles.socialTitle}>
               Continuer avec
@@ -153,10 +177,10 @@ export default function LoginScreen() {
               <TouchableOpacity 
                 style={[styles.socialIconButton, styles.googleButton]}
                 onPress={handleGoogleLogin}
-                disabled={isLoading}
+                disabled={loading}
               >
                 <Image
-                  source={require('@/assets/images/google.png')} // Ajoutez votre icône Google
+                  source={require('@/assets/images/google.png')}
                   style={styles.socialIcon}
                   resizeMode="contain"
                 />
@@ -165,10 +189,10 @@ export default function LoginScreen() {
               <TouchableOpacity 
                 style={[styles.socialIconButton, styles.facebookButton]}
                 onPress={handleFacebookLogin}
-                disabled={isLoading}
+                disabled={loading}
               >
                 <Image
-                  source={require('@/assets/images/facebook.png')} // Ajoutez votre icône Facebook
+                  source={require('@/assets/images/facebook.png')}
                   style={styles.socialIcon}
                   resizeMode="contain"
                 />
@@ -177,10 +201,10 @@ export default function LoginScreen() {
               <TouchableOpacity 
                 style={[styles.socialIconButton, styles.appleButton]}
                 onPress={handleAppleLogin}
-                disabled={isLoading}
+                disabled={loading}
               >
                 <Image
-                  source={require('@/assets/images/apple.png')} // Ajoutez votre icône Apple
+                  source={require('@/assets/images/apple.png')}
                   style={styles.socialIcon}
                   resizeMode="contain"
                 />
@@ -199,7 +223,7 @@ export default function LoginScreen() {
             <ThemedText style={styles.signUpText}>
               Vous n'avez pas de compte ?{' '}
             </ThemedText>
-            <TouchableOpacity onPress={handleSignUp}>
+            <TouchableOpacity onPress={handleSignUp} disabled={loading}>
               <ThemedText style={styles.signUpLink}>
                 S'inscrire
               </ThemedText>
@@ -292,6 +316,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
   loginButtonDisabled: {
     opacity: 0.6,
@@ -386,7 +412,6 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     fontSize: 14,
-    
   },
   signUpLink: {
     color: '#A1CEDC',
