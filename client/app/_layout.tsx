@@ -56,6 +56,14 @@ export default function RootLayout() {
         />
         {/* Écrans tabs (si vous les utilisez après l'authentification) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Dashboard Admin */}
+        <Stack.Screen 
+          name="admin/dashboard" 
+          options={{ 
+            headerShown: false,
+            title: 'Dashboard Admin'
+          }} 
+        />
         <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />

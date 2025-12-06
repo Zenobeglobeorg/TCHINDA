@@ -17,7 +17,7 @@ const LOCAL_IP = '192.168.1.100'; // Changez cette valeur avec votre IP locale
 // Fonction pour obtenir l'URL de base selon l'environnement
 const getBaseURL = () => {
   if (!__DEV__) {
-    return 'https://api.tchinda.com'; // Production
+    return 'https://tchinda-production.up.railway.app'; // Production Railway
   }
 
   // En développement

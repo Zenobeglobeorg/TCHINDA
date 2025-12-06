@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
 
@@ -26,11 +26,16 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Navigation selon l'état d'authentification
+    // Navigation selon l'état d'authentification et le type de compte
     const timer = setTimeout(() => {
       if (!isLoading) {
-        if (isAuthenticated) {
-          router.replace('/(tabs)');
+        if (isAuthenticated && user) {
+          // Redirection selon le type de compte
+          if (user.accountType === 'ADMIN') {
+            router.replace('/admin/dashboard');
+          } else {
+            router.replace('/(tabs)');
+          }
         } else {
           router.replace('/Login');
         }
@@ -38,7 +43,7 @@ export default function SplashScreen() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, user]);
 
   return (
     <ThemedView style={styles.container}>

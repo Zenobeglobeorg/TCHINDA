@@ -15,13 +15,25 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading: authLoading } = useAuth();
+  const { login, isLoading: authLoading, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirection automatique si déjà connecté
+  useEffect(() => {
+    if (user) {
+      if (user.accountType === 'ADMIN') {
+        router.replace('/admin/dashboard');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     // Validation
@@ -47,8 +59,8 @@ export default function LoginScreen() {
       const result = await login(email.trim(), password);
       
       if (result.success) {
-        // Navigation vers l'écran principal après connexion réussie
-        router.replace('/(tabs)');
+        // La redirection se fera automatiquement via useEffect quand user sera mis à jour
+        // Pas besoin de rediriger ici, useEffect s'en chargera
       } else {
         Alert.alert('Erreur de connexion', result.error || 'Une erreur est survenue');
       }
