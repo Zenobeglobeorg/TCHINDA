@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,28 +13,60 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { apiService } from '@/services/api.service';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { Colors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 export default function BuyerHomeScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
+  const colors = useThemeColors();
   const [refreshing, setRefreshing] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+
+  // Rediriger les vendeurs vers l'espace vendeur
+  useEffect(() => {
+    if (user && user.accountType === 'SELLER') {
+      router.replace('/seller/dashboard');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadCartCount();
+  }, []);
+
+  const loadCartCount = async () => {
+    try {
+      const response = await apiService.get('/api/buyer/cart');
+      if (response.success && response.data) {
+        const cartData = response.data as { items?: Array<{ quantity: number }> };
+        if (cartData.items) {
+          const count = cartData.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+          setCartCount(count);
+        }
+      }
+    } catch (error) {
+      // Silently fail if user is not authenticated
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshUser();
+    await loadCartCount();
     setRefreshing(false);
   };
 
   // Catégories de produits (exemple)
   const categories = [
-    { id: 1, name: 'Électronique', icon: 'iphone', color: '#4A90E2' },
-    { id: 2, name: 'Mode', icon: 'tshirt', color: '#9B59B6' },
-    { id: 3, name: 'Maison', icon: 'house.fill', color: '#3498DB' },
-    { id: 4, name: 'Sport', icon: 'figure.run', color: '#8E44AD' },
-    { id: 5, name: 'Beauté', icon: 'sparkles', color: '#5DADE2' },
-    { id: 6, name: 'Alimentation', icon: 'cart.fill', color: '#7D3C98' },
+    { id: 1, name: 'Électronique', icon: 'iphone' as const, color: '#4A90E2' },
+    { id: 2, name: 'Mode', icon: 'tshirt' as const, color: '#9B59B6' },
+    { id: 3, name: 'Maison', icon: 'house.fill' as const, color: '#3498DB' },
+    { id: 4, name: 'Sport', icon: 'figure.walk' as const, color: '#8E44AD' },
+    { id: 5, name: 'Beauté', icon: 'sparkles' as const, color: '#5DADE2' },
+    { id: 6, name: 'Alimentation', icon: 'cart.fill' as const, color: '#7D3C98' },
   ];
 
   // Produits en vedette (exemple)
@@ -44,6 +76,222 @@ export default function BuyerHomeScreen() {
     { id: 3, name: 'Produit 3', price: '19.99€', image: null },
     { id: 4, name: 'Produit 4', price: '39.99€', image: null },
   ];
+
+  // Styles dynamiques basés sur le thème
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.section,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      paddingTop: 60,
+      backgroundColor: colors.card,
+    },
+    greeting: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.placeholder,
+    },
+    cartButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: colors.tint,
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    cartBadge: {
+      position: 'absolute',
+      top: -5,
+      right: -5,
+      backgroundColor: colors.error,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    cartBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      marginHorizontal: 20,
+      marginTop: 15,
+      marginBottom: 20,
+      paddingHorizontal: 15,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchPlaceholder: {
+      marginLeft: 10,
+      color: colors.placeholder,
+      fontSize: 14,
+    },
+    bannerContainer: {
+      marginBottom: 20,
+    },
+    bannerContent: {
+      paddingHorizontal: 20,
+    },
+    banner: {
+      width: width - 40,
+      height: 150,
+      borderRadius: 15,
+      padding: 20,
+      marginRight: 15,
+      justifyContent: 'center',
+    },
+    bannerBlue: {
+      backgroundColor: '#4A90E2',
+    },
+    bannerViolet: {
+      backgroundColor: '#9B59B6',
+    },
+    bannerTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      marginBottom: 8,
+    },
+    bannerSubtitle: {
+      fontSize: 16,
+      color: '#FFFFFF',
+      opacity: 0.9,
+    },
+    section: {
+      marginBottom: 30,
+      paddingHorizontal: 20,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 15,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 15,
+    },
+    seeAll: {
+      fontSize: 14,
+      color: colors.tint,
+      fontWeight: '600',
+    },
+    categoriesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    categoryCard: {
+      width: (width - 60) / 3,
+      alignItems: 'center',
+      marginBottom: 15,
+    },
+    categoryIcon: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    categoryName: {
+      fontSize: 12,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    productsContainer: {
+      paddingRight: 20,
+    },
+    productCard: {
+      width: 160,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      marginRight: 15,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: colors === Colors.dark ? 0.3 : 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    productImagePlaceholder: {
+      width: '100%',
+      height: 140,
+      backgroundColor: colors.section,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    productName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    productPrice: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: colors.tint,
+    },
+    flashOffer: {
+      flexDirection: 'row',
+      backgroundColor: colors.tint,
+      borderRadius: 15,
+      padding: 20,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    flashOfferContent: {
+      flex: 1,
+    },
+    flashOfferTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      marginBottom: 4,
+    },
+    flashOfferSubtitle: {
+      fontSize: 14,
+      color: '#FFFFFF',
+      opacity: 0.9,
+    },
+    flashOfferButton: {
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+    },
+    flashOfferButtonText: {
+      color: colors.tint,
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+  }), [colors]);
 
   return (
     <ThemedView style={styles.container}>
@@ -66,18 +314,20 @@ export default function BuyerHomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.cartButton}
-            onPress={() => router.push('/cart')}
+            onPress={() => router.push('/(tabs)/cart')}
           >
             <IconSymbol name="cart.fill" size={24} color="#FFFFFF" />
-            <View style={styles.cartBadge}>
-              <ThemedText style={styles.cartBadgeText}>0</ThemedText>
-            </View>
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <ThemedText style={styles.cartBadgeText}>{cartCount}</ThemedText>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
         {/* Barre de recherche */}
         <TouchableOpacity style={styles.searchBar}>
-          <IconSymbol name="magnifyingglass" size={20} color="#999" />
+          <IconSymbol name="magnifyingglass" size={20} color={colors.placeholder} />
           <ThemedText style={styles.searchPlaceholder}>
             Rechercher des produits...
           </ThemedText>
@@ -143,7 +393,7 @@ export default function BuyerHomeScreen() {
                 onPress={() => router.push(`/product/${product.id}`)}
               >
                 <View style={styles.productImagePlaceholder}>
-                  <IconSymbol name="photo" size={40} color="#CCC" />
+                  <IconSymbol name="photo" size={40} color={colors.placeholder} />
                 </View>
                 <ThemedText style={styles.productName} numberOfLines={2}>
                   {product.name}
@@ -175,218 +425,3 @@ export default function BuyerHomeScreen() {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#FFFFFF',
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1D3D47',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  cartButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#624cacff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#E74C3C',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  cartBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 15,
-    marginBottom: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  searchPlaceholder: {
-    marginLeft: 10,
-    color: '#999',
-    fontSize: 14,
-  },
-  bannerContainer: {
-    marginBottom: 20,
-  },
-  bannerContent: {
-    paddingHorizontal: 20,
-  },
-  banner: {
-    width: width - 40,
-    height: 150,
-    borderRadius: 15,
-    padding: 20,
-    marginRight: 15,
-    justifyContent: 'center',
-  },
-  bannerBlue: {
-    backgroundColor: '#4A90E2',
-  },
-  bannerViolet: {
-    backgroundColor: '#9B59B6',
-  },
-  bannerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  bannerSubtitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  section: {
-    marginBottom: 30,
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1D3D47',
-    marginBottom: 15,
-  },
-  seeAll: {
-    fontSize: 14,
-    color: '#624cacff',
-    fontWeight: '600',
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  categoryCard: {
-    width: (width - 60) / 3,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  categoryIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryName: {
-    fontSize: 12,
-    color: '#333',
-    textAlign: 'center',
-  },
-  productsContainer: {
-    paddingRight: 20,
-  },
-  productCard: {
-    width: 160,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImagePlaceholder: {
-    width: '100%',
-    height: 140,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#624cacff',
-  },
-  flashOffer: {
-    flexDirection: 'row',
-    backgroundColor: '#624cacff',
-    borderRadius: 15,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  flashOfferContent: {
-    flex: 1,
-  },
-  flashOfferTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  flashOfferSubtitle: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  flashOfferButton: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  flashOfferButtonText: {
-    color: '#624cacff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-});

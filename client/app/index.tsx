@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Animated, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,8 +8,45 @@ import { useAuth } from '@/hooks/useAuth';
 export default function SplashScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
-  const fadeAnim = new Animated.Value(0);
-  const scaleAnim = new Animated.Value(0.8);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const hasNavigated = useRef(false);
+
+  // Vérifier la connexion internet
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        // Vérifier la connexion en essayant de faire une requête simple
+        // On utilise un timeout pour ne pas bloquer trop longtemps
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        try {
+          await fetch('https://www.google.com', {
+            method: 'HEAD',
+            signal: controller.signal,
+            cache: 'no-cache',
+          });
+          setIsConnected(true);
+        } catch (fetchError) {
+          // Si la requête échoue, on considère quand même qu'il y a une connexion
+          // car l'utilisateur pourrait être sur un réseau local
+          setIsConnected(true);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (error) {
+        // En cas d'erreur, on considère qu'il y a une connexion
+        // pour ne pas bloquer l'utilisateur
+        setIsConnected(true);
+      }
+    };
+
+    checkConnection();
+  }, []);
 
   useEffect(() => {
     // Animation d'entrée
@@ -17,7 +54,7 @@ export default function SplashScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
-        useNativeDriver: false, // Changé à false pour permettre width
+        useNativeDriver: false,
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
@@ -26,24 +63,44 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Navigation selon l'état d'authentification et le type de compte
-    const timer = setTimeout(() => {
-      if (!isLoading) {
+    // Animation de la barre de progression
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2000,
+      useNativeDriver: false,
+    }).start(() => {
+      setLoadingComplete(true);
+    });
+  }, []);
+
+  // Navigation après chargement complet
+  useEffect(() => {
+    // Attendre que le chargement soit terminé ET que la connexion soit vérifiée
+    if (loadingComplete && !isLoading && isConnected !== null && !hasNavigated.current) {
+      hasNavigated.current = true;
+      
+      // Petit délai pour une transition fluide
+      const navigationTimer = setTimeout(() => {
         if (isAuthenticated && user) {
           // Redirection selon le type de compte
           if (user.accountType === 'ADMIN') {
             router.replace('/admin/dashboard');
+          } else if (user.accountType === 'SELLER') {
+            // Rediriger vers l'espace vendeur
+            router.replace('/seller/dashboard');
           } else {
+            // Rediriger vers l'onglet index (page d'accueil) pour les acheteurs
             router.replace('/(tabs)');
           }
         } else {
+          // Rediriger vers la page de connexion
           router.replace('/Login');
         }
-      }
-    }, 2000);
+      }, 500);
 
-    return () => clearTimeout(timer);
-  }, [isLoading, isAuthenticated, user]);
+      return () => clearTimeout(navigationTimer);
+    }
+  }, [loadingComplete, isLoading, isAuthenticated, user, isConnected]);
 
   return (
     <ThemedView style={styles.container}>
@@ -74,7 +131,7 @@ export default function SplashScreen() {
             style={[
               styles.loadingProgress,
               {
-                width: fadeAnim.interpolate({
+                width: progressAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: [0, 200],
                 }),
@@ -83,8 +140,13 @@ export default function SplashScreen() {
           />
         </View>
         <ThemedText style={styles.loadingText}>
-          Chargement...
+          {isLoading ? 'Chargement...' : isConnected === false ? 'Vérification de la connexion...' : 'Préparation...'}
         </ThemedText>
+        {isConnected === false && (
+          <ThemedText style={styles.connectionWarning}>
+            Connexion internet requise
+          </ThemedText>
+        )}
       </View>
     </ThemedView>
   );
@@ -136,5 +198,12 @@ const styles = StyleSheet.create({
   loadingText: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
+    marginTop: 8,
+  },
+  connectionWarning: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

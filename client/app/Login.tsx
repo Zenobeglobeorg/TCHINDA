@@ -29,6 +29,8 @@ export default function LoginScreen() {
     if (user) {
       if (user.accountType === 'ADMIN') {
         router.replace('/admin/dashboard');
+      } else if (user.accountType === 'SELLER') {
+        router.replace('/seller/dashboard');
       } else {
         router.replace('/(tabs)');
       }
@@ -59,8 +61,10 @@ export default function LoginScreen() {
       const result = await login(email.trim(), password);
       
       if (result.success) {
-        // La redirection se fera automatiquement via useEffect quand user sera mis à jour
-        // Pas besoin de rediriger ici, useEffect s'en chargera
+        // Attendre un peu pour que l'utilisateur soit mis à jour
+        setTimeout(() => {
+          // La redirection se fera automatiquement via useEffect quand user sera mis à jour
+        }, 100);
       } else {
         Alert.alert('Erreur de connexion', result.error || 'Une erreur est survenue');
       }
@@ -312,6 +316,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 8,
+    color: '#ffff',
     padding: 16,
     fontSize: 16,
   },

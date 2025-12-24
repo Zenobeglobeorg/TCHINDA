@@ -9,6 +9,8 @@ import rateLimit from 'express-rate-limit';
 // Import routes
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
+import buyerRoutes from './routes/buyer.routes.js';
+import sellerRoutes from './routes/seller.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -68,6 +70,8 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/buyer', buyerRoutes);
+app.use('/api/seller', sellerRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);
