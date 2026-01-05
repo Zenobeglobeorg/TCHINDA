@@ -54,6 +54,30 @@ function AppContent() {
             headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
           }} 
         />
+        {/* Écran mot de passe oublié */}
+        <Stack.Screen 
+          name="ForgotPassword" 
+          options={{ 
+            title: 'Mot de passe oublié',
+            headerBackTitle: 'Retour',
+            headerStyle: {
+              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+            },
+            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+          }} 
+        />
+        {/* Écran réinitialisation mot de passe */}
+        <Stack.Screen 
+          name="ResetPassword" 
+          options={{ 
+            title: 'Réinitialiser le mot de passe',
+            headerBackTitle: 'Retour',
+            headerStyle: {
+              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+            },
+            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+          }} 
+        />
         {/* Écrans tabs (si vous les utilisez après l'authentification) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* Dashboard Admin */}

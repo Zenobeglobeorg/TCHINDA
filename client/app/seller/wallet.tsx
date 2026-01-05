@@ -5,7 +5,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   FlatList,
@@ -19,6 +18,11 @@ import { ThemedText } from '@/components/ThemedText';
 import { apiService } from '@/services/api.service';
 import { useRouter } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
+import PaymentInfoForm from '@/components/PaymentInfoForm';
+import WithdrawConfirmationForm from '@/components/WithdrawConfirmationForm';
+import { alert } from '@/utils/alert';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 interface Wallet {
   id: string;
@@ -416,16 +420,29 @@ function DepositModal({
 }) {
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('XOF');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
 
-  const handleDeposit = async () => {
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    // Après sélection, afficher le formulaire d'informations
+    setShowPaymentInfoForm(true);
+  };
+
+  const handlePaymentInfoSubmit = async (paymentInfo: any) => {
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+      alert('Erreur', 'Veuillez entrer un montant valide');
+      return;
+    }
+
+    if (!paymentMethod) {
+      alert('Erreur', 'Méthode de paiement non sélectionnée');
       return;
     }
 
@@ -434,20 +451,31 @@ function DepositModal({
       const response = await apiService.post('/api/buyer/wallet/deposit', {
         amount: parseFloat(amount),
         currency,
-        paymentMethod: paymentMethod || 'bank_transfer',
+        paymentMethod: paymentMethod.id,
+        paymentInfo, // Informations de paiement
       });
 
       if (response.success) {
-        Alert.alert('Succès', 'Dépôt effectué avec succès');
+        alert('Succès', `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`);
         onSuccess();
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
+        alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeposit = () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      alert('Erreur', 'Veuillez entrer un montant valide');
+      return;
+    }
+
+    // Ouvrir le modal de sélection de méthode de paiement
+    setShowPaymentModal(true);
   };
 
   return (
@@ -494,6 +522,30 @@ function DepositModal({
             </View>
           </View>
 
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Mode de paiement</Text>
+            <TouchableOpacity
+              style={[
+                styles.input,
+                { 
+                  backgroundColor, 
+                  color: textColor, 
+                  borderColor: tintColor,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 12,
+                },
+              ]}
+              onPress={() => setShowPaymentModal(true)}
+            >
+              <Text style={{ color: paymentMethod ? textColor : textColor + '80', flex: 1 }}>
+                {paymentMethod ? paymentMethod.name : 'Choisir un mode de paiement'}
+              </Text>
+              <IconSymbol name="chevron.right" size={20} color={textColor + '60'} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.modalActions}>
             <TouchableOpacity
               style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
@@ -504,7 +556,7 @@ function DepositModal({
             <TouchableOpacity
               style={[styles.modalButton, { backgroundColor: tintColor }]}
               onPress={handleDeposit}
-              disabled={loading}
+              disabled={loading || !amount}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -515,6 +567,29 @@ function DepositModal({
           </View>
         </View>
       </View>
+
+      {/* Payment Method Selection Modal */}
+      <PaymentMethodModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentMethodSelect}
+        title="Choisir un mode de paiement"
+        loading={loading}
+      />
+
+      {/* Payment Info Form Modal */}
+      {paymentMethod && (
+        <PaymentInfoForm
+          visible={showPaymentInfoForm}
+          paymentMethod={paymentMethod}
+          amount={parseFloat(amount) || 0}
+          currency={currency}
+          onClose={() => setShowPaymentInfoForm(false)}
+          onSubmit={handlePaymentInfoSubmit}
+          loading={loading}
+          transactionType="deposit"
+        />
+      )}
     </Modal>
   );
 }
@@ -531,111 +606,168 @@ function WithdrawModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState(wallet?.currency || 'XOF');
-  const [accountDetails, setAccountDetails] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showWithdrawConfirmation, setShowWithdrawConfirmation] = useState(false);
+  const [currency, setCurrency] = useState(wallet?.currency || 'XOF');
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
 
-  const handleWithdraw = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+  // Calculer le solde disponible
+  const getAvailableBalance = () => {
+    if (!wallet) return 0;
+    if (wallet.walletCurrencies && wallet.walletCurrencies.length > 0) {
+      const walletCurrency = wallet.walletCurrencies.find((wc: any) => wc.currency === currency);
+      return walletCurrency ? parseFloat(walletCurrency.balance) : 0;
+    }
+    return parseFloat(wallet.balance) || 0;
+  };
+
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    // Après sélection, afficher le formulaire de confirmation avec montant et mot de passe
+    setShowWithdrawConfirmation(true);
+  };
+
+  const handleWithdrawConfirm = async (amount: number, paymentInfo: any, password: string) => {
+    if (!paymentMethod) {
+      alert('Erreur', 'Méthode de paiement non sélectionnée');
       return;
     }
 
-    if (parseFloat(amount) > (wallet?.balance || 0)) {
-      Alert.alert('Erreur', 'Montant supérieur au solde disponible');
-      return;
-    }
-
-    if (!accountDetails) {
-      Alert.alert('Erreur', 'Veuillez entrer les détails du compte');
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await apiService.post('/api/buyer/wallet/withdraw', {
-        amount: parseFloat(amount),
+        amount,
         currency,
-        accountDetails,
+        paymentMethod: paymentMethod.id,
+        paymentInfo,
+        password, // Mot de passe pour confirmation
       });
 
       if (response.success) {
-        Alert.alert('Succès', 'Demande de retrait effectuée');
-        onSuccess();
+        alert(
+          'Succès',
+          `Demande de retrait de ${amount.toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectuée. Le traitement peut prendre 24-48h.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                onSuccess();
+                onClose();
+              },
+            },
+          ]
+        );
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors du retrait');
+        alert('Erreur', response.error?.message || 'Erreur lors du retrait');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleWithdraw = () => {
+    // Ouvrir directement le modal de sélection de méthode de paiement
+    setShowPaymentModal(true);
+  };
+
+  // Quand le modal s'ouvre, réinitialiser les états
+  React.useEffect(() => {
+    if (visible) {
+      setPaymentMethod(null);
+      setShowPaymentModal(false);
+      setShowWithdrawConfirmation(false);
+      if (wallet?.walletCurrencies && wallet.walletCurrencies.length > 0) {
+        setCurrency(wallet.walletCurrencies[0].currency);
+      } else {
+        setCurrency(wallet?.currency || 'XOF');
+      }
+    }
+  }, [visible, wallet]);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor }]}>
-          <ThemedText type="title" style={styles.modalTitle}>
-            Retirer des fonds
-          </ThemedText>
+    <>
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <ThemedText type="title" style={styles.modalTitle}>
+              Retirer des fonds
+            </ThemedText>
 
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: textColor }]}>
-              Montant (Solde disponible: {wallet?.balance?.toLocaleString() || 0}{' '}
-              {wallet?.currency || 'XOF'})
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor }]}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0"
-            />
-          </View>
+            {/* Balance Info */}
+            <View style={[styles.balanceInfoCard, { backgroundColor: tintColor + '20' }]}>
+              <Text style={[styles.balanceInfoLabel, { color: textColor + '80' }]}>
+                Solde disponible
+              </Text>
+              <Text style={[styles.balanceInfoAmount, { color: tintColor }]}>
+                {getAvailableBalance().toLocaleString('fr-FR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                {currency}
+              </Text>
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: textColor }]}>Détails du compte</Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                { backgroundColor, color: textColor, borderColor: tintColor },
-              ]}
-              value={accountDetails}
-              onChangeText={setAccountDetails}
-              placeholder="Numéro de compte, IBAN, etc."
-              multiline
-              numberOfLines={3}
-            />
-          </View>
+            {/* Info */}
+            <View style={[styles.infoCard, { backgroundColor: tintColor + '10' }]}>
+              <IconSymbol name="info.circle.fill" size={20} color={tintColor} />
+              <Text style={[styles.infoText, { color: textColor }]}>
+                Sélectionnez un mode de retrait, puis entrez le montant et confirmez avec votre mot de passe.
+              </Text>
+            </View>
 
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
-              onPress={onClose}
-            >
-              <Text style={styles.modalButtonText}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: tintColor }]}
-              onPress={handleWithdraw}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.modalButtonText}>Retirer</Text>
-              )}
-            </TouchableOpacity>
+            {/* Withdraw Button */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
+                onPress={onClose}
+              >
+                <Text style={styles.modalButtonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#F44336' }]}
+                onPress={handleWithdraw}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Choisir un mode de retrait</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      {/* Payment Method Selection Modal */}
+      <PaymentMethodModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentMethodSelect}
+        title="Choisir un mode de retrait"
+        loading={loading}
+      />
+
+      {/* Withdraw Confirmation Form Modal */}
+      {paymentMethod && (
+        <WithdrawConfirmationForm
+          visible={showWithdrawConfirmation}
+          paymentMethod={paymentMethod}
+          availableBalance={getAvailableBalance()}
+          currency={currency}
+          onClose={() => setShowWithdrawConfirmation(false)}
+          onSubmit={handleWithdrawConfirm}
+          loading={loading}
+        />
+      )}
+    </>
   );
 }
 
@@ -830,6 +962,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
+  },
+  balanceInfoCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  balanceInfoLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  balanceInfoAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    gap: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
   formGroup: {
     marginBottom: 15,

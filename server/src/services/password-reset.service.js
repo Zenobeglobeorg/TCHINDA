@@ -25,7 +25,7 @@ export const createPasswordResetToken = async (email) => {
 
   if (!user) {
     // Ne pas révéler si l'email existe ou non (sécurité)
-    return { success: true };
+    return { success: true, emailSent: null }; // null = email n'existe pas, donc pas d'envoi
   }
 
   // Supprimer les anciens tokens non utilisés
@@ -52,13 +52,23 @@ export const createPasswordResetToken = async (email) => {
 
   // Envoyer l'email de réinitialisation
   try {
-    await sendPasswordResetEmail(user.email, token, user.firstName);
+    const emailResult = await sendPasswordResetEmail(user.email, token, user.firstName);
+    if (emailResult && emailResult.success && !emailResult.testMode) {
+      console.log(`✅ Email de réinitialisation envoyé à ${user.email}`);
+      return { success: true, emailSent: true };
+    } else if (emailResult && emailResult.testMode) {
+      console.warn(`⚠️  Mode test: Email non envoyé réellement à ${user.email} (configuration email manquante)`);
+      return { success: true, emailSent: false, error: 'Configuration email non disponible (mode test)' };
+    } else {
+      console.error(`❌ Échec de l'envoi de l'email à ${user.email}`);
+      return { success: true, emailSent: false, error: 'Échec de l\'envoi de l\'email' };
+    }
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email:', error);
-    // Ne pas échouer si l'email ne peut pas être envoyé
+    console.error(`❌ Erreur lors de l'envoi de l'email à ${user.email}:`, error.message || error);
+    console.error('Détails de l\'erreur:', error);
+    // Le token est créé, donc on retourne success mais on indique que l'email n'a pas été envoyé
+    return { success: true, emailSent: false, error: error.message || 'Erreur lors de l\'envoi de l\'email' };
   }
-
-  return { success: true };
 };
 
 /**

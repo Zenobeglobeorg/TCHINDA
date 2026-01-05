@@ -12,6 +12,11 @@ import {
   resetPasswordController,
   getCurrentUser,
 } from '../controllers/auth.controller.js';
+import {
+  googleLogin,
+  facebookLogin,
+  appleLogin,
+} from '../controllers/oauth.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import {
   registerValidation,
@@ -99,6 +104,27 @@ router.post('/forgot-password', forgotPassword);
  * @access  Public
  */
 router.post('/reset-password', resetPasswordController);
+
+/**
+ * @route   POST /api/auth/google
+ * @desc    Connexion avec Google
+ * @access  Public
+ */
+router.post('/google', googleLogin);
+
+/**
+ * @route   POST /api/auth/facebook
+ * @desc    Connexion avec Facebook
+ * @access  Public
+ */
+router.post('/facebook', facebookLogin);
+
+/**
+ * @route   POST /api/auth/apple
+ * @desc    Connexion avec Apple
+ * @access  Public
+ */
+router.post('/apple', appleLogin);
 
 export default router;
 

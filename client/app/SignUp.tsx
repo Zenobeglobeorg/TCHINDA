@@ -7,14 +7,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
-import { Picker } from '@react-native-picker/picker';
+import { alert } from '@/utils/alert';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -27,9 +28,21 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [country, setCountry] = useState('SN');
   const [isLoading, setIsLoading] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
   
   // Type de compte fixé à BUYER pour l'inscription
   const accountType: 'BUYER' = 'BUYER';
+
+  const countries = [
+    { label: 'Sénégal', value: 'SN' },
+    { label: "Côte d'Ivoire", value: 'CI' },
+    { label: 'Cameroun', value: 'CM' },
+    { label: 'Gabon', value: 'GA' },
+    { label: 'Maroc', value: 'MA' },
+    { label: 'Autre', value: '' },
+  ];
+
+  const selectedCountryLabel = countries.find(c => c.value === country)?.label || 'Sénégal';
 
   const handleSignUp = async () => {
     // Validations
@@ -193,22 +206,58 @@ export default function SignUpScreen() {
 
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Pays</ThemedText>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={country}
-                  onValueChange={(value) => setCountry(value)}
-                  style={styles.picker}
-                  enabled={!loading}
-                >
-                  <Picker.Item label="Sénégal" value="SN" />
-                  <Picker.Item label="Côte d'Ivoire" value="CI" />
-                  <Picker.Item label="Cameroun" value="CM" />
-                  <Picker.Item label="Gabon" value="GA" />
-                  <Picker.Item label="Maroc" value="MA" />
-                  <Picker.Item label="Autre" value="" />
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={styles.pickerContainer}
+                onPress={() => !loading && setShowCountryModal(true)}
+                disabled={loading}
+              >
+                <ThemedText style={styles.pickerText}>{selectedCountryLabel}</ThemedText>
+              </TouchableOpacity>
             </View>
+
+            {/* Country Selection Modal */}
+            <Modal
+              visible={showCountryModal}
+              transparent={true}
+              animationType="slide"
+              onRequestClose={() => setShowCountryModal(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <ThemedText style={styles.modalTitle}>Sélectionner un pays</ThemedText>
+                    <TouchableOpacity onPress={() => setShowCountryModal(false)}>
+                      <ThemedText style={styles.modalCloseButton}>✕</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={countries}
+                    keyExtractor={(item) => item.value}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[
+                          styles.countryOption,
+                          country === item.value && styles.countryOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setCountry(item.value);
+                          setShowCountryModal(false);
+                        }}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.countryOptionText,
+                            country === item.value && styles.countryOptionTextSelected,
+                          ]}
+                        >
+                          {item.label}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </View>
+            </Modal>
 
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Mot de passe *</ThemedText>
@@ -336,10 +385,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 8,
-    overflow: 'hidden',
+    padding: 16,
+    minHeight: 50,
+    justifyContent: 'center',
   },
-  picker: {
-    height: 50,
+  pickerText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    fontSize: 24,
+    color: '#999',
+  },
+  countryOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  countryOptionSelected: {
+    backgroundColor: 'rgba(98, 76, 172, 0.1)',
+  },
+  countryOptionText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  countryOptionTextSelected: {
+    color: '#624cacff',
+    fontWeight: '600',
   },
   signUpButton: {
     backgroundColor: '#624cacff',

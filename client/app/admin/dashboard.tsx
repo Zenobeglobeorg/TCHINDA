@@ -31,49 +31,52 @@ export default function AdminDashboardScreen() {
     router.replace('/Login');
   };
 
-  // Statistiques (exemple - à connecter avec l'API)
+  // Statistiques globales (à connecter avec l'API)
   const stats = [
     {
       id: 1,
-      title: 'Utilisateurs',
-      value: '1,234',
-      change: '+12%',
-      icon: 'person.2.fill',
-      color: '#4A90E2',
+      title: 'Revenus totaux',
+      value: '1,245,000',
+      change: '+15%',
+      icon: 'dollarsign.circle.fill',
+      color: '#4CAF50',
     },
     {
       id: 2,
-      title: 'Commandes',
-      value: '567',
-      change: '+8%',
-      icon: 'cart.fill',
-      color: '#9B59B6',
+      title: 'Litiges en attente',
+      value: '3',
+      change: '-2',
+      icon: 'exclamationmark.triangle.fill',
+      color: '#F44336',
     },
     {
       id: 3,
-      title: 'Revenus',
-      value: '€45,678',
-      change: '+15%',
-      icon: 'dollarsign.circle.fill',
-      color: '#3498DB',
+      title: 'Alertes actives',
+      value: '5',
+      change: '+2',
+      icon: 'bell.badge.fill',
+      color: '#FF9800',
     },
     {
       id: 4,
-      title: 'Produits',
-      value: '890',
-      change: '+5%',
-      icon: 'cube.box.fill',
-      color: '#8E44AD',
+      title: 'Pays actifs',
+      value: '6',
+      change: '+1',
+      icon: 'globe',
+      color: '#2196F3',
     },
   ];
 
   const quickActions = [
-    { id: 1, title: 'Gérer les utilisateurs', icon: 'person.3.fill', route: '/admin/users' },
-    { id: 2, title: 'Gérer les produits', icon: 'cube.box.fill', route: '/admin/products' },
-    { id: 3, title: 'Commandes', icon: 'cart.fill', route: '/admin/orders' },
-    { id: 4, title: 'Rapports', icon: 'chart.bar.fill', route: '/admin/reports' },
-    { id: 5, title: 'Paramètres', icon: 'gearshape.fill', route: '/admin/settings' },
-    { id: 6, title: 'Support', icon: 'message.fill', route: '/admin/support' },
+    { id: 1, title: 'Gestion globale', icon: 'gearshape.2.fill' as const, route: '/admin/global' as const },
+    { id: 2, title: 'Finance & Litiges', icon: 'dollarsign.circle.fill' as const, route: '/admin/finance' as const },
+    { id: 3, title: 'Publicité', icon: 'megaphone.fill' as const, route: '/admin/advertising' as const },
+    { id: 4, title: 'Maintenance', icon: 'wrench.and.screwdriver.fill' as const, route: '/admin/maintenance' as const },
+    { id: 5, title: 'Modérateurs', icon: 'person.badge.shield.checkmark.fill' as const, route: '/admin/moderators' as const },
+    { id: 6, title: 'Analytics', icon: 'chart.line.uptrend.xyaxis' as const, route: '/admin/analytics' as const },
+    { id: 7, title: 'Multi-pays', icon: 'globe' as const, route: '/admin/countries' as const },
+    { id: 8, title: 'Rapports', icon: 'chart.bar.fill' as const, route: '/admin/reports' as const },
+    { id: 9, title: 'Alertes', icon: 'bell.badge.fill' as const, route: '/admin/alerts' as const },
   ];
 
   return (
@@ -105,7 +108,7 @@ export default function AdminDashboardScreen() {
           {stats.map((stat) => (
             <View key={stat.id} style={styles.statCard}>
               <View style={[styles.statIconContainer, { backgroundColor: stat.color }]}>
-                <IconSymbol name={stat.icon} size={24} color="#FFFFFF" />
+                <IconSymbol name={stat.icon as any} size={24} color="#FFFFFF" />
               </View>
               <View style={styles.statContent}>
                 <ThemedText style={styles.statValue}>{stat.value}</ThemedText>
@@ -127,7 +130,7 @@ export default function AdminDashboardScreen() {
                 onPress={() => router.push(action.route)}
               >
                 <View style={styles.actionIconContainer}>
-                  <IconSymbol name={action.icon} size={32} color="#624cacff" />
+                  <IconSymbol name={action.icon as any} size={32} color="#624cacff" />
                 </View>
                 <ThemedText style={styles.actionTitle}>{action.title}</ThemedText>
               </TouchableOpacity>
@@ -135,39 +138,39 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        {/* Activités récentes */}
+        {/* Alertes système récentes */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Activités récentes</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Alertes système récentes</ThemedText>
           <View style={styles.activityCard}>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
-                <IconSymbol name="person.fill" size={20} color="#4A90E2" />
+                <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#F44336" />
               </View>
               <View style={styles.activityContent}>
                 <ThemedText style={styles.activityText}>
-                  Nouvel utilisateur inscrit
+                  Litige nécessitant une attention
                 </ThemedText>
                 <ThemedText style={styles.activityTime}>Il y a 5 minutes</ThemedText>
               </View>
             </View>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
-                <IconSymbol name="cart.fill" size={20} color="#9B59B6" />
+                <IconSymbol name="bell.fill" size={20} color="#FF9800" />
               </View>
               <View style={styles.activityContent}>
                 <ThemedText style={styles.activityText}>
-                  Nouvelle commande reçue
+                  Nouvelle alerte système
                 </ThemedText>
                 <ThemedText style={styles.activityTime}>Il y a 15 minutes</ThemedText>
               </View>
             </View>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
-                <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#E74C3C" />
+                <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color="#4CAF50" />
               </View>
               <View style={styles.activityContent}>
                 <ThemedText style={styles.activityText}>
-                  Signalement d'un produit
+                  Rapport analytics généré
                 </ThemedText>
                 <ThemedText style={styles.activityTime}>Il y a 1 heure</ThemedText>
               </View>

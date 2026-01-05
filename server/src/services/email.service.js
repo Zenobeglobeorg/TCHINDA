@@ -9,23 +9,48 @@ let transporter = null;
 const initTransporter = () => {
   if (transporter) return transporter;
 
+  // Vérifier si les credentials email sont configurés
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('⚠️  EMAIL_USER ou EMAIL_PASS non configuré. Les emails ne peuvent pas être envoyés.');
+    console.warn('   Configurez ces variables d\'environnement pour activer l\'envoi d\'emails.');
+    return null;
+  }
+
   // En développement, utiliser un transporteur de test si les credentials ne sont pas configurés
   if (process.env.NODE_ENV === 'development' && !process.env.EMAIL_USER) {
     console.warn('⚠️  Email non configuré. Utilisation du mode test.');
     return null;
   }
 
-  transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false, // true pour 465, false pour les autres ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  try {
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: false, // true pour 465, false pour les autres ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      // Ajouter une vérification de connexion
+      tls: {
+        rejectUnauthorized: false, // Pour les environnements de développement
+      },
+    });
 
-  return transporter;
+    // Vérifier la connexion
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ Erreur de vérification du transporteur email:', error);
+      } else {
+        console.log('✅ Configuration email vérifiée avec succès');
+      }
+    });
+
+    return transporter;
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation du transporteur email:', error);
+    return null;
+  }
 };
 
 /**
@@ -37,11 +62,11 @@ export const sendEmail = async (to, subject, html, text = null) => {
 
     if (!emailTransporter) {
       // En mode développement sans configuration, logger l'email
-      console.log('📧 Email (mode test):');
+      console.log('📧 Email (mode test - email non configuré):');
       console.log('To:', to);
       console.log('Subject:', subject);
-      console.log('Body:', text || html);
-      return { success: true, message: 'Email envoyé (mode test)' };
+      console.log('Body:', text || html.substring(0, 200) + '...');
+      return { success: false, message: 'Email non configuré (mode test)', testMode: true };
     }
 
     const mailOptions = {
@@ -53,10 +78,22 @@ export const sendEmail = async (to, subject, html, text = null) => {
     };
 
     const info = await emailTransporter.sendMail(mailOptions);
-    console.log('✅ Email envoyé:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    
+    if (info && info.messageId) {
+      console.log(`✅ Email envoyé avec succès à ${to} (MessageId: ${info.messageId})`);
+      return { success: true, messageId: info.messageId };
+    } else {
+      console.warn(`⚠️  Email envoyé mais sans messageId confirmé à ${to}`);
+      return { success: true, messageId: null };
+    }
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+    console.error(`❌ Erreur lors de l'envoi de l'email à ${to}:`, error.message || error);
+    console.error('Détails de l\'erreur:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
     throw new Error(`Erreur lors de l'envoi de l'email: ${error.message}`);
   }
 };

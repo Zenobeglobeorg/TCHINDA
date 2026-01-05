@@ -4,8 +4,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,15 +12,19 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
+import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
+import WithdrawConfirmationForm from '@/components/WithdrawConfirmationForm';
+import { alert } from '@/utils/alert';
 
 export default function WithdrawScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState<any>(null);
-  const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('XOF');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showWithdrawConfirmation, setShowWithdrawConfirmation] = useState(false);
 
   useEffect(() => {
     loadWallet();
@@ -43,12 +45,6 @@ export default function WithdrawScreen() {
   };
 
   const currencies = wallet?.walletCurrencies?.map((wc: any) => wc.currency) || ['XOF'];
-  const paymentMethods = [
-    { id: 'orange_money', name: 'Orange Money', icon: 'creditcard.fill' },
-    { id: 'mtn_money', name: 'MTN Money', icon: 'creditcard.fill' },
-    { id: 'moov_money', name: 'Moov Money', icon: 'creditcard.fill' },
-    { id: 'bank_transfer', name: 'Virement bancaire', icon: 'creditcard.fill' },
-  ];
 
   const getAvailableBalance = () => {
     if (!wallet?.walletCurrencies) return 0;
@@ -56,68 +52,54 @@ export default function WithdrawScreen() {
     return walletCurrency ? parseFloat(walletCurrency.balance) : 0;
   };
 
-  const handleWithdraw = async () => {
-    const availableBalance = getAvailableBalance();
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    // Après sélection, afficher le formulaire de confirmation avec montant et mot de passe
+    setShowWithdrawConfirmation(true);
+  };
 
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
-      return;
-    }
-
-    if (parseFloat(amount) > availableBalance) {
-      Alert.alert('Erreur', 'Solde insuffisant');
-      return;
-    }
-
+  const handleWithdrawConfirm = async (amount: number, paymentInfo: any, password: string) => {
     if (!paymentMethod) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un mode de retrait');
+      alert('Erreur', 'Méthode de paiement non sélectionnée');
       return;
     }
 
-    Alert.alert(
-      'Confirmer le retrait',
-      `Voulez-vous retirer ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const response = await apiService.post('/api/buyer/wallet/withdraw', {
-                amount: parseFloat(amount),
-                currency,
-                paymentMethod,
-              });
+    setLoading(true);
+    try {
+      const response = await apiService.post('/api/buyer/wallet/withdraw', {
+        amount,
+        currency,
+        paymentMethod: paymentMethod.id,
+        paymentInfo,
+        password, // Mot de passe pour confirmation
+      });
 
-              if (response.success) {
-                Alert.alert(
-                  'Succès',
-                  'Demande de retrait effectuée. Le traitement peut prendre 24-48h.',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => router.back(),
-                    },
-                  ]
-                );
-              } else {
-                Alert.alert('Erreur', response.error?.message || 'Erreur lors du retrait');
-              }
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+      if (response.success) {
+        alert(
+          'Succès',
+          `Demande de retrait de ${amount.toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectuée. Le traitement peut prendre 24-48h.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        alert('Erreur', response.error?.message || 'Erreur lors du retrait');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const setMaxAmount = () => {
-    setAmount(getAvailableBalance().toString());
+  const handleWithdraw = () => {
+    // Ouvrir directement le modal de sélection de méthode de paiement
+    setShowPaymentModal(true);
   };
+
 
   return (
     <ThemedView style={styles.container}>
@@ -143,81 +125,11 @@ export default function WithdrawScreen() {
           </ThemedText>
         </View>
 
-        {/* Amount Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>Montant</ThemedText>
-            <TouchableOpacity onPress={setMaxAmount}>
-              <ThemedText style={styles.maxButton}>Max</ThemedText>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.amountInputContainer}>
-            <TextInput
-              style={styles.amountInput}
-              placeholder="0"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-            />
-            <View style={styles.currencySelector}>
-              {currencies.map((curr) => (
-                <TouchableOpacity
-                  key={curr}
-                  style={[
-                    styles.currencyButton,
-                    currency === curr && styles.currencyButtonActive,
-                  ]}
-                  onPress={() => {
-                    setCurrency(curr);
-                    setAmount('');
-                  }}
-                >
-                  <ThemedText
-                    style={[
-                      styles.currencyButtonText,
-                      currency === curr && styles.currencyButtonTextActive,
-                    ]}
-                  >
-                    {curr}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Payment Method Section */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Mode de retrait</ThemedText>
-          
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.paymentMethodCard,
-                paymentMethod === method.id && styles.paymentMethodCardActive,
-              ]}
-              onPress={() => setPaymentMethod(method.id)}
-            >
-              <View style={styles.paymentMethodLeft}>
-                <View style={styles.paymentMethodIcon}>
-                  <IconSymbol name={method.icon} size={24} color="#624cacff" />
-                </View>
-                <ThemedText style={styles.paymentMethodName}>{method.name}</ThemedText>
-              </View>
-              {paymentMethod === method.id && (
-                <IconSymbol name="checkmark.circle.fill" size={24} color="#624cacff" />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-
         {/* Info */}
         <View style={styles.infoCard}>
           <IconSymbol name="info.circle.fill" size={20} color="#624cacff" />
           <ThemedText style={styles.infoText}>
-            Les retraits sont traités sous 24-48h. Assurez-vous que vos informations de paiement sont à jour.
+            Sélectionnez un mode de retrait, puis entrez le montant et confirmez avec votre mot de passe.
           </ThemedText>
         </View>
 
@@ -225,20 +137,42 @@ export default function WithdrawScreen() {
         <TouchableOpacity
           style={[
             styles.withdrawButton,
-            (loading || parseFloat(amount) > getAvailableBalance()) && styles.withdrawButtonDisabled,
+            loading && styles.withdrawButtonDisabled,
           ]}
           onPress={handleWithdraw}
-          disabled={loading || parseFloat(amount) > getAvailableBalance()}
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
             <ThemedText style={styles.withdrawButtonText}>
-              Retirer {amount ? `${parseFloat(amount).toLocaleString('fr-FR')} ${currency}` : ''}
+              Retirer
             </ThemedText>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Payment Method Selection Modal */}
+      <PaymentMethodModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentMethodSelect}
+        title="Choisir un mode de retrait"
+        loading={loading}
+      />
+
+      {/* Withdraw Confirmation Form Modal */}
+      {paymentMethod && (
+        <WithdrawConfirmationForm
+          visible={showWithdrawConfirmation}
+          paymentMethod={paymentMethod}
+          availableBalance={getAvailableBalance()}
+          currency={currency}
+          onClose={() => setShowWithdrawConfirmation(false)}
+          onSubmit={handleWithdrawConfirm}
+          loading={loading}
+        />
+      )}
     </ThemedView>
   );
 }

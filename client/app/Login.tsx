@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -16,10 +15,13 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
+import { authService } from '@/services/auth.service';
+import { signInWithGoogle, signInWithFacebook, signInWithApple } from '@/utils/oauth';
+import { alert } from '@/utils/alert';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading: authLoading, user } = useAuth();
+  const { login, isLoading: authLoading, user, refreshUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,19 +42,19 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     // Validation
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      alert('Erreur', 'Veuillez entrer votre email');
       return;
     }
 
     if (!password.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre mot de passe');
+      alert('Erreur', 'Veuillez entrer votre mot de passe');
       return;
     }
 
     // Validation email basique
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Erreur', 'Veuillez entrer un email valide');
+      alert('Erreur', 'Veuillez entrer un email valide');
       return;
     }
 
@@ -66,10 +68,10 @@ export default function LoginScreen() {
           // La redirection se fera automatiquement via useEffect quand user sera mis à jour
         }, 100);
       } else {
-        Alert.alert('Erreur de connexion', result.error || 'Une erreur est survenue');
+        alert('Erreur de connexion', result.error || 'Une erreur est survenue');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }
@@ -79,16 +81,100 @@ export default function LoginScreen() {
     router.push('/SignUp');
   };
 
-  const handleGoogleLogin = () => {
-    Alert.alert('Info', 'Connexion Google (à implémenter)');
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const oauthResult = await signInWithGoogle();
+      
+      if (!oauthResult.success) {
+        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Google');
+        return;
+      }
+
+      const result = await authService.loginWithGoogle(
+        oauthResult.userData!,
+        oauthResult.idToken!,
+        oauthResult.accessToken || ''
+      );
+
+      if (result.success) {
+        await refreshUser();
+        // La redirection se fera automatiquement via useEffect quand user sera mis à jour
+      } else {
+        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Google');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleFacebookLogin = () => {
-    Alert.alert('Info', 'Connexion Facebook (à implémenter)');
+  const handleFacebookLogin = async () => {
+    try {
+      setIsLoading(true);
+      const oauthResult = await signInWithFacebook();
+      
+      if (!oauthResult.success) {
+        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Facebook');
+        return;
+      }
+
+      const result = await authService.loginWithFacebook(
+        oauthResult.userData!,
+        oauthResult.accessToken!
+      );
+
+      if (result.success) {
+        await refreshUser();
+        setTimeout(() => {
+          if (user) {
+            if (user.accountType === 'ADMIN') {
+              router.replace('/admin/dashboard');
+            } else if (user.accountType === 'SELLER') {
+              router.replace('/seller/dashboard');
+            } else {
+              router.replace('/(tabs)');
+            }
+          }
+        }, 100);
+      } else {
+        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Facebook');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAppleLogin = () => {
-    Alert.alert('Info', 'Connexion Apple (à implémenter)');
+  const handleAppleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const oauthResult = await signInWithApple();
+      
+      if (!oauthResult.success) {
+        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Apple');
+        return;
+      }
+
+      const result = await authService.loginWithApple(
+        oauthResult.userData!,
+        oauthResult.identityToken!,
+        oauthResult.authorizationCode || ''
+      );
+
+      if (result.success) {
+        await refreshUser();
+        // La redirection se fera automatiquement via useEffect quand user sera mis à jour
+      } else {
+        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Apple');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loading = isLoading || authLoading;
@@ -152,7 +238,11 @@ export default function LoginScreen() {
               />
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
+            <TouchableOpacity 
+              style={styles.forgotPassword} 
+              disabled={loading}
+              onPress={() => router.push('/ForgotPassword')}
+            >
               <ThemedText style={styles.forgotPasswordText}>
                 Mot de passe oublié ?
               </ThemedText>
@@ -316,7 +406,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 8,
-    color: '#ffff',
+    color: 'black',
     padding: 16,
     fontSize: 16,
   },

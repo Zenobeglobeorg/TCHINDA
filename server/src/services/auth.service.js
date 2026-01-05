@@ -385,7 +385,23 @@ export const verifyPhone = async (phone, code) => {
  * Service de demande de réinitialisation de mot de passe
  */
 export const requestPasswordReset = async (email) => {
-  await createPasswordResetToken(email);
+  const result = await createPasswordResetToken(email);
+  
+  // Si l'email a été envoyé avec succès, retourner un message positif
+  if (result.emailSent) {
+    return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
+  }
+  
+  // Si l'email n'a pas pu être envoyé mais le token a été créé, retourner un message avec avertissement
+  if (!result.emailSent && result.error) {
+    console.warn(`⚠️  Token créé mais email non envoyé pour ${email}: ${result.error}`);
+    return { 
+      message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
+      warning: 'Vérifiez la configuration email du serveur'
+    };
+  }
+  
+  // Par défaut, ne pas révéler si l'email existe ou non (sécurité)
   return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
 };
 

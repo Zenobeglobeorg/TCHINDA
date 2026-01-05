@@ -149,6 +149,68 @@ class AuthService {
     const token = await apiService.getRefreshToken();
     return !!token;
   }
+
+  // Connexion Google
+  async loginWithGoogle(userData: any, idToken: string, accessToken: string) {
+    const response = await apiService.post<AuthResponse>(
+      API_CONFIG.ENDPOINTS.AUTH.GOOGLE,
+      {
+        idToken,
+        accessToken,
+        userData,
+      }
+    );
+
+    if (response.success && response.data) {
+      await apiService.setToken(response.data.token);
+      await apiService.setRefreshToken(response.data.refreshToken);
+      await apiService.setUser(response.data.user);
+      return response;
+    }
+
+    return response;
+  }
+
+  // Connexion Facebook
+  async loginWithFacebook(userData: any, accessToken: string) {
+    const response = await apiService.post<AuthResponse>(
+      API_CONFIG.ENDPOINTS.AUTH.FACEBOOK,
+      {
+        accessToken,
+        userData,
+      }
+    );
+
+    if (response.success && response.data) {
+      await apiService.setToken(response.data.token);
+      await apiService.setRefreshToken(response.data.refreshToken);
+      await apiService.setUser(response.data.user);
+      return response;
+    }
+
+    return response;
+  }
+
+  // Connexion Apple
+  async loginWithApple(userData: any, identityToken: string, authorizationCode: string) {
+    const response = await apiService.post<AuthResponse>(
+      API_CONFIG.ENDPOINTS.AUTH.APPLE,
+      {
+        identityToken,
+        authorizationCode,
+        userData,
+      }
+    );
+
+    if (response.success && response.data) {
+      await apiService.setToken(response.data.token);
+      await apiService.setRefreshToken(response.data.refreshToken);
+      await apiService.setUser(response.data.user);
+      return response;
+    }
+
+    return response;
+  }
 }
 
 export const authService = new AuthService();

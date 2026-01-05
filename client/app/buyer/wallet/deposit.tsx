@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,6 +13,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
+import PaymentMethodModal, { PaymentMethod, PAYMENT_METHODS } from '@/components/PaymentMethodModal';
+import PaymentInfoForm from '@/components/PaymentInfoForm';
+import { alert } from '@/utils/alert';
 
 export default function DepositScreen() {
   const router = useRouter();
@@ -21,27 +23,27 @@ export default function DepositScreen() {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('XOF');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
 
   const currencies = ['XOF', 'XAF', 'EUR', 'USD'];
-  const paymentMethods = [
-    { id: 'orange_money', name: 'Orange Money', icon: 'creditcard.fill' },
-    { id: 'mtn_money', name: 'MTN Money', icon: 'creditcard.fill' },
-    { id: 'moov_money', name: 'Moov Money', icon: 'creditcard.fill' },
-    { id: 'bank_transfer', name: 'Virement bancaire', icon: 'creditcard.fill' },
-    { id: 'card', name: 'Carte bancaire', icon: 'creditcard.fill' },
-  ];
-
   const quickAmounts = [5000, 10000, 25000, 50000, 100000];
 
-  const handleDeposit = async () => {
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    // Après sélection, afficher le formulaire d'informations
+    setShowPaymentInfoForm(true);
+  };
+
+  const handlePaymentInfoSubmit = async (paymentInfo: any) => {
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+      alert('Erreur', 'Veuillez entrer un montant valide');
       return;
     }
 
     if (!paymentMethod) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un mode de paiement');
+      alert('Erreur', 'Méthode de paiement non sélectionnée');
       return;
     }
 
@@ -50,13 +52,14 @@ export default function DepositScreen() {
       const response = await apiService.post('/api/buyer/wallet/deposit', {
         amount: parseFloat(amount),
         currency,
-        paymentMethod,
+        paymentMethod: paymentMethod.id,
+        paymentInfo, // Informations de paiement
       });
 
       if (response.success) {
-        Alert.alert(
+        alert(
           'Succès',
-          `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} effectué avec succès`,
+          `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`,
           [
             {
               text: 'OK',
@@ -65,13 +68,23 @@ export default function DepositScreen() {
           ]
         );
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
+        alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeposit = () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      alert('Erreur', 'Veuillez entrer un montant valide');
+      return;
+    }
+
+    // Ouvrir le modal de sélection de méthode de paiement
+    setShowPaymentModal(true);
   };
 
   return (
@@ -144,26 +157,27 @@ export default function DepositScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Mode de paiement</ThemedText>
           
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.paymentMethodCard,
-                paymentMethod === method.id && styles.paymentMethodCardActive,
-              ]}
-              onPress={() => setPaymentMethod(method.id)}
-            >
-              <View style={styles.paymentMethodLeft}>
-                <View style={styles.paymentMethodIcon}>
-                  <IconSymbol name={method.icon} size={24} color="#624cacff" />
-                </View>
-                <ThemedText style={styles.paymentMethodName}>{method.name}</ThemedText>
+          <TouchableOpacity
+            style={[
+              styles.paymentMethodCard,
+              paymentMethod && styles.paymentMethodCardActive,
+            ]}
+            onPress={() => setShowPaymentModal(true)}
+          >
+            <View style={styles.paymentMethodLeft}>
+              <View style={styles.paymentMethodIcon}>
+                <IconSymbol 
+                  name={paymentMethod?.icon || 'creditcard.fill'} 
+                  size={24} 
+                  color="#624cacff" 
+                />
               </View>
-              {paymentMethod === method.id && (
-                <IconSymbol name="checkmark.circle.fill" size={24} color="#624cacff" />
-              )}
-            </TouchableOpacity>
-          ))}
+              <ThemedText style={styles.paymentMethodName}>
+                {paymentMethod ? paymentMethod.name : 'Choisir un mode de paiement'}
+              </ThemedText>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color="#624cacff" />
+          </TouchableOpacity>
         </View>
 
         {/* Info */}
@@ -176,9 +190,9 @@ export default function DepositScreen() {
 
         {/* Deposit Button */}
         <TouchableOpacity
-          style={[styles.depositButton, loading && styles.depositButtonDisabled]}
+          style={[styles.depositButton, (loading || !amount) && styles.depositButtonDisabled]}
           onPress={handleDeposit}
-          disabled={loading}
+          disabled={loading || !amount}
         >
           {loading ? (
             <ActivityIndicator color="#FFF" />
@@ -189,6 +203,15 @@ export default function DepositScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Payment Method Selection Modal */}
+      <PaymentMethodModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentMethodSelect}
+        title="Choisir un mode de paiement"
+        loading={loading}
+      />
     </ThemedView>
   );
 }

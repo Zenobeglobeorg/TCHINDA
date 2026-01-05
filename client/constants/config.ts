@@ -58,6 +58,9 @@ export const API_CONFIG = {
       VERIFY_PHONE: '/api/auth/verify/phone',
       FORGOT_PASSWORD: '/api/auth/forgot-password',
       RESET_PASSWORD: '/api/auth/reset-password',
+      GOOGLE: '/api/auth/google',
+      FACEBOOK: '/api/auth/facebook',
+      APPLE: '/api/auth/apple',
     },
   },
   
