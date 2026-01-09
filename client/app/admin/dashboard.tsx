@@ -69,14 +69,15 @@ export default function AdminDashboardScreen() {
 
   const quickActions = [
     { id: 1, title: 'Gestion globale', icon: 'gearshape.2.fill' as const, route: '/admin/global' as const },
-    { id: 2, title: 'Finance & Litiges', icon: 'dollarsign.circle.fill' as const, route: '/admin/finance' as const },
-    { id: 3, title: 'Publicité', icon: 'megaphone.fill' as const, route: '/admin/advertising' as const },
-    { id: 4, title: 'Maintenance', icon: 'wrench.and.screwdriver.fill' as const, route: '/admin/maintenance' as const },
-    { id: 5, title: 'Modérateurs', icon: 'person.badge.shield.checkmark.fill' as const, route: '/admin/moderators' as const },
-    { id: 6, title: 'Analytics', icon: 'chart.line.uptrend.xyaxis' as const, route: '/admin/analytics' as const },
-    { id: 7, title: 'Multi-pays', icon: 'globe' as const, route: '/admin/countries' as const },
-    { id: 8, title: 'Rapports', icon: 'chart.bar.fill' as const, route: '/admin/reports' as const },
-    { id: 9, title: 'Alertes', icon: 'bell.badge.fill' as const, route: '/admin/alerts' as const },
+    { id: 2, title: 'Utilisateurs', icon: 'person.3.fill' as const, route: '/admin/user-management' as const },
+    { id: 3, title: 'Finance & Litiges', icon: 'dollarsign.circle.fill' as const, route: '/admin/finance' as const },
+    { id: 4, title: 'Publicité', icon: 'megaphone.fill' as const, route: '/admin/advertising' as const },
+    { id: 5, title: 'Maintenance', icon: 'wrench.and.screwdriver.fill' as const, route: '/admin/maintenance' as const },
+    { id: 6, title: 'Modérateurs', icon: 'person.badge.shield.checkmark.fill' as const, route: '/admin/moderators' as const },
+    { id: 7, title: 'Analytics', icon: 'chart.line.uptrend.xyaxis' as const, route: '/admin/analytics' as const },
+    { id: 8, title: 'Multi-pays', icon: 'globe' as const, route: '/admin/countries' as const },
+    { id: 9, title: 'Rapports', icon: 'chart.bar.fill' as const, route: '/admin/reports' as const },
+    { id: 10, title: 'Alertes', icon: 'bell.badge.fill' as const, route: '/admin/alerts' as const },
   ];
 
   return (
