@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useColorScheme as useRNColorScheme, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
@@ -47,8 +47,17 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Déterminer le colorScheme actuel
-  const colorScheme: 'light' | 'dark' =
-    themeMode === 'auto' ? (systemColorScheme ?? 'light') : themeMode;
+  // Sur le web, forcer toujours le thème clair
+  const getColorScheme = (): 'light' | 'dark' => {
+    // Sur web, toujours retourner 'light' pour forcer le thème clair
+    if (Platform.OS === 'web') {
+      return 'light';
+    }
+    // Sur mobile, respecter les préférences
+    return themeMode === 'auto' ? (systemColorScheme ?? 'light') : themeMode;
+  };
+
+  const colorScheme = getColorScheme();
 
   const value: ThemeContextType = {
     themeMode,

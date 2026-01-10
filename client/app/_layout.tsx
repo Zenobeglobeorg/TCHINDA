@@ -2,10 +2,12 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } fro
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { WebThemeProvider } from '@/components/WebThemeProvider';
 
 // Composant interne qui utilise le thème
 function AppContent() {
@@ -19,9 +21,15 @@ function AppContent() {
     return null;
   }
 
+  // Forcer le thème clair sur web (colorScheme est déjà forcé dans ThemeContext)
+  // Mais on s'assure ici aussi pour la navigation
+  const isWeb = Platform.OS === 'web';
+  const effectiveColorScheme = isWeb ? 'light' : colorScheme;
+
   return (
-    <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <WebThemeProvider>
+      <NavigationThemeProvider value={effectiveColorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
         {/* Écran de démarrage comme écran principal */}
         <Stack.Screen 
           name="index" 
@@ -37,9 +45,9 @@ function AppContent() {
             title: 'Connexion',
             headerBackTitle: 'Retour',
             headerStyle: {
-              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+              backgroundColor: effectiveColorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
             },
-            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+            headerTintColor: effectiveColorScheme === 'dark' ? '#FFFFFF' : '#000000',
           }} 
         />
         {/* Écran d'inscription */}
@@ -49,9 +57,9 @@ function AppContent() {
             title: 'Inscription',
             headerBackTitle: 'Retour',
             headerStyle: {
-              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+              backgroundColor: effectiveColorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
             },
-            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+            headerTintColor: effectiveColorScheme === 'dark' ? '#FFFFFF' : '#000000',
           }} 
         />
         {/* Écran mot de passe oublié */}
@@ -61,9 +69,9 @@ function AppContent() {
             title: 'Mot de passe oublié',
             headerBackTitle: 'Retour',
             headerStyle: {
-              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+              backgroundColor: effectiveColorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
             },
-            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+            headerTintColor: effectiveColorScheme === 'dark' ? '#FFFFFF' : '#000000',
           }} 
         />
         {/* Écran réinitialisation mot de passe */}
@@ -73,9 +81,9 @@ function AppContent() {
             title: 'Réinitialiser le mot de passe',
             headerBackTitle: 'Retour',
             headerStyle: {
-              backgroundColor: colorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
+              backgroundColor: effectiveColorScheme === 'dark' ? '#1D3D47' : '#A1CEDC',
             },
-            headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+            headerTintColor: effectiveColorScheme === 'dark' ? '#FFFFFF' : '#000000',
           }} 
         />
         {/* Écrans tabs (si vous les utilisez après l'authentification) */}
@@ -97,9 +105,10 @@ function AppContent() {
           }} 
         />
         <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-    </NavigationThemeProvider>
+        </Stack>
+        <StatusBar style={effectiveColorScheme === 'dark' ? 'light' : 'dark'} />
+      </NavigationThemeProvider>
+    </WebThemeProvider>
   );
 }
 
