@@ -47,41 +47,56 @@ export default function SignUpScreen() {
   const handleSignUp = async () => {
     // Validations
     if (!firstName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre prénom');
+      alert('Erreur', 'Veuillez entrer votre prénom');
       return;
     }
 
     if (!lastName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      alert('Erreur', 'Veuillez entrer votre nom');
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      alert('Erreur', 'Veuillez entrer votre email');
       return;
     }
 
     // Validation email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Erreur', 'Veuillez entrer un email valide');
+      alert('Erreur', 'Veuillez entrer un email valide');
       return;
     }
 
+    // Validation téléphone (si fourni)
+    if (phone.trim()) {
+      // Nettoyer le téléphone pour la validation
+      const cleanPhone = phone.trim().replace(/\s+/g, '');
+      // Format attendu par le backend : +237679974577 (pas d'espaces)
+      const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(cleanPhone)) {
+        alert(
+          'Erreur',
+          'Numéro de téléphone invalide. Format attendu : +237679974577 (sans espaces, commence par + suivi du code pays)'
+        );
+        return;
+      }
+    }
+
     if (!password.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un mot de passe');
+      alert('Erreur', 'Veuillez entrer un mot de passe');
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 8 caractères');
+      alert('Erreur', 'Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
 
     // Validation force du mot de passe
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
     if (!passwordRegex.test(password)) {
-      Alert.alert(
+      alert(
         'Erreur',
         'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
       );
@@ -89,34 +104,57 @@ export default function SignUpScreen() {
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      alert('Erreur', 'Les mots de passe ne correspondent pas');
       return;
     }
 
     setIsLoading(true);
     try {
+      // Nettoyer le téléphone : supprimer les espaces et garder seulement les chiffres et le +
+      const cleanPhone = phone.trim() ? phone.trim().replace(/\s+/g, '') : undefined;
+
       const result = await register({
         email: email.trim(),
         password,
         accountType,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone.trim() || undefined,
+        phone: cleanPhone || undefined,
         country: country || undefined,
       });
 
       if (result.success) {
-        Alert.alert('Succès', 'Compte créé avec succès', [
+        alert('Succès', 'Compte créé avec succès', [
           {
             text: 'OK',
             onPress: () => router.replace('/(tabs)'),
           },
         ]);
       } else {
-        Alert.alert('Erreur d\'inscription', result.error || 'Une erreur est survenue');
+        // Afficher le message d'erreur du backend avec les détails si disponibles
+        let errorMessage = 'Une erreur est survenue';
+        
+        if (result.error) {
+          if (typeof result.error === 'string') {
+            errorMessage = result.error;
+          } else if (result.error.message) {
+            errorMessage = result.error.message;
+            
+            // Si des détails de validation sont disponibles, les ajouter
+            if (result.error.details && Array.isArray(result.error.details) && result.error.details.length > 0) {
+              const validationErrors = result.error.details
+                .map((err: any) => err.msg || err.message || JSON.stringify(err))
+                .join('\n');
+              errorMessage = `${errorMessage}\n\n${validationErrors}`;
+            }
+          }
+        }
+        
+        alert('Erreur d\'inscription', errorMessage);
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      console.error('Erreur lors de l\'inscription:', error);
+      alert('Erreur', error.message || 'Une erreur est survenue lors de l\'inscription');
     } finally {
       setIsLoading(false);
     }
