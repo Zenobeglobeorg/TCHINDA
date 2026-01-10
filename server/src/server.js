@@ -27,13 +27,67 @@ app.use(helmet());
 app.use(compression());
 
 // CORS configuration
+const getAllowedOrigins = () => {
+  const origins = [];
+  
+  // Ajouter les origines depuis les variables d'environnement
+  if (process.env.FRONTEND_URL) {
+    origins.push(process.env.FRONTEND_URL);
+  }
+  if (process.env.MOBILE_APP_URL) {
+    origins.push(process.env.MOBILE_APP_URL);
+  }
+  
+  // Si plusieurs FRONTEND_URL sont définies (séparées par des virgules)
+  if (process.env.FRONTEND_URLS) {
+    origins.push(...process.env.FRONTEND_URLS.split(',').map(url => url.trim()));
+  }
+  
+  // En développement, ajouter localhost
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push('http://localhost:8081', 'exp://localhost:8081', 'http://localhost:3000');
+  }
+  
+  // Si aucune origine n'est définie, utiliser localhost par défaut
+  if (origins.length === 0) {
+    origins.push('http://localhost:8081', 'exp://localhost:8081');
+  }
+  
+  return origins;
+};
+
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:8081',
-    process.env.MOBILE_APP_URL || 'exp://localhost:8081',
-  ],
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origine (ex: Postman, curl, mobile apps)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    const allowedOrigins = getAllowedOrigins();
+    
+    // Vérifier si l'origine est dans la liste autorisée
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Autoriser automatiquement tous les domaines Vercel (*.vercel.app)
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Autoriser localhost en développement (même si pas dans la liste)
+    if (process.env.NODE_ENV !== 'production' && 
+        (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+      return callback(null, true);
+    }
+    
+    // Bloquer les autres origines
+    callback(new Error(`Origine non autorisée par CORS: ${origin}`));
+  },
   credentials: true,
   optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 app.use(cors(corsOptions));
 
