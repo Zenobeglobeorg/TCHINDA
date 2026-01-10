@@ -39,12 +39,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const cachedUser = await apiService.getUser();
       
       if (cachedUser) {
-        setUser(cachedUser);
-        // Rafraîchir les données depuis le serveur
-        await refreshUser();
+        // Vérifier aussi qu'il y a un token (pour éviter de charger un utilisateur sans token)
+        const token = await apiService.getRefreshToken();
+        if (token) {
+          setUser(cachedUser);
+          // Rafraîchir les données depuis le serveur
+          // Si le token est invalide, refreshUser() nettoiera l'utilisateur
+          await refreshUser();
+        } else {
+          // Pas de token = pas d'utilisateur authentifié, nettoyer
+          setUser(null);
+          await apiService.clearStorage();
+        }
+      } else {
+        // Pas d'utilisateur en cache = pas connecté
+        setUser(null);
       }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'utilisateur:', error);
+      // En cas d'erreur, considérer qu'on n'est pas connecté
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -116,10 +130,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       setIsLoading(true);
+      // Nettoyer les tokens et données utilisateur
       await authService.logout();
+      // Réinitialiser l'état utilisateur
       setUser(null);
+      // Attendre un peu pour que le stockage soit bien nettoyé
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, nettoyer l'état local
+      setUser(null);
+      // Forcer le nettoyage du stockage
+      try {
+        await apiService.clearStorage();
+      } catch (clearError) {
+        console.error('Erreur lors du nettoyage du stockage:', clearError);
+      }
     } finally {
       setIsLoading(false);
     }

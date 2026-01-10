@@ -4,7 +4,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Switch,
 } from 'react-native';
@@ -17,13 +16,15 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Colors } from '@/constants/Colors';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
+import { alert } from '@/utils/alert';
 
 export default function SettingsScreen() {
   const { user, refreshUser, logout, isLoading: authLoading } = useAuth();
   const { themeMode, colorScheme, setThemeMode } = useTheme();
   const colors = useThemeColors();
   const router = useRouter();
+  const segments = useSegments();
   const [isLoading, setIsLoading] = useState(false);
   const [isChanging, setIsChanging] = useState(false);
 
@@ -34,13 +35,13 @@ export default function SettingsScreen() {
     
     // Si on essaie de changer vers le même type
     if (currentType === newType) {
-      Alert.alert('Information', `Vous êtes déjà ${newType === 'SELLER' ? 'vendeur' : 'acheteur'}`);
+      alert('Information', `Vous êtes déjà ${newType === 'SELLER' ? 'vendeur' : 'acheteur'}`);
       return;
     }
 
     // Confirmation
     const action = newType === 'SELLER' ? 'devenir vendeur' : 'revenir à acheteur';
-    Alert.alert(
+    alert(
       'Changer le type de compte',
       `Êtes-vous sûr de vouloir ${action} ?`,
       [
@@ -74,7 +75,7 @@ export default function SettingsScreen() {
                 // Attendre un peu pour que les données soient mises à jour
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
-                Alert.alert(
+                alert(
                   'Succès',
                   response.message || `Vous êtes maintenant ${newType === 'SELLER' ? 'vendeur' : 'acheteur'}`,
                   [
@@ -92,10 +93,10 @@ export default function SettingsScreen() {
                   ]
                 );
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Une erreur est survenue');
+                alert('Erreur', response.error?.message || 'Une erreur est survenue');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue lors du changement');
+              alert('Erreur', error.message || 'Une erreur est survenue lors du changement');
             } finally {
               setIsChanging(false);
             }
@@ -106,7 +107,7 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
+    alert(
       'Déconnexion',
       'Êtes-vous sûr de vouloir vous déconnecter ?',
       [
@@ -117,12 +118,31 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               setIsLoading(true);
-              // Appeler logout qui nettoie les données
+              
+              // Appeler logout qui nettoie les données et tokens
               await logout();
-              // Attendre un peu pour s'assurer que le logout est terminé
-              await new Promise(resolve => setTimeout(resolve, 100));
-              // Rediriger vers la page de login après déconnexion
+              
+              // Attendre que le logout soit complètement terminé
+              // (stockage nettoyé, état mis à jour)
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Forcer la navigation vers la page de login
+              // Utiliser replace pour empêcher de revenir en arrière
               router.replace('/Login');
+              
+              // Double vérification : si on est toujours sur une page protégée après 500ms, réessayer
+              setTimeout(() => {
+                try {
+                  const currentSegment = segments[0];
+                  // Si on est toujours sur (tabs) ou seller ou admin, forcer la navigation
+                  if (currentSegment && (currentSegment === '(tabs)' || currentSegment === 'seller' || currentSegment === 'admin')) {
+                    console.log('Forcer navigation vers Login (vérification)');
+                    router.push('/Login');
+                  }
+                } catch (fallbackError) {
+                  console.error('Erreur vérification navigation:', fallbackError);
+                }
+              }, 500);
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
               // Même en cas d'erreur, essayer de rediriger
@@ -130,7 +150,7 @@ export default function SettingsScreen() {
                 router.replace('/Login');
               } catch (navError) {
                 console.error('Erreur de navigation:', navError);
-                Alert.alert('Erreur', 'Une erreur est survenue lors de la déconnexion');
+                alert('Erreur', 'Une erreur est survenue lors de la déconnexion. Veuillez relancer l\'application.');
               }
             } finally {
               setIsLoading(false);

@@ -14,6 +14,7 @@ export default function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const hasNavigated = useRef(false);
+  const navigationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Vérifier la connexion internet
   useEffect(() => {
@@ -75,12 +76,28 @@ export default function SplashScreen() {
 
   // Navigation après chargement complet
   useEffect(() => {
-    // Attendre que le chargement soit terminé ET que la connexion soit vérifiée
-    if (loadingComplete && !isLoading && isConnected !== null && !hasNavigated.current) {
+    // Nettoyer le timer précédent si on change d'état
+    if (navigationTimerRef.current) {
+      clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+
+    // Si on est en train de charger, attendre
+    if (isLoading || isConnected === null || !loadingComplete) {
+      return;
+    }
+
+    // Si on a déjà navigué mais que l'utilisateur a changé (logout), réinitialiser
+    if (hasNavigated.current && !isAuthenticated && !user) {
+      hasNavigated.current = false;
+    }
+
+    // Naviguer seulement si on n'a pas encore navigué
+    if (!hasNavigated.current) {
       hasNavigated.current = true;
       
       // Petit délai pour une transition fluide
-      const navigationTimer = setTimeout(() => {
+      navigationTimerRef.current = setTimeout(() => {
         if (isAuthenticated && user) {
           // Redirection selon le type de compte
           if (user.accountType === 'ADMIN') {
@@ -97,10 +114,15 @@ export default function SplashScreen() {
           router.replace('/Login');
         }
       }, 500);
-
-      return () => clearTimeout(navigationTimer);
     }
-  }, [loadingComplete, isLoading, isAuthenticated, user, isConnected]);
+
+    return () => {
+      if (navigationTimerRef.current) {
+        clearTimeout(navigationTimerRef.current);
+        navigationTimerRef.current = null;
+      }
+    };
+  }, [loadingComplete, isLoading, isAuthenticated, user, isConnected, router]);
 
   return (
     <ThemedView style={styles.container}>
