@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import crypto from 'crypto';
 import { hashPassword } from '../utils/password.utils.js';
 import { sendPasswordResetEmail } from './email.service.js';
-
-const prisma = new PrismaClient();
 
 // Durée de validité du token (1 heure)
 const TOKEN_EXPIRY_HOURS = 1;

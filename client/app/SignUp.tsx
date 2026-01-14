@@ -172,7 +172,14 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.scrollContainer,
+            Platform.OS === 'web' && styles.scrollContainerWeb
+          ]}
+        >
+          {/* Wrapper centré pour web */}
+          <View style={Platform.OS === 'web' ? styles.webWrapper : undefined}>
           {/* En-tête */}
           <View style={styles.header}>
             <ThemedText type="title" style={styles.title}>
@@ -359,6 +366,7 @@ export default function SignUpScreen() {
               </ThemedText>
             </TouchableOpacity>
           </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -368,6 +376,11 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      backgroundColor: '#F5F7FA',
+      minHeight: '100vh',
+    }),
   },
   keyboardAvoid: {
     flex: 1,
@@ -376,6 +389,27 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  scrollContainerWeb: {
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      minHeight: '100vh',
+      alignItems: 'center',
+      padding: '40px 20px',
+    }),
+  },
+  webWrapper: {
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      width: '100%',
+      maxWidth: 520,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 40,
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+      border: '1px solid rgba(0, 0, 0, 0.05)',
+      margin: '20px 0',
+    }),
   },
   header: {
     alignItems: 'center',
@@ -417,6 +451,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      outline: 'none',
+      ':focus': {
+        borderColor: '#624cacff',
+        boxShadow: '0 0 0 3px rgba(98, 76, 172, 0.1)',
+      } as any,
+    }),
   },
   pickerContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -426,6 +469,15 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 50,
     justifyContent: 'center',
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      cursor: 'pointer',
+      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      ':hover': {
+        borderColor: '#624cacff',
+        boxShadow: '0 0 0 3px rgba(98, 76, 172, 0.1)',
+      } as any,
+    }),
   },
   pickerText: {
     fontSize: 16,
@@ -481,6 +533,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     minHeight: 50,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      cursor: 'pointer',
+      transition: 'background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease',
+      boxShadow: '0 2px 8px rgba(98, 76, 172, 0.2)',
+      ':hover': {
+        backgroundColor: '#5a45a0',
+        transform: 'translateY(-1px)',
+        boxShadow: '0 4px 12px rgba(98, 76, 172, 0.3)',
+      } as any,
+      ':active': {
+        transform: 'translateY(0)',
+      } as any,
+    }),
   },
   signUpButtonDisabled: {
     opacity: 0.6,

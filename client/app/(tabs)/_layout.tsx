@@ -1,6 +1,6 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Platform, View, StyleSheet, Text } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -9,12 +9,32 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/hooks/useAuth';
 import { WebSidebar } from '@/components/WebSidebar';
+import { SidebarProvider } from '@/contexts/SidebarContext';
+import { HamburgerMenu } from '@/components/HamburgerMenu';
 
-export default function TabLayout() {
+// Composant interne qui utilise le contexte sidebar
+function TabLayoutContent() {
   const colorScheme = useColorScheme();
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+  const [windowWidth, setWindowWidth] = useState(
+    Platform.OS === 'web' && typeof window !== 'undefined' ? window.innerWidth : 1024
+  );
+  const SIDEBAR_BREAKPOINT = 768;
+  const isMobile = windowWidth < SIDEBAR_BREAKPOINT;
+
+  // Écouter les changements de taille de fenêtre
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleResize = () => {
+        setWindowWidth(window.innerWidth);
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
 
   // Rediriger les vendeurs vers l'espace vendeur
   useEffect(() => {
@@ -54,10 +74,19 @@ export default function TabLayout() {
   // Sur web, envelopper avec sidebar + contenu
   if (Platform.OS === 'web') {
     return (
-      <View style={styles.webContainer}>
-        <WebSidebar />
-        <View style={styles.webContent}>
-          <Tabs {...webTabConfig}>
+      <SidebarProvider>
+        <View style={styles.webContainer}>
+          <WebSidebar />
+          <View style={[styles.webContent, isMobile && styles.webContentMobile]}>
+            {/* Header avec bouton hamburger sur mobile */}
+            {isMobile && (
+              <View style={styles.mobileHeader}>
+                <HamburgerMenu />
+                <Text style={styles.mobileHeaderTitle}>TCHINDA</Text>
+                <View style={styles.mobileHeaderSpacer} />
+              </View>
+            )}
+            <Tabs {...webTabConfig}>
             <Tabs.Screen
               name="index"
               options={{
@@ -107,9 +136,10 @@ export default function TabLayout() {
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
               }}
             />
-          </Tabs>
+            </Tabs>
+          </View>
         </View>
-      </View>
+      </SidebarProvider>
     );
   }
 
@@ -190,4 +220,39 @@ const styles = StyleSheet.create({
       minHeight: '100vh',
     }),
   },
+  webContentMobile: {
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      marginLeft: 0,
+      width: '100%',
+    }),
+  },
+  mobileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+    }),
+  },
+  mobileHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700' as any,
+    color: Colors.light.tint,
+    marginLeft: 12,
+  },
+  mobileHeaderSpacer: {
+    flex: 1,
+  },
 });
+
+// Export du composant principal (le provider est déjà dans TabLayoutContent pour web)
+export default TabLayoutContent;

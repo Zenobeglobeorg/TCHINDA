@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import { hashPassword } from '../utils/password.utils.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.utils.js';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 /**
  * Génère un mot de passe aléatoire pour les utilisateurs OAuth

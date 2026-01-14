@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import { generateOrderNumber } from '../utils/order.utils.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Get buyer profile with related data
