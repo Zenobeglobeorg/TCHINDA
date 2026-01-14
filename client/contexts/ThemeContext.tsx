@@ -14,14 +14,61 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = '@tchinda_theme_mode';
 
+// Fonction pour détecter le thème système du navigateur sur web
+const getSystemColorSchemeWeb = (): 'light' | 'dark' => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    return 'light';
+  }
+
+  // Détecter via media query
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+
+  return 'light';
+};
+
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const systemColorScheme = useRNColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('auto');
   const [isLoading, setIsLoading] = useState(true);
+  const [webSystemScheme, setWebSystemScheme] = useState<'light' | 'dark'>(() => 
+    Platform.OS === 'web' ? getSystemColorSchemeWeb() : 'light'
+  );
 
   // Charger la préférence sauvegardée
   useEffect(() => {
     loadThemePreference();
+  }, []);
+
+  // Écouter les changements du thème système sur web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+        setWebSystemScheme(e.matches ? 'dark' : 'light');
+      };
+
+      // Écouter les changements
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+      } else {
+        // Fallback pour les anciens navigateurs
+        mediaQuery.addListener(handleChange);
+      }
+
+      // Appel initial
+      handleChange(mediaQuery);
+
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', handleChange);
+        } else {
+          mediaQuery.removeListener(handleChange);
+        }
+      };
+    }
   }, []);
 
   const loadThemePreference = async () => {
@@ -47,14 +94,17 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Déterminer le colorScheme actuel
-  // Sur le web, forcer toujours le thème clair
   const getColorScheme = (): 'light' | 'dark' => {
-    // Sur web, toujours retourner 'light' pour forcer le thème clair
-    if (Platform.OS === 'web') {
-      return 'light';
+    // Si le mode est 'auto', utiliser le thème système
+    if (themeMode === 'auto') {
+      if (Platform.OS === 'web') {
+        return webSystemScheme;
+      }
+      return systemColorScheme ?? 'light';
     }
-    // Sur mobile, respecter les préférences
-    return themeMode === 'auto' ? (systemColorScheme ?? 'light') : themeMode;
+    
+    // Sinon, utiliser le mode choisi manuellement
+    return themeMode;
   };
 
   const colorScheme = getColorScheme();

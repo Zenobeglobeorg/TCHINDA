@@ -1,71 +1,87 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
- * Composant pour forcer le thème clair sur le web
- * Ajoute un style global pour éviter que le navigateur impose son thème
+ * Composant pour appliquer le thème choisi sur le web
+ * Met à jour les styles du document selon le thème actuel
  */
 export function WebThemeProvider({ children }: { children: React.ReactNode }) {
+  const { colorScheme } = useTheme();
+
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      // Forcer le thème clair sur le body
-      document.documentElement.style.colorScheme = 'light';
-      document.documentElement.style.backgroundColor = '#FFFFFF';
-      document.body.style.backgroundColor = '#FFFFFF';
-      document.body.style.color = '#11181C';
+      const isDark = colorScheme === 'dark';
       
-      // Ajouter une classe pour faciliter le ciblage CSS si nécessaire
-      document.body.classList.add('tchinda-light-theme');
-      document.documentElement.classList.add('tchinda-light-theme');
+      // Supprimer les anciennes classes
+      document.body.classList.remove('tchinda-light-theme', 'tchinda-dark-theme');
+      document.documentElement.classList.remove('tchinda-light-theme', 'tchinda-dark-theme');
       
-      // Empêcher les médias queries de changer le thème avec un style plus robuste
-      const style = document.createElement('style');
-      style.id = 'tchinda-light-theme-forcer';
-      style.innerHTML = `
-        html {
-          color-scheme: light !important;
-          background-color: #FFFFFF !important;
-        }
-        html * {
-          color-scheme: light !important;
-        }
-        body {
-          background-color: #FFFFFF !important;
-          color: #11181C !important;
-        }
-        @media (prefers-color-scheme: dark) {
-          html, html *, body, body * {
-            color-scheme: light !important;
-            background-color: #FFFFFF !important;
-            color: #11181C !important;
-          }
-        }
-        /* Forcer les inputs et autres éléments */
-        input, textarea, select {
-          color-scheme: light !important;
-          background-color: #FFFFFF !important;
-          color: #11181C !important;
-        }
-      `;
+      // Ajouter la classe appropriée
+      const themeClass = isDark ? 'tchinda-dark-theme' : 'tchinda-light-theme';
+      document.body.classList.add(themeClass);
+      document.documentElement.classList.add(themeClass);
       
-      // Supprimer l'ancien style s'il existe
-      const existingStyle = document.getElementById('tchinda-light-theme-forcer');
-      if (existingStyle) {
-        existingStyle.remove();
+      // Appliquer le color-scheme
+      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+      
+      // Appliquer les couleurs de fond et texte
+      const bgColor = isDark ? '#121212' : '#FFFFFF';
+      const textColor = isDark ? '#ECEDEE' : '#11181C';
+      
+      document.documentElement.style.backgroundColor = bgColor;
+      document.body.style.backgroundColor = bgColor;
+      document.body.style.color = textColor;
+      
+      // Créer ou mettre à jour le style dynamique
+      let style = document.getElementById('tchinda-theme-style');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'tchinda-theme-style';
+        document.head.appendChild(style);
       }
       
-      document.head.appendChild(style);
+      // Styles pour le thème clair
+      if (!isDark) {
+        style.innerHTML = `
+          html {
+            color-scheme: light;
+            background-color: #FFFFFF;
+          }
+          body {
+            background-color: #FFFFFF;
+            color: #11181C;
+          }
+          input, textarea, select {
+            color-scheme: light;
+            background-color: #FFFFFF;
+            color: #11181C;
+          }
+        `;
+      } else {
+        // Styles pour le thème sombre
+        style.innerHTML = `
+          html {
+            color-scheme: dark;
+            background-color: #121212;
+          }
+          body {
+            background-color: #121212;
+            color: #ECEDEE;
+          }
+          input, textarea, select {
+            color-scheme: dark;
+            background-color: #2A2A2A;
+            color: #ECEDEE;
+          }
+        `;
+      }
       
       return () => {
-        const styleToRemove = document.getElementById('tchinda-light-theme-forcer');
-        if (styleToRemove) {
-          styleToRemove.remove();
-        }
-        document.body.classList.remove('tchinda-light-theme');
-        document.documentElement.classList.remove('tchinda-light-theme');
+        // Nettoyage minimal - on garde le style pour éviter le flash
       };
     }
-  }, []);
+  }, [colorScheme]);
 
   return <>{children}</>;
 }

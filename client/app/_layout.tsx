@@ -21,10 +21,8 @@ function AppContent() {
     return null;
   }
 
-  // Forcer le thème clair sur web (colorScheme est déjà forcé dans ThemeContext)
-  // Mais on s'assure ici aussi pour la navigation
-  const isWeb = Platform.OS === 'web';
-  const effectiveColorScheme = isWeb ? 'light' : colorScheme;
+  // Utiliser le colorScheme du contexte (qui respecte maintenant les préférences sur web aussi)
+  const effectiveColorScheme = colorScheme;
 
   return (
     <WebThemeProvider>

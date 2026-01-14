@@ -245,7 +245,7 @@ export default function SettingsScreen() {
                   <ThemedText style={styles.themeLabel}>Mode sombre</ThemedText>
                   <ThemedText style={styles.themeDescription}>
                     {themeMode === 'auto' 
-                      ? 'Suivre les paramètres système' 
+                      ? `Suivre les paramètres système (${colorScheme === 'dark' ? 'Sombre' : 'Clair'})` 
                       : themeMode === 'dark' 
                       ? 'Activé' 
                       : 'Désactivé'}
@@ -254,7 +254,12 @@ export default function SettingsScreen() {
               </View>
               <Switch
                 value={colorScheme === 'dark'}
-                onValueChange={(value) => setThemeMode(value ? 'dark' : 'light')}
+                onValueChange={(value) => {
+                  // Si on passe à true, activer le mode sombre
+                  // Si on passe à false, activer le mode clair
+                  // On ne met pas 'auto' ici pour permettre un contrôle direct
+                  setThemeMode(value ? 'dark' : 'light');
+                }}
                 trackColor={{ false: colors.border, true: colors.tint }}
                 thumbColor={colorScheme === 'dark' ? '#FFFFFF' : '#FFFFFF'}
               />
@@ -466,7 +471,7 @@ export default function SettingsScreen() {
                 <ThemedText style={styles.themeLabel}>Mode sombre</ThemedText>
                 <ThemedText style={styles.themeDescription}>
                   {themeMode === 'auto' 
-                    ? 'Suivre les paramètres système' 
+                    ? `Suivre les paramètres système (${colorScheme === 'dark' ? 'Sombre' : 'Clair'})` 
                     : themeMode === 'dark' 
                     ? 'Activé' 
                     : 'Désactivé'}
@@ -475,7 +480,12 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={colorScheme === 'dark'}
-              onValueChange={(value) => setThemeMode(value ? 'dark' : 'light')}
+              onValueChange={(value) => {
+                // Si on passe à true, activer le mode sombre
+                // Si on passe à false, activer le mode clair
+                // On ne met pas 'auto' ici pour permettre un contrôle direct
+                setThemeMode(value ? 'dark' : 'light');
+              }}
               trackColor={{ false: colors.border, true: colors.tint }}
               thumbColor={colorScheme === 'dark' ? '#FFFFFF' : '#FFFFFF'}
             />
