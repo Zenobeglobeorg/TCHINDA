@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import { hashPassword, comparePassword } from '../utils/password.utils.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.utils.js';
 import { sendWelcomeEmail, sendVerificationCodeEmail } from './email.service.js';
@@ -10,10 +10,9 @@ import {
 } from './verification-code.service.js';
 import { createPasswordResetToken, resetPasswordWithToken } from './password-reset.service.js';
 
-const prisma = new PrismaClient();
-
 /**
  * Service d'inscription
+ * Utilise une transaction pour garantir la cohérence des données
  */
 export const registerUser = async (userData) => {
   const {
@@ -26,204 +25,234 @@ export const registerUser = async (userData) => {
     country,
   } = userData;
 
-  // Vérifier si l'email existe déjà
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (existingUser) {
-    throw new Error('Cet email est déjà utilisé');
-  }
-
-  // Vérifier si le téléphone existe déjà (si fourni)
-  if (phone) {
-    const existingPhone = await prisma.user.findUnique({
-      where: { phone },
+  // Utiliser une transaction pour garantir la cohérence
+  return await prisma.$transaction(async (tx) => {
+    // Vérifier si l'email existe déjà
+    const existingUser = await tx.user.findUnique({
+      where: { email },
     });
 
-    if (existingPhone) {
-      throw new Error('Ce numéro de téléphone est déjà utilisé');
+    if (existingUser) {
+      // Message générique pour ne pas révéler trop d'informations
+      throw new Error('Cet email est déjà utilisé');
     }
-  }
 
-  // Hasher le mot de passe
-  const hashedPassword = await hashPassword(password);
+    // Vérifier si le téléphone existe déjà (si fourni)
+    if (phone) {
+      const existingPhone = await tx.user.findUnique({
+        where: { phone },
+      });
 
-  // Créer le nom complet
-  const fullName = firstName && lastName ? `${firstName} ${lastName}` : null;
+      if (existingPhone) {
+        throw new Error('Ce numéro de téléphone est déjà utilisé');
+      }
+    }
 
-  // Créer l'utilisateur
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      accountType,
-      firstName,
-      lastName,
-      fullName,
-      phone,
-      country,
-      accountStatus: accountType === 'COMMERCIAL' ? 'PENDING_VERIFICATION' : 'ACTIVE',
-    },
+    // Hasher le mot de passe
+    const hashedPassword = await hashPassword(password);
+
+    // Créer le nom complet
+    const fullName = firstName && lastName ? `${firstName} ${lastName}` : null;
+
+    // Créer l'utilisateur
+    const user = await tx.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        accountType,
+        firstName,
+        lastName,
+        fullName,
+        phone,
+        country,
+        accountStatus: accountType === 'COMMERCIAL' ? 'PENDING_VERIFICATION' : 'ACTIVE',
+      },
+    });
+
+    // Créer le profil spécifique selon le type de compte
+    let profile = null;
+    switch (accountType) {
+      case 'BUYER':
+        profile = await tx.buyerProfile.create({
+          data: { userId: user.id },
+        });
+        // Créer le portefeuille pour l'acheteur
+        await tx.wallet.create({
+          data: {
+            userId: user.id,
+            currency: country === 'SN' || country === 'CI' ? 'XOF' : 'XAF',
+          },
+        });
+        break;
+
+      case 'SELLER':
+        profile = await tx.sellerProfile.create({
+          data: { userId: user.id },
+        });
+        // Créer le portefeuille pour le vendeur
+        await tx.wallet.create({
+          data: {
+            userId: user.id,
+            currency: country === 'SN' || country === 'CI' ? 'XOF' : 'XAF',
+          },
+        });
+        break;
+
+      case 'COMMERCIAL':
+        // Générer un code agent unique
+        const agentCode = `AG${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+        profile = await tx.commercialProfile.create({
+          data: {
+            userId: user.id,
+            agentCode,
+          },
+        });
+        break;
+
+      default:
+        break;
+    }
+
+    // Générer les tokens
+    const token = generateToken(user.id, user.accountType, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Sauvegarder le refresh token
+    await tx.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
+      },
+    });
+
+    // Nettoyer les anciens refresh tokens expirés/révoqués pour cet utilisateur (si existants)
+    await tx.refreshToken.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { expiresAt: { lt: new Date() } },
+          { isRevoked: true },
+        ],
+      },
+    });
+
+    // Retourner l'utilisateur sans le mot de passe
+    const { password: _, ...userWithoutPassword } = user;
+
+    // Envoyer un email de bienvenue (en arrière-plan, ne pas bloquer)
+    // Fait en dehors de la transaction pour ne pas bloquer
+    sendWelcomeEmail(user.email, user.firstName).catch(err => {
+      console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', err);
+    });
+
+    return {
+      user: {
+        ...userWithoutPassword,
+        profile,
+      },
+      token,
+      refreshToken,
+    };
   });
-
-  // Créer le profil spécifique selon le type de compte
-  let profile = null;
-  switch (accountType) {
-    case 'BUYER':
-      profile = await prisma.buyerProfile.create({
-        data: { userId: user.id },
-      });
-      // Créer le portefeuille pour l'acheteur
-      await prisma.wallet.create({
-        data: {
-          userId: user.id,
-          currency: country === 'SN' || country === 'CI' ? 'XOF' : 'XAF',
-        },
-      });
-      break;
-
-    case 'SELLER':
-      profile = await prisma.sellerProfile.create({
-        data: { userId: user.id },
-      });
-      // Créer le portefeuille pour le vendeur
-      await prisma.wallet.create({
-        data: {
-          userId: user.id,
-          currency: country === 'SN' || country === 'CI' ? 'XOF' : 'XAF',
-        },
-      });
-      break;
-
-    case 'COMMERCIAL':
-      // Générer un code agent unique
-      const agentCode = `AG${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-      profile = await prisma.commercialProfile.create({
-        data: {
-          userId: user.id,
-          agentCode,
-        },
-      });
-      break;
-
-    default:
-      break;
-  }
-
-  // Générer les tokens
-  const token = generateToken(user.id, user.accountType, user.email);
-  const refreshToken = generateRefreshToken(user.id);
-
-  // Sauvegarder le refresh token
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
-    },
-  });
-
-  // Envoyer un email de bienvenue (en arrière-plan, ne pas bloquer)
-  sendWelcomeEmail(user.email, user.firstName).catch(err => {
-    console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', err);
-  });
-
-  // Retourner l'utilisateur sans le mot de passe
-  const { password: _, ...userWithoutPassword } = user;
-
-  return {
-    user: {
-      ...userWithoutPassword,
-      profile,
-    },
-    token,
-    refreshToken,
-  };
 };
 
 /**
  * Service de connexion
+ * Utilise une transaction pour garantir la cohérence
  */
 export const loginUser = async (email, password) => {
-  // Trouver l'utilisateur
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      buyerProfile: true,
-      sellerProfile: true,
-      adminProfile: true,
-      moderatorProfile: true,
-      accountantProfile: true,
-      deliveryProfile: true,
-      commercialProfile: true,
-      wallet: true,
-    },
-  });
-
-  if (!user) {
-    throw new Error('Email ou mot de passe incorrect');
-  }
-
-  // Vérifier le mot de passe
-  const isPasswordValid = await comparePassword(password, user.password);
-  if (!isPasswordValid) {
-    // Incrémenter les tentatives de connexion
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        loginAttempts: user.loginAttempts + 1,
-        lockedUntil:
-          user.loginAttempts >= 4
-            ? new Date(Date.now() + 30 * 60 * 1000) // Blocage 30 minutes
-            : null,
+  return await prisma.$transaction(async (tx) => {
+    // Trouver l'utilisateur
+    const user = await tx.user.findUnique({
+      where: { email },
+      include: {
+        buyerProfile: true,
+        sellerProfile: true,
+        adminProfile: true,
+        moderatorProfile: true,
+        accountantProfile: true,
+        deliveryProfile: true,
+        commercialProfile: true,
+        wallet: true,
       },
     });
 
-    throw new Error('Email ou mot de passe incorrect');
-  }
+    if (!user) {
+      throw new Error('Email ou mot de passe incorrect');
+    }
 
-  // Vérifier si le compte est verrouillé
-  if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-    const minutesLeft = Math.ceil(
-      (new Date(user.lockedUntil) - new Date()) / 60000
-    );
-    throw new Error(
-      `Compte verrouillé. Réessayez dans ${minutesLeft} minute(s).`
-    );
-  }
+    // Vérifier si le compte est verrouillé EN PREMIER (sécurité)
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const minutesLeft = Math.ceil(
+        (new Date(user.lockedUntil) - new Date()) / 60000
+      );
+      throw new Error(
+        `Compte verrouillé. Réessayez dans ${minutesLeft} minute(s).`
+      );
+    }
 
-  // Réinitialiser les tentatives de connexion
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      loginAttempts: 0,
-      lockedUntil: null,
-      lastLogin: new Date(),
-    },
+    // Vérifier le mot de passe
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      // Incrémenter les tentatives de connexion
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          loginAttempts: user.loginAttempts + 1,
+          lockedUntil:
+            user.loginAttempts >= 4
+              ? new Date(Date.now() + 30 * 60 * 1000) // Blocage 30 minutes
+              : null,
+        },
+      });
+
+      throw new Error('Email ou mot de passe incorrect');
+    }
+
+    // Réinitialiser les tentatives de connexion
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        loginAttempts: 0,
+        lockedUntil: null,
+        lastLogin: new Date(),
+      },
+    });
+
+    // Générer les tokens
+    const token = generateToken(user.id, user.accountType, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Nettoyer les anciens refresh tokens expirés/révoqués pour cet utilisateur
+    await tx.refreshToken.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { expiresAt: { lt: new Date() } },
+          { isRevoked: true },
+        ],
+      },
+    });
+
+    // Sauvegarder le nouveau refresh token
+    await tx.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
+      },
+    });
+
+    // Retourner l'utilisateur sans le mot de passe
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      token,
+      refreshToken,
+    };
   });
-
-  // Générer les tokens
-  const token = generateToken(user.id, user.accountType, user.email);
-  const refreshToken = generateRefreshToken(user.id);
-
-  // Sauvegarder le refresh token
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
-    },
-  });
-
-  // Retourner l'utilisateur sans le mot de passe
-  const { password: _, ...userWithoutPassword } = user;
-
-  return {
-    user: userWithoutPassword,
-    token,
-    refreshToken,
-  };
 };
 
 /**
@@ -244,14 +273,51 @@ export const refreshTokenService = async (refreshToken) => {
     throw new Error('Refresh token expiré');
   }
 
-  // Générer un nouveau token
+  // Révoquer l'ancien refresh token (rotation de sécurité)
+  await prisma.refreshToken.update({
+    where: { id: tokenRecord.id },
+    data: { isRevoked: true },
+  });
+
+  // Générer un nouveau access token
   const newToken = generateToken(
     tokenRecord.userId,
     tokenRecord.user.accountType,
     tokenRecord.user.email
   );
 
-  return { token: newToken };
+  // Générer un nouveau refresh token
+  const newRefreshToken = generateRefreshToken(tokenRecord.userId);
+
+  // Sauvegarder le nouveau refresh token
+  await prisma.refreshToken.create({
+    data: {
+      userId: tokenRecord.userId,
+      token: newRefreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
+    },
+  });
+
+  // Nettoyer les anciens refresh tokens expirés/révoqués pour cet utilisateur
+  // (en excluant celui qu'on vient de créer et celui qu'on vient de révoquer)
+  await prisma.refreshToken.deleteMany({
+    where: {
+      userId: tokenRecord.userId,
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { isRevoked: true },
+      ],
+      // Ne pas supprimer le token qu'on vient de créer
+      NOT: {
+        token: newRefreshToken,
+      },
+    },
+  });
+
+  return { 
+    token: newToken,
+    refreshToken: newRefreshToken 
+  };
 };
 
 /**
@@ -269,14 +335,17 @@ export const logoutUser = async (refreshToken) => {
 
 /**
  * Service d'envoi de code de vérification email
+ * Protection contre l'énumération : ne pas révéler si l'utilisateur existe
  */
 export const sendEmailVerificationCode = async (email) => {
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
+  // Ne pas révéler si l'utilisateur existe ou non (protection contre l'énumération)
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    // Retourner un message générique pour ne pas révéler l'existence
+    return { message: 'Si cet email existe, un code a été envoyé' };
   }
 
   if (user.emailVerified) {
@@ -290,7 +359,8 @@ export const sendEmailVerificationCode = async (email) => {
     await sendVerificationCodeEmail(email, code, user.firstName);
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'email:', error);
-    throw new Error('Erreur lors de l\'envoi du code de vérification');
+    // Ne pas révéler l'erreur à l'utilisateur pour la sécurité
+    return { message: 'Si cet email existe, un code de vérification a été envoyé' };
   }
 
   return { message: 'Code de vérification envoyé par email' };
@@ -298,14 +368,17 @@ export const sendEmailVerificationCode = async (email) => {
 
 /**
  * Service d'envoi de code de vérification SMS
+ * Protection contre l'énumération : ne révèle pas si le téléphone existe
  */
 export const sendPhoneVerificationCode = async (phone) => {
   const user = await prisma.user.findUnique({
     where: { phone },
   });
 
+  // Ne pas révéler si l'utilisateur existe ou non (protection contre énumération)
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    // Retourner un message générique pour ne pas révéler l'existence
+    return { message: 'Si ce numéro existe, un code de vérification a été envoyé' };
   }
 
   if (user.phoneVerified) {
@@ -319,7 +392,8 @@ export const sendPhoneVerificationCode = async (phone) => {
     await sendVerificationCodeSMS(phone, code);
   } catch (error) {
     console.error('Erreur lors de l\'envoi du SMS:', error);
-    throw new Error('Erreur lors de l\'envoi du code de vérification');
+    // Ne pas révéler l'erreur à l'utilisateur pour la sécurité
+    return { message: 'Si ce numéro existe, un code de vérification a été envoyé' };
   }
 
   return { message: 'Code de vérification envoyé par SMS' };

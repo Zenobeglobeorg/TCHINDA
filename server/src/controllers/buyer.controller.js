@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import * as buyerService from '../services/buyer.service.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Get buyer profile

@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   register,
   login,
@@ -28,26 +29,45 @@ import {
 
 const router = express.Router();
 
+// Rate limiting strict pour l'authentification
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 tentatives par 15 minutes
+  message: 'Trop de tentatives de connexion. Veuillez réessayer plus tard.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Ne pas compter les succès
+});
+
+// Rate limiting pour refresh token
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 tentatives par 15 minutes
+  message: 'Trop de tentatives de rafraîchissement de token.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /**
  * @route   POST /api/auth/register
  * @desc    Inscription d'un nouvel utilisateur
  * @access  Public
  */
-router.post('/register', registerValidation, validate, register);
+router.post('/register', authLimiter, registerValidation, validate, register);
 
 /**
  * @route   POST /api/auth/login
  * @desc    Connexion d'un utilisateur
  * @access  Public
  */
-router.post('/login', loginValidation, validate, login);
+router.post('/login', authLimiter, loginValidation, validate, login);
 
 /**
  * @route   POST /api/auth/refresh-token
  * @desc    Rafraîchir le token d'accès
  * @access  Public
  */
-router.post('/refresh-token', refreshToken);
+router.post('/refresh-token', refreshLimiter, refreshToken);
 
 /**
  * @route   POST /api/auth/logout

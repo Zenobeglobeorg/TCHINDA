@@ -42,10 +42,8 @@ export const login = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: { message: error.message },
-    });
+    // Utiliser le middleware d'erreur global pour cohérence
+    next(error);
   }
 };
 

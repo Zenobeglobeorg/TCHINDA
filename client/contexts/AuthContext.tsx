@@ -27,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isLoadingUserRef = React.useRef(false); // Flag pour éviter les race conditions
 
   // Charger l'utilisateur au démarrage
   useEffect(() => {
@@ -34,7 +35,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const loadUser = async () => {
+    // Éviter les appels simultanés (race condition)
+    if (isLoadingUserRef.current) {
+      return;
+    }
+
     try {
+      isLoadingUserRef.current = true;
       setIsLoading(true);
       const cachedUser = await apiService.getUser();
       
@@ -59,8 +66,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Erreur lors du chargement de l\'utilisateur:', error);
       // En cas d'erreur, considérer qu'on n'est pas connecté
       setUser(null);
+      await apiService.clearStorage();
     } finally {
       setIsLoading(false);
+      isLoadingUserRef.current = false;
     }
   };
 

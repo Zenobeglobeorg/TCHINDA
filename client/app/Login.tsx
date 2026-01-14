@@ -185,7 +185,14 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.scrollContainer,
+            Platform.OS === 'web' && styles.scrollContainerWeb
+          ]}
+        >
+          {/* Wrapper centré pour web */}
+          <View style={Platform.OS === 'web' ? styles.webWrapper : undefined}>
           {/* En-tête avec Logo */}
           <View style={styles.header}>
             {/* Logo TCHINDA */}
@@ -335,6 +342,7 @@ export default function LoginScreen() {
               </ThemedText>
             </TouchableOpacity>
           </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -344,6 +352,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      backgroundColor: '#F5F7FA',
+      minHeight: '100vh',
+    }),
   },
   keyboardAvoid: {
     flex: 1,
@@ -352,6 +365,26 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  scrollContainerWeb: {
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      minHeight: '100vh',
+      alignItems: 'center',
+      padding: '40px 20px',
+    }),
+  },
+  webWrapper: {
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      width: '100%',
+      maxWidth: 480,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 40,
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+      border: '1px solid rgba(0, 0, 0, 0.05)',
+    }),
   },
   header: {
     alignItems: 'center',
@@ -409,10 +442,27 @@ const styles = StyleSheet.create({
     color: 'black',
     padding: 16,
     fontSize: 16,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      outline: 'none',
+      ':focus': {
+        borderColor: '#624cacff',
+        boxShadow: '0 0 0 3px rgba(98, 76, 172, 0.1)',
+      } as any,
+    }),
   },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 30,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      cursor: 'pointer',
+      transition: 'opacity 0.2s ease',
+      ':hover': {
+        opacity: 0.8,
+      } as any,
+    }),
   },
   forgotPasswordText: {
     color: '#A1CEDC',
@@ -425,6 +475,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore - Web-specific styles
+      cursor: 'pointer',
+      transition: 'background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease',
+      boxShadow: '0 2px 8px rgba(98, 76, 172, 0.2)',
+      ':hover': {
+        backgroundColor: '#5a45a0',
+        transform: 'translateY(-1px)',
+        boxShadow: '0 4px 12px rgba(98, 76, 172, 0.3)',
+      } as any,
+      ':active': {
+        transform: 'translateY(0)',
+      } as any,
+    }),
   },
   loginButtonDisabled: {
     opacity: 0.6,

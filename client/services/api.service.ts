@@ -22,6 +22,7 @@ interface ApiResponse<T = any> {
 class ApiService {
   private baseURL: string;
   private token: string | null = null;
+  private isRefreshing: boolean = false; // Flag pour éviter les boucles infinies
 
   constructor() {
     this.baseURL = API_CONFIG.BASE_URL;
@@ -126,21 +127,107 @@ class ApiService {
         headers['Authorization'] = `Bearer ${this.token}`;
       }
 
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        timeout: API_CONFIG.TIMEOUT,
-      } as RequestInit);
+      // Utiliser AbortController pour le timeout (fetch n'a pas d'option timeout native)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT || 10000);
 
-      const data = await response.json();
-
-      // Si le token est expiré, essayer de le rafraîchir
-      if (response.status === 401 && this.token) {
-        const refreshed = await this.refreshToken();
-        if (refreshed) {
-          // Réessayer la requête avec le nouveau token
-          return this.request<T>(endpoint, options);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          ...options,
+          headers,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          return {
+            success: false,
+            error: {
+              message: 'Requête expirée. Vérifiez votre connexion internet.',
+            },
+          };
         }
+        throw fetchError;
+      }
+
+      // Vérifier le Content-Type de la réponse
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        return {
+          success: false,
+          error: {
+            message: 'Réponse invalide du serveur',
+          },
+        };
+      }
+
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        return {
+          success: false,
+          error: {
+            message: 'Erreur lors du parsing de la réponse du serveur',
+          },
+        };
+      }
+
+      // Si le token est expiré, essayer de le rafraîchir (une seule fois)
+      if (response.status === 401 && this.token && !this.isRefreshing) {
+        this.isRefreshing = true;
+        try {
+          const refreshed = await this.refreshToken();
+          if (refreshed) {
+            // Réessayer UNE SEULE FOIS avec le nouveau token
+            const retryController = new AbortController();
+            const retryTimeoutId = setTimeout(() => retryController.abort(), API_CONFIG.TIMEOUT || 10000);
+            
+            try {
+              const retryResponse = await fetch(url, {
+                ...options,
+                headers: {
+                  ...headers,
+                  'Authorization': `Bearer ${this.token}`,
+                },
+                signal: retryController.signal,
+              });
+              clearTimeout(retryTimeoutId);
+              
+              const retryData = await retryResponse.json();
+              
+              if (retryResponse.ok) {
+                return {
+                  success: true,
+                  data: retryData.data || retryData,
+                };
+              }
+            } catch (retryError: any) {
+              clearTimeout(retryTimeoutId);
+              if (retryError.name === 'AbortError') {
+                return {
+                  success: false,
+                  error: {
+                    message: 'Requête expirée. Vérifiez votre connexion internet.',
+                  },
+                };
+              }
+            }
+          }
+        } finally {
+          this.isRefreshing = false;
+        }
+        
+        // Si le refresh échoue, nettoyer et retourner erreur
+        await this.clearStorage();
+        return {
+          success: false,
+          error: {
+            message: 'Session expirée. Veuillez vous reconnecter.',
+          },
+        };
       }
 
       if (!response.ok) {
@@ -173,27 +260,72 @@ class ApiService {
     try {
       const refreshToken = await this.getRefreshToken();
       if (!refreshToken) {
+        // Pas de refresh token = nettoyer le stockage
+        await this.clearStorage();
         return false;
       }
 
-      const response = await fetch(`${this.baseURL}${API_CONFIG.ENDPOINTS.AUTH.REFRESH_TOKEN}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
+      // Utiliser AbortController pour le timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT || 10000);
 
-      const data = await response.json();
+      let response: Response;
+      try {
+        response = await fetch(`${this.baseURL}${API_CONFIG.ENDPOINTS.AUTH.REFRESH_TOKEN}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refreshToken }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.error('Timeout lors du rafraîchissement du token');
+        } else {
+          console.error('Erreur réseau lors du rafraîchissement du token:', fetchError);
+        }
+        // Nettoyer le stockage en cas d'erreur
+        await this.clearStorage();
+        return false;
+      }
+
+      // Vérifier le Content-Type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Réponse invalide lors du rafraîchissement du token');
+        await this.clearStorage();
+        return false;
+      }
+
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Erreur lors du parsing de la réponse de refresh token');
+        await this.clearStorage();
+        return false;
+      }
 
       if (response.ok && data.data?.token) {
         await this.setToken(data.data.token);
+        // Mettre à jour le refresh token si fourni (rotation de sécurité)
+        if (data.data.refreshToken) {
+          await this.setRefreshToken(data.data.refreshToken);
+        }
         return true;
       }
 
+      // Si le refresh échoue, nettoyer le stockage
+      console.error('Échec du rafraîchissement du token:', data.error?.message || 'Token invalide');
+      await this.clearStorage();
       return false;
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du token:', error);
+      // Nettoyer le stockage en cas d'erreur
+      await this.clearStorage();
       return false;
     }
   }

@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma.js';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Durée de validité des codes (10 minutes)
 const CODE_EXPIRY_MINUTES = 10;
