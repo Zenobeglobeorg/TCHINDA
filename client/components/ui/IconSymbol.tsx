@@ -54,6 +54,12 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'moon.fill': 'dark-mode',
   'sun.max.fill': 'wb-sunny',
+  'eye.fill': 'visibility',
+  'pencil': 'edit',
+  'pause.fill': 'pause',
+  'play.fill': 'play-arrow',
+  'doc.text.fill': 'description',
+  'checkmark.shield.fill': 'verified-user',
 } as IconMapping;
 
 /**

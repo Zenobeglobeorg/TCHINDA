@@ -55,6 +55,32 @@ export default function UserManagementScreen() {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationAction, setVerificationAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  // États pour les modals utilisateur
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    accountType: '',
+    accountStatus: '',
+  });
+  const [createForm, setCreateForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    accountType: 'BUYER',
+    country: '',
+  });
+  const [actionLoading, setActionLoading] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -123,13 +149,116 @@ export default function UserManagementScreen() {
   };
 
   const handleUserAction = async (user: User, action: string) => {
+    if (action === 'view') {
+      try {
+        setActionLoading(true);
+        const response = await apiService.get(`/api/admin/users/${user.id}`);
+        if (response.success && response.data) {
+          setUserDetails(response.data);
+          setShowViewModal(true);
+        } else {
+          alert('Erreur', response.error?.message || 'Impossible de charger les détails');
+        }
+      } catch (error: any) {
+        alert('Erreur', error.message || 'Erreur lors du chargement');
+      } finally {
+        setActionLoading(false);
+      }
+    } else if (action === 'edit') {
+      setSelectedUser(user);
+      setEditForm({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        accountType: user.accountType || '',
+        accountStatus: user.accountStatus || '',
+      });
+      setShowEditModal(true);
+    } else if (action === 'suspend' || action === 'activate') {
+      setSelectedUser(user);
+      setShowStatusModal(true);
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+
     try {
-      // TODO: Implémenter les actions
-      // await apiService.patch(`/api/admin/users/${user.id}/${action}`, {});
-      alert('Succès', `Action "${action}" effectuée`);
-      loadUsers();
+      setActionLoading(true);
+      const response = await apiService.put(`/api/admin/users/${selectedUser.id}`, editForm);
+      if (response.success) {
+        alert('Succès', 'Utilisateur mis à jour avec succès');
+        setShowEditModal(false);
+        setSelectedUser(null);
+        loadUsers();
+      } else {
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+      }
     } catch (error: any) {
-      alert('Erreur', error.message || 'Erreur lors de l\'action');
+      alert('Erreur', error.message || 'Erreur lors de la mise à jour');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStatusChange = async () => {
+    if (!selectedUser) return;
+
+    const newStatus = selectedUser.accountStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+
+    try {
+      setActionLoading(true);
+      const response = await apiService.put(`/api/admin/users/${selectedUser.id}/status`, {
+        status: newStatus,
+      });
+      if (response.success) {
+        alert(
+          'Succès',
+          `Utilisateur ${newStatus === 'SUSPENDED' ? 'suspendu' : 'activé'} avec succès`
+        );
+        setShowStatusModal(false);
+        setSelectedUser(null);
+        loadUsers();
+      } else {
+        alert('Erreur', response.error?.message || 'Erreur lors du changement de statut');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Erreur lors du changement de statut');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!createForm.email || !createForm.password || !createForm.accountType) {
+      alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const response = await apiService.post('/api/admin/users', createForm);
+      if (response.success) {
+        alert('Succès', 'Utilisateur créé avec succès');
+        setShowCreateModal(false);
+        setCreateForm({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          phone: '',
+          accountType: 'BUYER',
+          country: '',
+        });
+        loadUsers();
+      } else {
+        alert('Erreur', response.error?.message || 'Erreur lors de la création');
+      }
+    } catch (error: any) {
+      alert('Erreur', error.message || 'Erreur lors de la création');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -197,6 +326,29 @@ export default function UserManagementScreen() {
 
   const pendingVerifications = verifications.filter((v) => v.status === 'PENDING');
 
+  // Écran de chargement initial
+  if (loading && users.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={[styles.header, { backgroundColor }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol name="chevron.right" size={24} color={textColor} />
+          </TouchableOpacity>
+          <ThemedText style={[styles.headerTitle, { color: textColor }]}>
+            Gestion des utilisateurs
+          </ThemedText>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={tintColor} />
+          <ThemedText style={[styles.loadingText, { color: textColor }]}>
+            Chargement des utilisateurs...
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor }]}>
@@ -206,7 +358,12 @@ export default function UserManagementScreen() {
         <ThemedText style={[styles.headerTitle, { color: textColor }]}>
           Gestion des utilisateurs
         </ThemedText>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => setShowCreateModal(true)}
+          style={[styles.createButton, { backgroundColor: tintColor }]}
+        >
+          <IconSymbol name="plus.circle.fill" size={24} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
@@ -271,6 +428,7 @@ export default function UserManagementScreen() {
                 { label: 'Tous', value: null },
                 { label: 'Acheteurs', value: 'BUYER' },
                 { label: 'Vendeurs', value: 'SELLER' },
+                { label: 'Administrateurs', value: 'ADMIN' },
                 { label: 'Commerciaux', value: 'COMMERCIAL' },
                 { label: 'Livreurs', value: 'DELIVERY' },
                 { label: 'Factureurs', value: 'ACCOUNTANT' },
@@ -305,7 +463,20 @@ export default function UserManagementScreen() {
             contentContainerStyle={styles.content}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
-            {filteredUsers.map((user) => (
+            {loading && users.length > 0 && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="small" color={tintColor} />
+              </View>
+            )}
+            {filteredUsers.length === 0 && !loading ? (
+              <View style={styles.emptyContainer}>
+                <IconSymbol name="person.fill" size={64} color={textColor + '40'} />
+                <ThemedText style={[styles.emptyText, { color: textColor + '60' }]}>
+                  Aucun utilisateur trouvé
+                </ThemedText>
+              </View>
+            ) : (
+              filteredUsers.map((user) => (
               <View key={user.id} style={[styles.userCard, { backgroundColor }]}>
                 <View style={styles.userInfo}>
                   <View style={[styles.avatar, { backgroundColor: tintColor }]}>
@@ -390,7 +561,8 @@ export default function UserManagementScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
+            ))
+            )}
           </ScrollView>
         </>
       )}
@@ -457,6 +629,431 @@ export default function UserManagementScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* View User Modal */}
+      <Modal visible={showViewModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
+                Détails de l'utilisateur
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowViewModal(false);
+                  setUserDetails(null);
+                }}
+              >
+                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              {userDetails && (
+                <>
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Nom complet
+                    </ThemedText>
+                    <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                      {userDetails.firstName} {userDetails.lastName}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Email
+                    </ThemedText>
+                    <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                      {userDetails.email}
+                    </ThemedText>
+                  </View>
+                  {userDetails.phone && (
+                    <View style={styles.detailRow}>
+                      <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                        Téléphone
+                      </ThemedText>
+                      <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                        {userDetails.phone}
+                      </ThemedText>
+                    </View>
+                  )}
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Type de compte
+                    </ThemedText>
+                    <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                      {getAccountTypeLabel(userDetails.accountType)}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Statut
+                    </ThemedText>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(userDetails.accountStatus) + '20' },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.statusText,
+                          { color: getStatusColor(userDetails.accountStatus) },
+                        ]}
+                      >
+                        {userDetails.accountStatus}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Vérifications
+                    </ThemedText>
+                    <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                      Email: {userDetails.isEmailVerified ? '✓' : '✗'} • Phone:{' '}
+                      {userDetails.isPhoneVerified ? '✓' : '✗'} • KYC:{' '}
+                      {userDetails.kycVerified ? '✓' : '✗'}
+                    </ThemedText>
+                  </View>
+                  {userDetails.wallet && (
+                    <View style={styles.detailRow}>
+                      <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                        Portefeuille
+                      </ThemedText>
+                      <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                        {userDetails.wallet.balance} {userDetails.wallet.currency}
+                      </ThemedText>
+                    </View>
+                  )}
+                  {userDetails.country && (
+                    <View style={styles.detailRow}>
+                      <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                        Pays
+                      </ThemedText>
+                      <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                        {userDetails.country}
+                      </ThemedText>
+                    </View>
+                  )}
+                  <View style={styles.detailRow}>
+                    <ThemedText style={[styles.detailLabel, { color: textColor + '80' }]}>
+                      Date de création
+                    </ThemedText>
+                    <ThemedText style={[styles.detailValue, { color: textColor }]}>
+                      {new Date(userDetails.createdAt).toLocaleDateString('fr-FR')}
+                    </ThemedText>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
+                onPress={() => {
+                  setShowViewModal(false);
+                  setUserDetails(null);
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Fermer</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
+                Modifier l'utilisateur
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEditModal(false);
+                  setSelectedUser(null);
+                }}
+              >
+                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Prénom</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
+                  ]}
+                  value={editForm.firstName}
+                  onChangeText={(text) => setEditForm({ ...editForm, firstName: text })}
+                  placeholder="Prénom"
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Nom</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
+                  ]}
+                  value={editForm.lastName}
+                  onChangeText={(text) => setEditForm({ ...editForm, lastName: text })}
+                  placeholder="Nom"
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Email</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
+                  ]}
+                  value={editForm.email}
+                  onChangeText={(text) => setEditForm({ ...editForm, email: text })}
+                  placeholder="Email"
+                  placeholderTextColor={textColor + '60'}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Téléphone</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
+                  ]}
+                  value={editForm.phone}
+                  onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
+                  placeholder="Téléphone"
+                  placeholderTextColor={textColor + '60'}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
+                onPress={() => {
+                  setShowEditModal(false);
+                  setSelectedUser(null);
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleUpdateUser}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={styles.modalButtonText}>Enregistrer</ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Status Change Modal */}
+      <Modal visible={showStatusModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
+                {selectedUser?.accountStatus === 'ACTIVE'
+                  ? 'Suspendre l\'utilisateur'
+                  : 'Activer l\'utilisateur'}
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowStatusModal(false);
+                  setSelectedUser(null);
+                }}
+              >
+                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <ThemedText style={[styles.modalDescription, { color: textColor + '80' }]}>
+                {selectedUser?.accountStatus === 'ACTIVE'
+                  ? `Êtes-vous sûr de vouloir suspendre ${selectedUser?.firstName} ${selectedUser?.lastName} ? L'utilisateur ne pourra plus accéder à son compte.`
+                  : `Êtes-vous sûr de vouloir activer ${selectedUser?.firstName} ${selectedUser?.lastName} ? L'utilisateur pourra à nouveau accéder à son compte.`}
+              </ThemedText>
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
+                onPress={() => {
+                  setShowStatusModal(false);
+                  setSelectedUser(null);
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor:
+                      selectedUser?.accountStatus === 'ACTIVE' ? '#FF9800' : '#4CAF50',
+                  },
+                ]}
+                onPress={handleStatusChange}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={styles.modalButtonText}>
+                    {selectedUser?.accountStatus === 'ACTIVE' ? 'Suspendre' : 'Activer'}
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create User Modal */}
+      <Modal visible={showCreateModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
+                Créer un nouvel utilisateur
+              </ThemedText>
+              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Prénom</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.firstName}
+                  onChangeText={(text) => setCreateForm({ ...createForm, firstName: text })}
+                  placeholder="Prénom"
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Nom</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.lastName}
+                  onChangeText={(text) => setCreateForm({ ...createForm, lastName: text })}
+                  placeholder="Nom"
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Email *</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.email}
+                  onChangeText={(text) => setCreateForm({ ...createForm, email: text })}
+                  placeholder="email@example.com"
+                  placeholderTextColor={textColor + '60'}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Mot de passe *</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.password}
+                  onChangeText={(text) => setCreateForm({ ...createForm, password: text })}
+                  placeholder="Mot de passe"
+                  placeholderTextColor={textColor + '60'}
+                  secureTextEntry
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Téléphone</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.phone}
+                  onChangeText={(text) => setCreateForm({ ...createForm, phone: text })}
+                  placeholder="+221 77 123 45 67"
+                  placeholderTextColor={textColor + '60'}
+                  keyboardType="phone-pad"
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Type de compte *</ThemedText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountTypeSelector}>
+                  {[
+                    { label: 'Acheteur', value: 'BUYER' },
+                    { label: 'Vendeur', value: 'SELLER' },
+                    { label: 'Modérateur', value: 'MODERATOR' },
+                    { label: 'Factureur', value: 'ACCOUNTANT' },
+                    { label: 'Livreur', value: 'DELIVERY' },
+                    { label: 'Commercial', value: 'COMMERCIAL' },
+                  ].map((type) => (
+                    <TouchableOpacity
+                      key={type.value}
+                      style={[
+                        styles.accountTypeButton,
+                        createForm.accountType === type.value && [
+                          styles.accountTypeButtonActive,
+                          { backgroundColor: tintColor },
+                        ],
+                      ]}
+                      onPress={() => setCreateForm({ ...createForm, accountType: type.value })}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.accountTypeButtonText,
+                          { color: createForm.accountType === type.value ? '#FFF' : textColor },
+                        ]}
+                      >
+                        {type.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.formGroup}>
+                <ThemedText style={[styles.label, { color: textColor }]}>Pays</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+                  value={createForm.country}
+                  onChangeText={(text) => setCreateForm({ ...createForm, country: text })}
+                  placeholder="SN, CI, CM, etc."
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
+                onPress={() => setShowCreateModal(false)}
+              >
+                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleCreateUser}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={styles.modalButtonText}>Créer</ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Verification Action Modal */}
       <Modal visible={showVerificationModal} animationType="slide" transparent>
@@ -839,6 +1436,70 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accountTypeSelector: {
+    marginTop: 8,
+  },
+  accountTypeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+  },
+  accountTypeButtonActive: {
+    borderColor: 'transparent',
+  },
+  accountTypeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 12,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    zIndex: 1000,
+  },
+  detailRow: {
+    marginBottom: 16,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
   },
 });
 
