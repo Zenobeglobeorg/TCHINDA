@@ -71,27 +71,16 @@ export default function UserManagementScreen() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // TODO: Remplacer par l'endpoint réel /api/admin/users
-      // const response = await apiService.get('/api/admin/users');
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          email: 'user1@example.com',
-          firstName: 'Jean',
-          lastName: 'Dupont',
-          phone: '+221 77 123 45 67',
-          accountType: 'BUYER',
-          accountStatus: 'ACTIVE',
-          isEmailVerified: true,
-          isPhoneVerified: true,
-          kycVerified: false,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      setUsers(mockUsers);
-    } catch (error) {
+      const response = await apiService.get<User[]>('/api/admin/users');
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Impossible de charger les utilisateurs');
+      }
+
+      setUsers(response.data);
+    } catch (error: any) {
       console.error('Error loading users:', error);
-      alert('Erreur', 'Impossible de charger les utilisateurs');
+      alert('Erreur', error.message || 'Impossible de charger les utilisateurs');
     } finally {
       setLoading(false);
       setRefreshing(false);
