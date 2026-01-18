@@ -226,4 +226,3 @@ export const updateUserStatus = async (req, res, next) => {
     next(error);
   }
 };
-

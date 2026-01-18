@@ -60,6 +60,19 @@ const MAPPING = {
   'play.fill': 'play-arrow',
   'doc.text.fill': 'description',
   'checkmark.shield.fill': 'verified-user',
+  'dollarsign.circle.fill': 'attach-money',
+  'exclamationmark.triangle.fill': 'warning',
+  'bell.badge.fill': 'notifications-active',
+  'globe': 'language',
+  'gearshape.2.fill': 'settings',
+  'person.3.fill': 'people',
+  'wrench.and.screwdriver.fill': 'build',
+  'person.badge.shield.checkmark.fill': 'admin-panel-settings',
+  'chart.line.uptrend.xyaxis': 'trending-up',
+  'chart.bar.fill': 'bar-chart',
+  'rectangle.portrait.and.arrow.right': 'logout',
+  'megaphone.fill': 'campaign',
+  'power': 'power-settings-new',
 } as IconMapping;
 
 /**

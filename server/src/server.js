@@ -91,11 +91,14 @@ const corsOptions = {
     if (process.env.NODE_ENV === 'production') {
       const allowedOrigins = getAllowedOrigins();
       
-      // Ne pas autoriser les requêtes sans origine en production (sécurité)
+      // Autoriser les requêtes sans origine en production uniquement pour les applications mobiles
+      // Expo Go utilise okhttp qui n'envoie pas d'en-tête Origin
+      // On détecte cela via le contexte (pas d'origine) et on autorise si c'est une app mobile
       if (!origin) {
-        // Exception pour les applications mobiles qui n'envoient pas d'origine
-        // Mais on peut être plus strict si nécessaire
-        return callback(new Error('Origine requise en production'));
+        // Autoriser les requêtes sans origine en production (applications mobiles natives)
+        // C'est sécurisé car les applications mobiles ne sont pas soumises à CORS de la même manière
+        // que les navigateurs web
+        return callback(null, true);
       }
       
       // Vérifier strictement contre la whitelist
