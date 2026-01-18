@@ -102,6 +102,14 @@ function AppContent() {
             title: 'Espace Vendeur'
           }} 
         />
+        {/* Commercial Dashboard */}
+        <Stack.Screen 
+          name="commercial/dashboard" 
+          options={{ 
+            headerShown: false,
+            title: 'Dashboard Commercial'
+          }} 
+        />
         <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style={effectiveColorScheme === 'dark' ? 'light' : 'dark'} />

@@ -103,8 +103,9 @@ export default function SplashScreen() {
           if (user.accountType === 'ADMIN') {
             router.replace('/admin/dashboard');
           } else if (user.accountType === 'SELLER') {
-            // Rediriger vers l'espace vendeur
             router.replace('/seller/dashboard');
+          } else if (user.accountType === 'COMMERCIAL') {
+            router.replace('/commercial/dashboard');
           } else {
             // Rediriger vers l'onglet index (page d'accueil) pour les acheteurs
             router.replace('/(tabs)');

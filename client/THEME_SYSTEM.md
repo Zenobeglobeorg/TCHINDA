@@ -131,3 +131,4 @@ La page de paramètres permet de :
 - ⚠️ Le mode "Auto" suit le thème système, pas les préférences de l'app
 - ✅ Les couleurs sont optimisées pour la lisibilité dans les deux modes
 
+

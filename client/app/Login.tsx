@@ -33,6 +33,8 @@ export default function LoginScreen() {
         router.replace('/admin/dashboard');
       } else if (user.accountType === 'SELLER') {
         router.replace('/seller/dashboard');
+      } else if (user.accountType === 'COMMERCIAL') {
+        router.replace('/commercial/dashboard');
       } else {
         router.replace('/(tabs)');
       }
@@ -133,6 +135,8 @@ export default function LoginScreen() {
               router.replace('/admin/dashboard');
             } else if (user.accountType === 'SELLER') {
               router.replace('/seller/dashboard');
+            } else if (user.accountType === 'COMMERCIAL') {
+              router.replace('/commercial/dashboard');
             } else {
               router.replace('/(tabs)');
             }
