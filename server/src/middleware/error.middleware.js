@@ -5,18 +5,25 @@
 export const errorHandler = (err, req, res, next) => {
   // Déterminer le code de statut
   let statusCode = err.statusCode || 500;
+  const message = err.message || 'Erreur interne du serveur';
   
   // Si c'est une erreur d'authentification, utiliser 401
-  if (err.message && (
-    err.message.includes('Email ou mot de passe incorrect') ||
-    err.message.includes('Token') ||
-    err.message.includes('authentification') ||
-    err.message.includes('Refresh token')
-  )) {
+  // IMPORTANT: ne pas détecter "Token" de façon trop large (ex: erreurs Prisma listant refreshTokens/passwordResetTokens)
+  const jwtErrorNames = new Set(['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError']);
+  const isJwtError = typeof err?.name === 'string' && jwtErrorNames.has(err.name);
+  const isAuthMessage =
+    typeof message === 'string' &&
+    (message.includes('Email ou mot de passe incorrect') ||
+      message.includes('Refresh token') ||
+      message.includes('Token invalide') ||
+      message.includes('Token expiré') ||
+      message.includes('Authentification requise') ||
+      message.includes('Non autorisé'));
+
+  if (isJwtError || isAuthMessage) {
     statusCode = 401;
   }
 
-  const message = err.message || 'Erreur interne du serveur';
   const isClientError = statusCode >= 400 && statusCode < 500;
 
   // Log structuré pour le monitoring

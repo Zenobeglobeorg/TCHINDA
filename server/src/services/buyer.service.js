@@ -396,7 +396,11 @@ export const getCart = async (userId) => {
                   id: true,
                   firstName: true,
                   lastName: true,
-                  shopName: true,
+                  sellerProfile: {
+                    select: {
+                      shopName: true,
+                    },
+                  },
                 },
               },
             },
@@ -419,13 +423,39 @@ export const getCart = async (userId) => {
     });
   }
 
+  // Normaliser le seller.shopName (stocké dans sellerProfile.shopName)
+  const normalizedItems = (cart.items || []).map((item) => {
+    const seller = item?.product?.seller;
+    const normalizedSeller = seller
+      ? {
+          id: seller.id,
+          firstName: seller.firstName,
+          lastName: seller.lastName,
+          shopName: seller?.sellerProfile?.shopName || null,
+        }
+      : undefined;
+
+    const normalizedProduct = item.product
+      ? {
+          ...item.product,
+          ...(normalizedSeller ? { seller: normalizedSeller } : {}),
+        }
+      : item.product;
+
+    return {
+      ...item,
+      product: normalizedProduct,
+    };
+  });
+
   // Calculate totals
-  const subtotal = cart.items.reduce((sum, item) => {
+  const subtotal = normalizedItems.reduce((sum, item) => {
     return sum + parseFloat(item.price) * item.quantity;
   }, 0);
 
   return {
     ...cart,
+    items: normalizedItems,
     subtotal,
     shippingCost: 0, // Will be calculated based on subscription
     total: subtotal,
@@ -600,7 +630,11 @@ export const addToWishlist = async (userId, productId) => {
   });
 
   if (existing) {
-    return existing;
+    // Retourner un format cohérent (avec product) comme lors de la création
+    return await prisma.wishlistItem.findUnique({
+      where: { id: existing.id },
+      include: { product: true },
+    });
   }
 
   return await prisma.wishlistItem.create({
