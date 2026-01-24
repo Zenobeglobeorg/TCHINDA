@@ -16,12 +16,21 @@ import { useRouter } from 'expo-router';
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>('ALL');
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    if (user.accountType !== 'BUYER') {
+      setLoading(false);
+      return;
+    }
     loadOrders();
   }, [filter]);
 
@@ -88,6 +97,23 @@ export default function OrdersScreen() {
     return (
       <ThemedView style={styles.container}>
         <ActivityIndicator size="large" />
+      </ThemedView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.emptyState}>
+          <IconSymbol name="tray" size={64} color="#CCC" />
+          <ThemedText style={styles.emptyTitle}>Connectez-vous</ThemedText>
+          <ThemedText style={styles.emptyText}>
+            Veuillez vous connecter pour voir vos commandes
+          </ThemedText>
+          <TouchableOpacity style={styles.shopButton} onPress={() => router.push('/Login')}>
+            <ThemedText style={styles.shopButtonText}>Se connecter</ThemedText>
+          </TouchableOpacity>
+        </View>
       </ThemedView>
     );
   }

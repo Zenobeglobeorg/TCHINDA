@@ -104,9 +104,8 @@ export const getCurrentUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        user: userWithoutPassword,
-      },
+      // Retourner directement l'utilisateur (format attendu par le client)
+      data: userWithoutPassword,
     });
   } catch (error) {
     next(error);

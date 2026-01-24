@@ -35,6 +35,10 @@ try {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// IMPORTANT: Railway/Render/Heroku mettent souvent un proxy devant l'app
+// Nécessaire pour express-rate-limit (X-Forwarded-For) et req.ip correct
+app.set('trust proxy', 1);
+
 // Security middleware avec configuration améliorée
 app.use(helmet({
   contentSecurityPolicy: {

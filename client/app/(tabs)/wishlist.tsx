@@ -21,9 +21,19 @@ export default function WishlistScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [wishlist, setWishlist] = useState<any[]>([]);
 
+  const { user } = useAuth();
+
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    if (user.accountType !== 'BUYER') {
+      setLoading(false);
+      return;
+    }
     loadWishlist();
-  }, []);
+  }, [user]);
 
   const loadWishlist = async () => {
     try {
@@ -74,6 +84,23 @@ export default function WishlistScreen() {
     return (
       <ThemedView style={styles.container}>
         <ActivityIndicator size="large" />
+      </ThemedView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.emptyState}>
+          <IconSymbol name="heart" size={64} color="#CCC" />
+          <ThemedText style={styles.emptyTitle}>Connectez-vous</ThemedText>
+          <ThemedText style={styles.emptyText}>
+            Veuillez vous connecter pour accéder à votre wishlist
+          </ThemedText>
+          <TouchableOpacity style={styles.shopButton} onPress={() => router.push('/Login')}>
+            <ThemedText style={styles.shopButtonText}>Se connecter</ThemedText>
+          </TouchableOpacity>
+        </View>
       </ThemedView>
     );
   }

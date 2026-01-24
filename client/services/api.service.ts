@@ -32,10 +32,6 @@ class ApiService {
   // Charger le token depuis le stockage
   private async loadToken() {
     try {
-      // Vérifier si on est sur le web et si window est disponible
-      if (typeof window === 'undefined') {
-        return; // SSR ou environnement sans window
-      }
       const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
       this.token = token;
     } catch (error) {
@@ -43,6 +39,17 @@ class ApiService {
       if (__DEV__) {
         console.warn('Erreur lors du chargement du token (normal en SSR):', error);
       }
+    }
+  }
+
+  // S'assurer que le token est chargé (utile au démarrage, web/native)
+  private async ensureTokenLoaded() {
+    if (this.token) return;
+    try {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+      this.token = token;
+    } catch {
+      // ignore
     }
   }
 
@@ -116,11 +123,21 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      };
+
+      // Important: au démarrage, le token peut ne pas être encore chargé
+      await this.ensureTokenLoaded();
+
+      // HeadersInit n'est pas indexable en TS. On normalise vers un objet string->string.
+      const headers: Record<string, string> = {};
+      if (options.headers) {
+        const h = new Headers(options.headers as any);
+        h.forEach((value, key) => {
+          headers[key] = value;
+        });
+      }
+      if (!headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
 
       // Ajouter le token d'authentification si disponible
       if (this.token) {
@@ -166,7 +183,7 @@ class ApiService {
       let data: any;
       try {
         data = await response.json();
-      } catch (parseError) {
+      } catch {
         return {
           success: false,
           error: {
@@ -175,8 +192,8 @@ class ApiService {
         };
       }
 
-      // Si le token est expiré, essayer de le rafraîchir (une seule fois)
-      if (response.status === 401 && this.token && !this.isRefreshing) {
+      // Si 401, essayer de rafraîchir le token (même si access token absent) (une seule fois)
+      if (response.status === 401 && !this.isRefreshing) {
         this.isRefreshing = true;
         try {
           const refreshed = await this.refreshToken();
@@ -303,7 +320,7 @@ class ApiService {
       let data: any;
       try {
         data = await response.json();
-      } catch (parseError) {
+      } catch {
         console.error('Erreur lors du parsing de la réponse de refresh token');
         await this.clearStorage();
         return false;
@@ -360,8 +377,9 @@ class ApiService {
   async upload<T>(endpoint: string, formData: any): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      const headers: HeadersInit = {};
+      const headers: Record<string, string> = {};
 
+      await this.ensureTokenLoaded();
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
       }

@@ -25,8 +25,16 @@ export default function CartScreen() {
   const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    if (user.accountType !== 'BUYER') {
+      setLoading(false);
+      return;
+    }
     loadCart();
-  }, []);
+  }, [user]);
 
   const loadCart = async () => {
     try {
@@ -152,6 +160,23 @@ export default function CartScreen() {
     return (
       <ThemedView style={styles.container}>
         <ActivityIndicator size="large" />
+      </ThemedView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.emptyState}>
+          <IconSymbol name="cart" size={64} color="#CCC" />
+          <ThemedText style={styles.emptyTitle}>Connectez-vous</ThemedText>
+          <ThemedText style={styles.emptyText}>
+            Veuillez vous connecter pour accéder à votre panier
+          </ThemedText>
+          <TouchableOpacity style={styles.shopButton} onPress={() => router.push('/Login')}>
+            <ThemedText style={styles.shopButtonText}>Se connecter</ThemedText>
+          </TouchableOpacity>
+        </View>
       </ThemedView>
     );
   }

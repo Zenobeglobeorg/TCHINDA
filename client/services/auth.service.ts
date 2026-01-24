@@ -94,23 +94,18 @@ class AuthService {
 
   // Obtenir l'utilisateur actuel
   async getCurrentUser() {
-    const response = await apiService.get<User>(API_CONFIG.ENDPOINTS.AUTH.ME);
+    const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.AUTH.ME);
 
     if (response.success && response.data) {
-      await apiService.setUser(response.data);
-      return response;
+      // Compat: ancien format { user: ... } vs nouveau format user direct
+      const user = (response.data as any).user ? (response.data as any).user : response.data;
+      await apiService.setUser(user);
+      return { ...response, data: user as User };
     }
 
-    // Si la requête échoue, essayer de récupérer l'utilisateur depuis le stockage
-    const cachedUser = await apiService.getUser();
-    if (cachedUser) {
-      return {
-        success: true,
-        data: cachedUser,
-      };
-    }
-
-    return response;
+    // IMPORTANT: ne pas "simuler" une session avec un user en cache si on n'est pas authentifié,
+    // sinon les endpoints protégés (panier/wishlist) feront 401 en boucle.
+    return response as any;
   }
 
   // Vérifier l'email
