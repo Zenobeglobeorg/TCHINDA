@@ -69,7 +69,7 @@ export default function ProductScreen() {
     await loadProduct();
   };
 
-  const addToCart = async () => {
+  const addToCart = async (opts?: { silent?: boolean }) => {
     setAddingToCart(true);
     try {
       const response = await apiService.post('/api/buyer/cart/items', {
@@ -78,18 +78,23 @@ export default function ProductScreen() {
       });
 
       if (response.success) {
-        Alert.alert('Succès', 'Produit ajouté au panier', [
-          {
-            text: 'Voir le panier',
-            onPress: () => router.push('/(tabs)/cart'),
-          },
-          { text: 'Continuer', style: 'cancel' },
-        ]);
+        if (!opts?.silent) {
+          Alert.alert('Succès', 'Produit ajouté au panier', [
+            {
+              text: 'Voir le panier',
+              onPress: () => router.push('/(tabs)/cart'),
+            },
+            { text: 'Continuer', style: 'cancel' },
+          ]);
+        }
+        return true;
       } else {
         Alert.alert('Erreur', response.error?.message || 'Erreur lors de l\'ajout au panier');
+        return false;
       }
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
+      return false;
     } finally {
       setAddingToCart(false);
     }
@@ -119,8 +124,10 @@ export default function ProductScreen() {
 
   const buyNow = async () => {
     // Add to cart first, then navigate to checkout
-    await addToCart();
-    router.push('/buyer/checkout');
+    const ok = await addToCart({ silent: true });
+    if (ok) {
+      router.push('/buyer/checkout');
+    }
   };
 
   if (loading) {

@@ -483,12 +483,21 @@ export const addToCart = async (userId, productId, quantity = 1) => {
   });
 
   if (!product) {
-    throw new Error('Produit non trouvé');
+    const err = new Error('Produit non trouvé');
+    err.statusCode = 404;
+    throw err;
   }
 
-  if (product.status !== 'ACTIVE') {
-    throw new Error('Produit non disponible');
+  // Autoriser l'ajout si le produit est visible dans le catalogue
+  // (dans ce projet, le catalogue peut exposer ACTIVE + PENDING).
+  const allowedStatuses = new Set(['ACTIVE', 'PENDING']);
+  if (!product.isActive || !allowedStatuses.has(product.status)) {
+    const err = new Error('Produit non disponible');
+    err.statusCode = 400;
+    throw err;
   }
+
+  const safeQty = Math.max(1, Number(quantity) || 1);
 
   // Check if item already in cart
   const existingItem = await prisma.cartItem.findUnique({
@@ -504,7 +513,7 @@ export const addToCart = async (userId, productId, quantity = 1) => {
     // Update quantity
     await prisma.cartItem.update({
       where: { id: existingItem.id },
-      data: { quantity: existingItem.quantity + quantity },
+      data: { quantity: existingItem.quantity + safeQty },
     });
   } else {
     // Create new item
@@ -512,7 +521,7 @@ export const addToCart = async (userId, productId, quantity = 1) => {
       data: {
         cartId: cart.id,
         productId,
-        quantity,
+        quantity: safeQty,
         price: product.price,
         currency: product.currency,
       },

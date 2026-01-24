@@ -159,7 +159,8 @@ export const sellerService = {
         seoTitle,
         seoDescription,
         hasVariants,
-        status: 'PENDING',
+        // Pour que les produits "publiés" soient achetables immédiatement côté acheteur
+        status: 'ACTIVE',
       },
       include: {
         category: true,
