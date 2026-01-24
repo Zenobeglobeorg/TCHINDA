@@ -73,6 +73,7 @@ const MAPPING = {
   'rectangle.portrait.and.arrow.right': 'logout',
   'megaphone.fill': 'campaign',
   'power': 'power-settings-new',
+  'lock.fill': 'lock',
 } as IconMapping;
 
 /**

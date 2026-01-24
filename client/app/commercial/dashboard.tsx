@@ -1,563 +1,235 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
-  View,
   ScrollView,
+  View,
+  Dimensions,
   TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  TextInput,
-  Modal,
+  FlatList,
+  Platform,
+  SafeAreaView,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useRouter } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { apiService } from '@/services/api.service';
-import { alert } from '@/utils/alert';
 
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  accountType: string;
-  wallet?: {
-    balance: string;
-    currency: string;
-  };
-}
+const { width, height } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web' || width > 768;
 
-interface Stats {
-  totalTransactions: number;
-  totalDeposits: number;
-  totalWithdrawals: number;
-  depositsCount: number;
-  withdrawalsCount: number;
-}
-
-export default function CommercialDashboard() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showDepositModal, setShowDepositModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('XOF');
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [description, setDescription] = useState('');
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
-
+// Main Dashboard Content
+const DashboardContent = () => {
   const backgroundColor = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const warningColor = useThemeColor({}, 'warning');
 
-  useEffect(() => {
-    loadStats();
-  }, [period]);
+  const [balance] = useState(15000);
+  const [transactions] = useState([
+    { id: '1', type: 'Deposit', amount: 5000, currency: 'FCFA', date: '2026-01-15', status: 'Completed' },
+    { id: '2', type: 'Withdrawal', amount: 2000, currency: 'EUR', date: '2026-01-14', status: 'Pending' },
+  ]);
 
-  const loadStats = async () => {
-    try {
-      setLoading(true);
-      const response = await apiService.get(`/api/commercial/stats?period=${period}`);
-      if (response.success && response.data) {
-        setStats(response.data);
-      }
-    } catch (error: any) {
-      console.error('Error loading stats:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const router = useRouter();
+  const handleDeposit = () => router.push('/commercial/deposits');
+  const handleWithdrawal = () => router.push('/commercial/withdrawals');
 
-  const searchUsers = async () => {
-    if (searchQuery.length < 2) {
-      alert('Erreur', 'Veuillez saisir au moins 2 caractères');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await apiService.get(`/api/commercial/users/search?q=${encodeURIComponent(searchQuery)}`);
-      if (response.success && response.data) {
-        setSearchResults(response.data);
-        setShowSearchModal(true);
-      }
-    } catch (error: any) {
-      alert('Erreur', error.message || 'Erreur lors de la recherche');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeposit = async () => {
-    if (!selectedUser || !amount) {
-      alert('Erreur', 'Veuillez remplir tous les champs');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await apiService.post('/api/commercial/deposit', {
-        userId: selectedUser.id,
-        amount: parseFloat(amount),
-        currency,
-        paymentMethod,
-        description,
-      });
-
-      if (response.success) {
-        alert('Succès', 'Dépôt effectué avec succès');
-        setShowDepositModal(false);
-        setAmount('');
-        setDescription('');
-        setSelectedUser(null);
-        loadStats();
-      } else {
-        alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
-      }
-    } catch (error: any) {
-      alert('Erreur', error.message || 'Erreur lors du dépôt');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    if (!selectedUser || !amount) {
-      alert('Erreur', 'Veuillez remplir tous les champs');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await apiService.post('/api/commercial/withdraw', {
-        userId: selectedUser.id,
-        amount: parseFloat(amount),
-        currency,
-        paymentMethod,
-        description,
-      });
-
-      if (response.success) {
-        alert('Succès', 'Retrait effectué avec succès');
-        setShowWithdrawModal(false);
-        setAmount('');
-        setDescription('');
-        setSelectedUser(null);
-        loadStats();
-      } else {
-        alert('Erreur', response.error?.message || 'Erreur lors du retrait');
-      }
-    } catch (error: any) {
-      alert('Erreur', error.message || 'Erreur lors du retrait');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadStats();
-  };
+  const renderTransaction = ({ item }: { item: any }) => (
+    <View style={[styles.transactionItem, { borderBottomColor: borderColor }]}>
+      <IconSymbol
+        name={item.type === 'Deposit' ? 'plus.circle.fill' : 'minus'}
+        size={24}
+        color={item.status === 'Completed' ? successColor : warningColor}
+      />
+      <View style={styles.transactionDetails}>
+        <ThemedText style={[styles.transactionType, { color: textColor }]}>{item.type}</ThemedText>
+        <ThemedText style={[styles.transactionDate, { color: textColor, opacity: 0.6 }]}>
+          {item.date}
+        </ThemedText>
+      </View>
+      <ThemedText style={[styles.transactionAmount, { color: successColor }]}>
+        {item.amount} {item.currency}
+      </ThemedText>
+    </View>
+  );
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={[styles.header, { backgroundColor }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol name="chevron.right" size={24} color={textColor} />
-        </TouchableOpacity>
-        <ThemedText style={[styles.headerTitle, { color: textColor }]}>
-          Dashboard Commercial
-        </ThemedText>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor }]}>
-        <View style={[styles.searchBar, { backgroundColor: backgroundColor }]}>
-          <IconSymbol name="magnifyingglass" size={20} color={textColor + '60'} />
-          <TextInput
-            style={[styles.searchInput, { color: textColor }]}
-            placeholder="Rechercher un utilisateur..."
-            placeholderTextColor={textColor + '60'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={searchUsers}
-          />
-          <TouchableOpacity onPress={searchUsers} style={styles.searchButton}>
-            <ThemedText style={[styles.searchButtonText, { color: tintColor }]}>Rechercher</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Stats Cards */}
+    <SafeAreaView style={[styles.contentContainer, { backgroundColor }]}>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={styles.content}
+        contentContainerStyle={{
+          padding: isWeb ? 20 : 10,
+          alignItems: isWeb ? 'stretch' : 'center',
+          minHeight: height - 100,
+        }}
       >
-        {stats && (
-          <>
-            <View style={styles.statsRow}>
-              <View style={[styles.statCard, { backgroundColor }]}>
-                <ThemedText style={[styles.statValue, { color: tintColor }]}>
-                  {stats.totalTransactions}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textColor + '80' }]}>
-                  Transactions
-                </ThemedText>
-              </View>
-              <View style={[styles.statCard, { backgroundColor }]}>
-                <ThemedText style={[styles.statValue, { color: '#4CAF50' }]}>
-                  {stats.totalDeposits.toLocaleString()} {currency}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textColor + '80' }]}>
-                  Dépôts ({stats.depositsCount})
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.statsRow}>
-              <View style={[styles.statCard, { backgroundColor }]}>
-                <ThemedText style={[styles.statValue, { color: '#FF9800' }]}>
-                  {stats.totalWithdrawals.toLocaleString()} {currency}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textColor + '80' }]}>
-                  Retraits ({stats.withdrawalsCount})
-                </ThemedText>
-              </View>
-              <View style={[styles.statCard, { backgroundColor }]}>
-                <ThemedText style={[styles.statValue, { color: tintColor }]}>
-                  {(stats.totalDeposits - stats.totalWithdrawals).toLocaleString()} {currency}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textColor + '80' }]}>
-                  Solde net
-                </ThemedText>
-              </View>
-            </View>
-          </>
-        )}
+        {/* Balance Card */}
+        <ThemedView style={[styles.card, { width: isWeb ? width * 0.8 : '100%', backgroundColor: cardColor }]}>
+          <ThemedText type="subtitle" style={[styles.cardTitle, { color: tintColor }]}>
+            Solde Actuel (Multi-Devises)
+          </ThemedText>
+          <ThemedText type="title" style={[styles.balanceAmount, { color: successColor }]}>
+            {balance} FCFA
+          </ThemedText>
+          <ThemedText style={[styles.balanceSubtitle, { color: textColor, opacity: 0.6 }]}>
+            (Équivalent: ≈25 EUR | Mettre à jour les taux)
+          </ThemedText>
+        </ThemedView>
 
-        {/* Period Selector */}
-        <View style={[styles.periodSelector, { backgroundColor }]}>
-          {(['today', 'week', 'month'] as const).map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[
-                styles.periodButton,
-                period === p && [styles.periodButtonActive, { backgroundColor: tintColor }],
-              ]}
-              onPress={() => setPeriod(p)}
-            >
-              <ThemedText
-                style={[
-                  styles.periodButtonText,
-                  { color: period === p ? '#FFF' : textColor },
-                ]}
-              >
-                {p === 'today' ? "Aujourd'hui" : p === 'week' ? 'Semaine' : 'Mois'}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
+        {/* Action Cards */}
+        <View style={[styles.actionRow, { flexDirection: isWeb ? 'row' : 'column' }]}>
+          <TouchableOpacity
+            style={[
+              styles.actionCard,
+              {
+                backgroundColor: '#FF69B4',
+                width: isWeb ? '45%' : '100%',
+                marginBottom: isWeb ? 0 : 10,
+              },
+            ]}
+            onPress={handleDeposit}
+          >
+            <IconSymbol name="plus.circle.fill" size={40} color="#FFFFFF" />
+            <ThemedText style={styles.actionText}>Nouveau Dépôt</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: '#FF69B4', width: isWeb ? '45%' : '100%' }]}
+            onPress={handleWithdrawal}
+          >
+            <IconSymbol name="minus" size={40} color="#FFFFFF" />
+            <ThemedText style={styles.actionText}>Nouveau Retrait</ThemedText>
+          </TouchableOpacity>
         </View>
+
+        {/* Revenues Dashboard */}
+        <ThemedView style={[styles.card, { width: isWeb ? width * 0.8 : '100%', backgroundColor: cardColor }]}>
+          <ThemedText type="subtitle" style={[styles.cardTitle, { color: tintColor }]}>
+            Revenus & Commissions
+          </ThemedText>
+          <View style={[styles.revenueStats, { flexDirection: isWeb ? 'row' : 'column' }]}>
+            <View style={styles.statItem}>
+              <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                Commissions du Jour
+              </ThemedText>
+              <ThemedText style={[styles.statValue, { color: '#FF69B4' }]}>250 FCFA</ThemedText>
+            </View>
+            <View style={styles.statItem}>
+              <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                Bonus Mensuel
+              </ThemedText>
+              <ThemedText style={[styles.statValue, { color: '#FF69B4' }]}>1500 FCFA</ThemedText>
+            </View>
+            <View style={styles.statItem}>
+              <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                Volume de Transactions
+              </ThemedText>
+              <ThemedText style={[styles.statValue, { color: '#FF69B4' }]}>45</ThemedText>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.reportButton, { backgroundColor: tintColor }]}
+            onPress={() => router.push('/commercial/reports')}
+          >
+            <ThemedText style={styles.reportText}>Générer le Rapport Mensuel</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+
+        {/* Transaction History */}
+        <ThemedView style={[styles.card, { width: isWeb ? width * 0.8 : '100%', backgroundColor: cardColor }]}>
+          <ThemedText type="subtitle" style={[styles.cardTitle, { color: tintColor }]}>
+            Historique des Transactions
+          </ThemedText>
+          <FlatList
+            data={transactions}
+            renderItem={renderTransaction}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            style={styles.transactionList}
+          />
+          <TouchableOpacity
+            style={styles.viewMoreButton}
+            onPress={() => router.push('/commercial/transactions')}
+          >
+            <ThemedText style={[styles.viewMoreText, { color: tintColor }]}>
+              Voir Toutes les Transactions
+            </ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+
+        {/* Support Section */}
+        <ThemedView style={[styles.card, { width: isWeb ? width * 0.8 : '100%', backgroundColor: cardColor }]}>
+          <ThemedText type="subtitle" style={[styles.cardTitle, { color: tintColor }]}>
+            Support & Outils
+          </ThemedText>
+          <TouchableOpacity
+            style={[styles.supportButton, { borderBottomColor: borderColor }]}
+            onPress={() => router.push('/commercial/support')}
+          >
+            <IconSymbol name="info.circle.fill" size={24} color={tintColor} />
+            <ThemedText style={[styles.supportText, { color: textColor, marginLeft: 10 }]}>
+              Support Chat en Direct
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.supportButton, { borderBottomColor: borderColor }]}
+            onPress={() => router.push('/commercial/support')}
+          >
+            <IconSymbol name="iphone" size={24} color={tintColor} />
+            <ThemedText style={[styles.supportText, { color: textColor, marginLeft: 10 }]}>
+              Assistance Téléphonique
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.supportButton, { borderBottomColor: borderColor }]}
+            onPress={() => router.push('/commercial/support')}
+          >
+            <IconSymbol name="doc.text.fill" size={24} color={tintColor} />
+            <ThemedText style={[styles.supportText, { color: textColor, marginLeft: 10 }]}>
+              Tickets par Email
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.supportButton, { borderBottomColor: borderColor }]}
+            onPress={() => router.push('/commercial/settings')}
+          >
+            <IconSymbol name="checkmark.shield.fill" size={24} color={tintColor} />
+            <ThemedText style={[styles.supportText, { color: textColor, marginLeft: 10 }]}>
+              Paramètres de Sécurité (2FA)
+            </ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
       </ScrollView>
+    </SafeAreaView>
+  );
+};
 
-      {/* Search Results Modal */}
-      <Modal visible={showSearchModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor }]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
-                Résultats de recherche
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowSearchModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              {searchResults.length === 0 ? (
-                <ThemedText style={[styles.emptyText, { color: textColor + '60' }]}>
-                  Aucun utilisateur trouvé
-                </ThemedText>
-              ) : (
-                searchResults.map((user) => (
-                  <TouchableOpacity
-                    key={user.id}
-                    style={[styles.userItem, { backgroundColor: backgroundColor }]}
-                    onPress={() => {
-                      setSelectedUser(user);
-                      setShowSearchModal(false);
-                    }}
-                  >
-                    <View style={styles.userInfo}>
-                      <ThemedText style={[styles.userName, { color: textColor }]}>
-                        {user.firstName} {user.lastName}
-                      </ThemedText>
-                      <ThemedText style={[styles.userEmail, { color: textColor + '80' }]}>
-                        {user.email}
-                      </ThemedText>
-                      {user.wallet && (
-                        <ThemedText style={[styles.userBalance, { color: tintColor }]}>
-                          Solde: {user.wallet.balance} {user.wallet.currency}
-                        </ThemedText>
-                      )}
-                    </View>
-                    <IconSymbol name="chevron.right" size={20} color={textColor + '60'} />
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+// Main Component
+export default function CommercialDashboard() {
+  const backgroundColor = useThemeColor({}, 'background');
+  const tintColor = useThemeColor({}, 'tint');
 
-      {/* Deposit Modal */}
-      <Modal visible={showDepositModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor }]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
-                Effectuer un dépôt
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowDepositModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              {selectedUser && (
-                <View style={styles.selectedUserInfo}>
-                  <ThemedText style={[styles.selectedUserName, { color: textColor }]}>
-                    {selectedUser.firstName} {selectedUser.lastName}
-                  </ThemedText>
-                  <ThemedText style={[styles.selectedUserEmail, { color: textColor + '80' }]}>
-                    {selectedUser.email}
-                  </ThemedText>
-                </View>
-              )}
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Montant *</ThemedText>
-                <TextInput
-                  style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
-                  value={amount}
-                  onChangeText={setAmount}
-                  placeholder="0.00"
-                  placeholderTextColor={textColor + '60'}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Devise</ThemedText>
-                <View style={styles.currencySelector}>
-                  {['XOF', 'XAF', 'EUR', 'USD'].map((curr) => (
-                    <TouchableOpacity
-                      key={curr}
-                      style={[
-                        styles.currencyButton,
-                        currency === curr && [styles.currencyButtonActive, { backgroundColor: tintColor }],
-                      ]}
-                      onPress={() => setCurrency(curr)}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.currencyButtonText,
-                          { color: currency === curr ? '#FFF' : textColor },
-                        ]}
-                      >
-                        {curr}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Méthode de paiement</ThemedText>
-                <TextInput
-                  style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
-                  value={paymentMethod}
-                  onChangeText={setPaymentMethod}
-                  placeholder="Ex: Espèces, Orange Money..."
-                  placeholderTextColor={textColor + '60'}
-                />
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Description</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textArea,
-                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
-                  ]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Description optionnelle..."
-                  placeholderTextColor={textColor + '60'}
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
-                onPress={() => setShowDepositModal(false)}
-              >
-                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#4CAF50' }]}
-                onPress={handleDeposit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <ThemedText style={styles.modalButtonText}>Confirmer</ThemedText>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+  return (
+    <View style={[styles.container, { backgroundColor }]}>
+      {/* Header avec navigation */}
+      <View style={[styles.header, { backgroundColor: tintColor }]}>
+        <ThemedText style={[styles.headerTitle, { color: '#FFFFFF' }]}>
+          Tableau de Bord Commercial
+        </ThemedText>
+        <TouchableOpacity
+          style={styles.notificationIcon}
+          onPress={() => Alert.alert('Notifications', 'Notifications à venir')}
+        >
+          <IconSymbol name="bell.badge.fill" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
-      {/* Withdraw Modal */}
-      <Modal visible={showWithdrawModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor }]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
-                Effectuer un retrait
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowWithdrawModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              {selectedUser && (
-                <View style={styles.selectedUserInfo}>
-                  <ThemedText style={[styles.selectedUserName, { color: textColor }]}>
-                    {selectedUser.firstName} {selectedUser.lastName}
-                  </ThemedText>
-                  <ThemedText style={[styles.selectedUserEmail, { color: textColor + '80' }]}>
-                    {selectedUser.email}
-                  </ThemedText>
-                  {selectedUser.wallet && (
-                    <ThemedText style={[styles.selectedUserBalance, { color: tintColor }]}>
-                      Solde disponible: {selectedUser.wallet.balance} {selectedUser.wallet.currency}
-                    </ThemedText>
-                  )}
-                </View>
-              )}
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Montant *</ThemedText>
-                <TextInput
-                  style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
-                  value={amount}
-                  onChangeText={setAmount}
-                  placeholder="0.00"
-                  placeholderTextColor={textColor + '60'}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Devise</ThemedText>
-                <View style={styles.currencySelector}>
-                  {['XOF', 'XAF', 'EUR', 'USD'].map((curr) => (
-                    <TouchableOpacity
-                      key={curr}
-                      style={[
-                        styles.currencyButton,
-                        currency === curr && [styles.currencyButtonActive, { backgroundColor: tintColor }],
-                      ]}
-                      onPress={() => setCurrency(curr)}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.currencyButtonText,
-                          { color: currency === curr ? '#FFF' : textColor },
-                        ]}
-                      >
-                        {curr}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Méthode de paiement</ThemedText>
-                <TextInput
-                  style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
-                  value={paymentMethod}
-                  onChangeText={setPaymentMethod}
-                  placeholder="Ex: Espèces, Orange Money..."
-                  placeholderTextColor={textColor + '60'}
-                />
-              </View>
-              <View style={styles.formGroup}>
-                <ThemedText style={[styles.label, { color: textColor }]}>Description</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textArea,
-                    { backgroundColor, color: textColor, borderColor: tintColor + '40' },
-                  ]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Description optionnelle..."
-                  placeholderTextColor={textColor + '60'}
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
-                onPress={() => setShowWithdrawModal(false)}
-              >
-                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#FF9800' }]}
-                onPress={handleWithdraw}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <ThemedText style={styles.modalButtonText}>Confirmer</ThemedText>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Action Buttons */}
-      {selectedUser && (
-        <View style={[styles.actionButtons, { backgroundColor }]}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-            onPress={() => setShowDepositModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFF" />
-            <ThemedText style={styles.actionButtonText}>Dépôt</ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
-            onPress={() => setShowWithdrawModal(true)}
-          >
-            <IconSymbol name="minus.circle.fill" size={24} color="#FFF" />
-            <ThemedText style={styles.actionButtonText}>Retrait</ThemedText>
-          </TouchableOpacity>
-        </View>
-      )}
-    </ThemedView>
+      <DashboardContent />
+    </View>
   );
 }
 
@@ -568,250 +240,136 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 60,
-  },
-  backButton: {
-    padding: 4,
-    transform: [{ rotate: '180deg' }],
+    padding: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    zIndex: 10,
+    ...(Platform.OS === 'web' && {
+      // @ts-ignore
+      position: 'sticky',
+      top: 0,
+    }),
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
-  searchContainer: {
-    padding: 16,
+  notificationIcon: {
+    padding: 5,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-  searchButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  searchButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scrollView: {
+  contentContainer: {
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
     flex: 1,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  },
+  card: {
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    alignSelf: 'center',
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
-    marginTop: 16,
-    gap: 8,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  periodButtonActive: {
-    backgroundColor: '#624cacff',
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  modalBody: {
-    paddingHorizontal: 20,
-    maxHeight: 400,
-  },
-  userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  userBalance: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  selectedUserInfo: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    backgroundColor: '#F5F5F5',
-  },
-  selectedUserName: {
+  cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 10,
   },
-  selectedUserEmail: {
+  balanceAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  balanceSubtitle: {
     fontSize: 14,
-    marginBottom: 4,
   },
-  selectedUserBalance: {
-    fontSize: 16,
-    fontWeight: '600',
+  actionRow: {
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  currencySelector: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  currencyButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
+  actionCard: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  currencyButtonActive: {
-    borderColor: 'transparent',
-  },
-  currencyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
     padding: 20,
-    gap: 12,
+    borderRadius: 10,
+    elevation: 3,
   },
-  modalButton: {
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginTop: 10,
+    fontWeight: 'bold',
+  },
+  revenueStats: {
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  statItem: {
+    alignItems: 'flex-start',
+    marginBottom: 10,
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
   },
-  modalButtonText: {
-    color: '#FFF',
+  statLabel: {
+    fontSize: 14,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  reportButton: {
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  reportText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  transactionList: {
+    maxHeight: 300,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  transactionDetails: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  transactionType: {
     fontSize: 16,
     fontWeight: 'bold',
   },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    marginTop: 40,
+  transactionDate: {
+    fontSize: 12,
   },
-  actionButtons: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  actionButtonText: {
-    color: '#FFF',
+  transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  viewMoreButton: {
+    alignItems: 'center',
+    padding: 10,
+    marginTop: 10,
+  },
+  viewMoreText: {
+    fontWeight: 'bold',
+  },
+  supportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  supportText: {
+    fontSize: 16,
   },
 });
