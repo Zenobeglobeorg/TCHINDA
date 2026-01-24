@@ -37,9 +37,15 @@ export default function BuyerHomeScreen() {
   }, [user]);
 
   useEffect(() => {
-    loadCartCount();
     loadCatalog(null);
   }, []);
+
+  useEffect(() => {
+    // Charger le panier uniquement si on est bien connecté en acheteur
+    if (user && user.accountType === 'BUYER') {
+      loadCartCount();
+    }
+  }, [user]);
 
   const loadCartCount = async () => {
     try {
@@ -460,8 +466,11 @@ export default function BuyerHomeScreen() {
                 style={styles.productCard}
                 onPress={() => router.push(`/product/${product.id}`)}
               >
-                {product?.images?.[0] ? (
-                  <Image source={{ uri: product.images[0] }} style={{ width: '100%', height: 140, borderRadius: 8, marginBottom: 10 }} />
+                {product?.images?.[0] && /^https?:\/\//i.test(product.images[0]) ? (
+                  <Image
+                    source={{ uri: product.images[0] }}
+                    style={{ width: '100%', height: 140, borderRadius: 8, marginBottom: 10 }}
+                  />
                 ) : (
                   <View style={styles.productImagePlaceholder}>
                     <IconSymbol name="photo" size={40} color={colors.placeholder} />

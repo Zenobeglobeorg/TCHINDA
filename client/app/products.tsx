@@ -304,7 +304,7 @@ export default function ProductsScreen() {
                 style={styles.productCard}
                 onPress={() => router.push(`/product/${product.id}`)}
               >
-                {product.images?.[0] ? (
+                {product.images?.[0] && /^https?:\/\//i.test(product.images[0]) ? (
                   <Image
                     source={{ uri: product.images[0] }}
                     style={styles.productImage}

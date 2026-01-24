@@ -1,6 +1,8 @@
 import express from 'express';
 import { sellerController } from '../controllers/seller.controller.js';
+import { sellerUploadController } from '../controllers/seller.upload.controller.js';
 import { authenticate, requireAccountType } from '../middleware/auth.middleware.js';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -19,6 +21,22 @@ router.get('/products', sellerController.getProducts);
 router.get('/products/:productId', sellerController.getProductById);
 router.put('/products/:productId', sellerController.updateProduct);
 router.delete('/products/:productId', sellerController.deleteProduct);
+
+// ========== UPLOAD IMAGES (Supabase Storage) ==========
+const maxFileSize = parseInt(process.env.MAX_FILE_SIZE, 10) || 10 * 1024 * 1024; // 10MB
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: maxFileSize, files: 10 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) return cb(null, true);
+    const err = new Error('Seules les images sont autorisées');
+    // @ts-ignore
+    err.statusCode = 400;
+    return cb(err);
+  },
+});
+
+router.post('/uploads/images', upload.array('files', 10), sellerUploadController.uploadProductImages);
 
 // ========== GESTION DES PROMOTIONS ==========
 router.post('/promotions', sellerController.createPromotion);

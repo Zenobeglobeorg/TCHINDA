@@ -433,11 +433,50 @@ function ProductFormModal({
 
     try {
       setSaving(true);
+
+      // Upload images locales vers Supabase (via backend) avant création/mise à jour
+      const images = (formData.images || []) as any[];
+      const remoteImages = images.filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u));
+      const localImages = images.filter((u) => typeof u === 'string' && !/^https?:\/\//i.test(u));
+
+      let uploadedUrls: string[] = [];
+      if (localImages.length > 0) {
+        const fd = new FormData();
+        for (let i = 0; i < localImages.length; i++) {
+          const uri = localImages[i] as string;
+          const filename = `product-${Date.now()}-${i}.jpg`;
+
+          if (Platform.OS === 'web') {
+            // Sur web, convertir l'URI en Blob
+            const resp = await fetch(uri);
+            const blob = await resp.blob();
+            // @ts-ignore
+            fd.append('files', blob, filename);
+          } else {
+            // Sur mobile, FormData supporte l'objet { uri, name, type }
+            // @ts-ignore
+            fd.append('files', { uri, name: filename, type: 'image/jpeg' });
+          }
+        }
+
+        const uploadRes = await apiService.upload<{ urls: string[] }>('/api/seller/uploads/images', fd);
+        if (!uploadRes.success) {
+          throw new Error(uploadRes.error?.message || "Impossible d'uploader les images");
+        }
+        const data: any = uploadRes.data as any;
+        uploadedUrls = data?.urls || data || [];
+      }
+
+      const payload: any = {
+        ...formData,
+        images: [...remoteImages, ...uploadedUrls],
+      };
+
       if (product) {
-        await sellerService.updateProduct(product.id, formData);
+        await sellerService.updateProduct(product.id, payload);
         Alert.alert('Succès', 'Produit mis à jour');
       } else {
-        await sellerService.createProduct(formData as Product);
+        await sellerService.createProduct(payload as Product);
         Alert.alert('Succès', 'Produit créé');
       }
       onSave();

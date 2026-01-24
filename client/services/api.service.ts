@@ -356,6 +356,59 @@ class ApiService {
     });
   }
 
+  // Upload multipart/form-data (ex: images)
+  async upload<T>(endpoint: string, formData: any): Promise<ApiResponse<T>> {
+    try {
+      const url = `${this.baseURL}${endpoint}`;
+      const headers: HeadersInit = {};
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT || 10000);
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          return { success: false, error: { message: 'Requête expirée. Vérifiez votre connexion internet.' } };
+        }
+        throw fetchError;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return { success: false, error: { message: 'Réponse invalide du serveur' } };
+      }
+
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: {
+            message: data.error?.message || 'Une erreur est survenue',
+            details: data.error?.details,
+          },
+        };
+      }
+
+      return { success: true, data: data.data || data };
+    } catch (error: any) {
+      console.error('Erreur API (upload):', error);
+      return { success: false, error: { message: error.message || 'Erreur de connexion.' } };
+    }
+  }
+
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }

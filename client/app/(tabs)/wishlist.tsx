@@ -114,7 +114,7 @@ export default function WishlistScreen() {
                 <TouchableOpacity
                   onPress={() => router.push(`/product/${item.productId}`)}
                 >
-                  {item.product?.images?.[0] ? (
+                  {item.product?.images?.[0] && /^https?:\/\//i.test(item.product.images[0]) ? (
                     <Image
                       source={{ uri: item.product.images[0] }}
                       style={styles.productImage}

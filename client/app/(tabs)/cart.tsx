@@ -195,7 +195,7 @@ export default function CartScreen() {
                   onPress={() => router.push(`/product/${item.productId}`)}
                   style={styles.productImageContainer}
                 >
-                  {item.product?.images?.[0] ? (
+                  {item.product?.images?.[0] && /^https?:\/\//i.test(item.product.images[0]) ? (
                     <Image
                       source={{ uri: item.product.images[0] }}
                       style={styles.productImage}

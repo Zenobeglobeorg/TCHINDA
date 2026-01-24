@@ -148,7 +148,7 @@ export default function ProductScreen() {
     );
   }
 
-  const images = product.images || [];
+  const images = (product.images || []).filter((u: any) => typeof u === 'string' && /^https?:\/\//i.test(u));
   const hasDiscount = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price);
   const discountPercent = hasDiscount
     ? Math.round(((parseFloat(product.compareAtPrice) - parseFloat(product.price)) / parseFloat(product.compareAtPrice)) * 100)
