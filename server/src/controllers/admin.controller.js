@@ -200,9 +200,7 @@ export const updateUserStatus = async (req, res, next) => {
       });
     }
 
-    const user = await updateUserStatusService(id, status);
-
-    res.status(200).json({
+    const user = await updateUserStatusService(id, status);    res.status(200).json({
       success: true,
       message: `Statut utilisateur mis à jour: ${status}`,
       data: {

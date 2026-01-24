@@ -7,6 +7,13 @@ import {
   updateUserStatus,
   createUser,
 } from '../controllers/admin.controller.js';
+import {
+  listAdminCategories,
+  createAdminCategory,
+  updateAdminCategory,
+  deleteAdminCategory,
+  toggleAdminCategoryActive,
+} from '../controllers/admin.category.controller.js';
 
 const router = express.Router();
 
@@ -48,6 +55,41 @@ router.put('/users/:id', updateUser);
  * @access  Private (ADMIN)
  */
 router.put('/users/:id/status', updateUserStatus);
+
+/**
+ * @route   GET /api/admin/categories
+ * @desc    Lister les catégories (admin)
+ * @access  Private (ADMIN)
+ */
+router.get('/categories', listAdminCategories);
+
+/**
+ * @route   POST /api/admin/categories
+ * @desc    Créer une catégorie
+ * @access  Private (ADMIN)
+ */
+router.post('/categories', createAdminCategory);
+
+/**
+ * @route   PUT /api/admin/categories/:id
+ * @desc    Mettre à jour une catégorie
+ * @access  Private (ADMIN)
+ */
+router.put('/categories/:id', updateAdminCategory);
+
+/**
+ * @route   PATCH /api/admin/categories/:id/toggle-active
+ * @desc    Activer/Désactiver une catégorie
+ * @access  Private (ADMIN)
+ */
+router.patch('/categories/:id/toggle-active', toggleAdminCategoryActive);
+
+/**
+ * @route   DELETE /api/admin/categories/:id
+ * @desc    Supprimer une catégorie
+ * @access  Private (ADMIN)
+ */
+router.delete('/categories/:id', deleteAdminCategory);
 
 export default router;
 

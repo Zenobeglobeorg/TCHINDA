@@ -8,7 +8,6 @@ import {
   RefreshControl,
   TextInput,
   Modal,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -55,16 +54,13 @@ export default function CategoriesScreen() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      // TODO: Remplacer par l'endpoint réel /api/admin/categories
-      // const response = await apiService.get('/api/admin/categories');
-      // Pour l'instant, utiliser des données mockées
-      const mockCategories: Category[] = [
-        { id: '1', name: 'Électronique', slug: 'electronique', isActive: true, productCount: 45 },
-        { id: '2', name: 'Vêtements', slug: 'vetements', isActive: true, productCount: 123 },
-        { id: '3', name: 'Alimentaire', slug: 'alimentaire', isActive: true, productCount: 67 },
-        { id: '4', name: 'Maison & Jardin', slug: 'maison-jardin', isActive: true, productCount: 89 },
-      ];
-      setCategories(mockCategories);
+      const response = await apiService.get('/api/admin/categories');
+      if (response.success) {
+        const data = (response.data as any) || [];
+        setCategories(Array.isArray(data) ? data : data.categories || []);
+      } else {
+        alert('Erreur', response.error?.message || 'Impossible de charger les catégories');
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
       alert('Erreur', 'Impossible de charger les catégories');
@@ -102,12 +98,13 @@ export default function CategoriesScreen() {
     }
 
     try {
-      // TODO: Implémenter l'appel API réel
-      // if (editingCategory) {
-      //   await apiService.put(`/api/admin/categories/${editingCategory.id}`, formData);
-      // } else {
-      //   await apiService.post('/api/admin/categories', formData);
-      // }
+      if (editingCategory) {
+        const res = await apiService.put(`/api/admin/categories/${editingCategory.id}`, formData);
+        if (!res.success) throw new Error(res.error?.message || 'Erreur lors de la mise à jour');
+      } else {
+        const res = await apiService.post('/api/admin/categories', formData);
+        if (!res.success) throw new Error(res.error?.message || 'Erreur lors de la création');
+      }
       alert('Succès', editingCategory ? 'Catégorie mise à jour' : 'Catégorie créée');
       setShowAddModal(false);
       loadCategories();
@@ -127,8 +124,8 @@ export default function CategoriesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Implémenter l'appel API réel
-              // await apiService.delete(`/api/admin/categories/${category.id}`);
+                  const res = await apiService.delete(`/api/admin/categories/${category.id}`);
+                  if (!res.success) throw new Error(res.error?.message || 'Erreur lors de la suppression');
               alert('Succès', 'Catégorie supprimée');
               loadCategories();
             } catch (error: any) {
@@ -142,10 +139,10 @@ export default function CategoriesScreen() {
 
   const handleToggleActive = async (category: Category) => {
     try {
-      // TODO: Implémenter l'appel API réel
-      // await apiService.patch(`/api/admin/categories/${category.id}/toggle-active`, {
-      //   isActive: !category.isActive,
-      // });
+      const res = await apiService.patch(`/api/admin/categories/${category.id}/toggle-active`, {
+        isActive: !category.isActive,
+      });
+      if (!res.success) throw new Error(res.error?.message || 'Erreur lors de la mise à jour');
       alert('Succès', `Catégorie ${!category.isActive ? 'activée' : 'désactivée'}`);
       loadCategories();
     } catch (error: any) {

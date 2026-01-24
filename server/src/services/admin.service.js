@@ -110,9 +110,7 @@ export const createUser = async (userData) => {
     }
 
     const hashedPassword = await hashPassword(password);
-    const fullName = firstName && lastName ? `${firstName} ${lastName}` : null;
-
-    const user = await tx.user.create({
+    const fullName = firstName && lastName ? `${firstName} ${lastName}` : null;    const user = await tx.user.create({
       data: {
         email,
         password: hashedPassword,

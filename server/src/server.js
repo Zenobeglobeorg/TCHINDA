@@ -13,6 +13,7 @@ import buyerRoutes from './routes/buyer.routes.js';
 import sellerRoutes from './routes/seller.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import commercialRoutes from './routes/commercial.routes.js';
+import catalogRoutes from './routes/catalog.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -250,6 +251,8 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+// Catalogue public (catégories/produits)
+app.use('/api', catalogRoutes);
 app.use('/api/buyer', buyerRoutes);
 app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);

@@ -15,6 +15,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -356,6 +357,7 @@ function ProductFormModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  type CatalogCategory = { id: string; name: string; slug?: string };
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     description: '',
@@ -372,6 +374,8 @@ function ProductFormModal({
   });
   const [saving, setSaving] = useState(false);
   const [showVariants, setShowVariants] = useState(false);
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -402,6 +406,24 @@ function ProductFormModal({
       setShowVariants(false);
     }
   }, [product, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    (async () => {
+      try {
+        setLoadingCategories(true);
+        const res = await apiService.get('/api/categories');
+        if (res.success) {
+          const data = (res.data as any) || [];
+          setCategories(Array.isArray(data) ? data : data.categories || []);
+        }
+      } catch {
+        // non bloquant
+      } finally {
+        setLoadingCategories(false);
+      }
+    })();
+  }, [visible]);
 
   const handleSave = async () => {
     if (!formData.name || !formData.price) {
@@ -609,6 +631,28 @@ function ProductFormModal({
               multiline
               numberOfLines={4}
             />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Catégorie</Text>
+            {loadingCategories ? (
+              <ActivityIndicator color={tintColor} />
+            ) : (
+              <View style={[styles.pickerContainer, { borderColor: tintColor, backgroundColor }]}>
+                <Picker
+                  selectedValue={formData.categoryId || ''}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, categoryId: value ? String(value) : undefined })
+                  }
+                  style={{ color: textColor }}
+                >
+                  <Picker.Item label="Aucune catégorie" value="" />
+                  {categories.map((c) => (
+                    <Picker.Item key={c.id} label={c.name} value={c.id} />
+                  ))}
+                </Picker>
+              </View>
+            )}
           </View>
 
           <View style={styles.formRow}>
@@ -912,6 +956,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   formRow: {
     flexDirection: 'row',

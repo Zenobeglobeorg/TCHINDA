@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -25,6 +25,9 @@ export default function BuyerHomeScreen() {
   const colors = useThemeColors();
   const [refreshing, setRefreshing] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug?: string }>>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   // Rediriger les vendeurs vers l'espace vendeur
   useEffect(() => {
@@ -35,6 +38,7 @@ export default function BuyerHomeScreen() {
 
   useEffect(() => {
     loadCartCount();
+    loadCatalog(null);
   }, []);
 
   const loadCartCount = async () => {
@@ -56,26 +60,66 @@ export default function BuyerHomeScreen() {
     setRefreshing(true);
     await refreshUser();
     await loadCartCount();
+    await loadCatalog(selectedCategoryId);
     setRefreshing(false);
   };
 
-  // Catégories de produits (exemple)
-  const categories = [
-    { id: 1, name: 'Électronique', icon: 'iphone' as const, color: '#4A90E2' },
-    { id: 2, name: 'Mode', icon: 'tshirt' as const, color: '#9B59B6' },
-    { id: 3, name: 'Maison', icon: 'house.fill' as const, color: '#3498DB' },
-    { id: 4, name: 'Sport', icon: 'figure.walk' as const, color: '#8E44AD' },
-    { id: 5, name: 'Beauté', icon: 'sparkles' as const, color: '#5DADE2' },
-    { id: 6, name: 'Alimentation', icon: 'cart.fill' as const, color: '#7D3C98' },
-  ];
+  const loadCatalog = useCallback(async (categoryId: string | null) => {
+    try {
+      const [catRes, prodRes] = await Promise.all([
+        apiService.get('/api/categories'),
+        apiService.get(
+          `/api/products?sortBy=newest&limit=10${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`
+        ),
+      ]);
 
-  // Produits en vedette (exemple)
-  const featuredProducts = [
-    { id: 1, name: 'Produit 1', price: '29.99€', image: null },
-    { id: 2, name: 'Produit 2', price: '49.99€', image: null },
-    { id: 3, name: 'Produit 3', price: '19.99€', image: null },
-    { id: 4, name: 'Produit 4', price: '39.99€', image: null },
-  ];
+      if (catRes.success) {
+        const data = (catRes.data as any) || [];
+        setCategories(Array.isArray(data) ? data : data.categories || []);
+      }
+
+      if (prodRes.success) {
+        const data = (prodRes.data as any) || {};
+        const products = Array.isArray(data) ? data : data.products || [];
+        setFeaturedProducts(products);
+      }
+    } catch (e) {
+      // non bloquant pour la home
+    }
+  }, []);
+
+  const getCategoryIcon = (slugOrName?: string) => {
+    const key = (slugOrName || '').toLowerCase();
+    if (key.includes('elect') || key.includes('tech') || key.includes('phone')) return 'iphone' as const;
+    if (key.includes('mode') || key.includes('vet') || key.includes('cloth')) return 'tshirt' as const;
+    if (key.includes('maison') || key.includes('home') || key.includes('jardin')) return 'house.fill' as const;
+    if (key.includes('sport')) return 'figure.walk' as const;
+    if (key.includes('beaute') || key.includes('beaut')) return 'sparkles' as const;
+    if (key.includes('alim') || key.includes('food')) return 'cart.fill' as const;
+    return 'bag.fill' as const;
+  };
+
+  const categoryColors = ['#4A90E2', '#9B59B6', '#3498DB', '#8E44AD', '#5DADE2', '#7D3C98'];
+
+  const uiCategories = useMemo(() => {
+    const base = categories.map((c, idx) => ({
+      id: c.id,
+      name: c.name,
+      icon: getCategoryIcon(c.slug || c.name),
+      color: categoryColors[idx % categoryColors.length],
+    }));
+    return [
+      { id: 'ALL', name: 'Tous', icon: 'bag.fill' as const, color: colors.tint },
+      ...base,
+    ];
+  }, [categories, colors.tint]);
+
+  const formatPrice = (p: any) => {
+    const price = Number(p?.price);
+    const currency = p?.currency || 'XOF';
+    if (!Number.isFinite(price)) return `${p?.price || ''} ${currency}`.trim();
+    return `${price.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
+  };
 
   // Styles dynamiques basés sur le thème
   const styles = useMemo(() => StyleSheet.create({
@@ -358,13 +402,35 @@ export default function BuyerHomeScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Catégories</ThemedText>
           <View style={styles.categoriesGrid}>
-            {categories.map((category) => (
+            {uiCategories.map((category) => (
               <TouchableOpacity
                 key={category.id}
                 style={styles.categoryCard}
-                onPress={() => router.push(`/category/${category.id}`)}
+                onPress={() => {
+                  if (category.id === 'ALL') {
+                    setSelectedCategoryId(null);
+                    loadCatalog(null);
+                    return;
+                  }
+                  const next = selectedCategoryId === category.id ? null : category.id;
+                  setSelectedCategoryId(next);
+                  loadCatalog(next);
+                }}
+                onLongPress={() => {
+                  if (category.id !== 'ALL') {
+                    router.push(`/category/${category.id}`);
+                  }
+                }}
               >
-                <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
+                <View
+                  style={[
+                    styles.categoryIcon,
+                    {
+                      backgroundColor: category.color,
+                      opacity: selectedCategoryId && category.id !== 'ALL' && selectedCategoryId !== category.id ? 0.75 : 1,
+                    },
+                  ]}
+                >
                   <IconSymbol name={category.icon} size={28} color="#FFFFFF" />
                 </View>
                 <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
@@ -376,7 +442,9 @@ export default function BuyerHomeScreen() {
         {/* Produits en vedette */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>Produits en vedette</ThemedText>
+            <ThemedText style={styles.sectionTitle}>
+              {selectedCategoryId ? 'Produits' : 'Produits en vedette'}
+            </ThemedText>
             <TouchableOpacity onPress={() => router.push('/products')}>
               <ThemedText style={styles.seeAll}>Voir tout</ThemedText>
             </TouchableOpacity>
@@ -392,13 +460,17 @@ export default function BuyerHomeScreen() {
                 style={styles.productCard}
                 onPress={() => router.push(`/product/${product.id}`)}
               >
-                <View style={styles.productImagePlaceholder}>
-                  <IconSymbol name="photo" size={40} color={colors.placeholder} />
-                </View>
+                {product?.images?.[0] ? (
+                  <Image source={{ uri: product.images[0] }} style={{ width: '100%', height: 140, borderRadius: 8, marginBottom: 10 }} />
+                ) : (
+                  <View style={styles.productImagePlaceholder}>
+                    <IconSymbol name="photo" size={40} color={colors.placeholder} />
+                  </View>
+                )}
                 <ThemedText style={styles.productName} numberOfLines={2}>
                   {product.name}
                 </ThemedText>
-                <ThemedText style={styles.productPrice}>{product.price}</ThemedText>
+                <ThemedText style={styles.productPrice}>{formatPrice(product)}</ThemedText>
               </TouchableOpacity>
             ))}
           </ScrollView>
