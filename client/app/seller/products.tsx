@@ -519,7 +519,34 @@ function ProductFormModal({
     return true;
   };
 
+  const handleWebFilePick = async () => {
+    try {
+      // React Native Web: utiliser un input file natif
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+
+      input.onchange = () => {
+        const files = Array.from(input.files || []);
+        files.forEach((file) => {
+          // Créer une URL locale pour prévisualisation + upload FormData
+          const uri = URL.createObjectURL(file);
+          addImageToProduct(uri);
+        });
+      };
+
+      input.click();
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
+    }
+  };
+
   const handleImagePick = async () => {
+    if (Platform.OS === 'web') {
+      await handleWebFilePick();
+      return;
+    }
     const hasPermission = await requestImagePickerPermissions();
     if (!hasPermission) return;
 
@@ -589,6 +616,15 @@ function ProductFormModal({
 
   const removeImage = (index: number) => {
     const currentImages = formData.images || [];
+    // Si web: libérer l'objectURL + supprimer le File associé
+    if (Platform.OS === 'web') {
+      const uri = currentImages[index];
+      try {
+        if (uri && typeof uri === 'string' && uri.startsWith('blob:')) {
+          URL.revokeObjectURL(uri);
+        }
+      } catch {}
+    }
     const newImages = currentImages.filter((_, i) => i !== index);
     setFormData({
       ...formData,

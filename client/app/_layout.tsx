@@ -104,7 +104,7 @@ function AppContent() {
         />
         {/* Commercial Dashboard */}
         <Stack.Screen 
-          name="commercial/dashboard" 
+          name="commercial" 
           options={{ 
             headerShown: false,
             title: 'Dashboard Commercial'
