@@ -500,12 +500,14 @@ export const addToCart = async (userId, productId, quantity = 1) => {
   const safeQty = Math.max(1, Number(quantity) || 1);
 
   // Check if item already in cart
-  const existingItem = await prisma.cartItem.findUnique({
+  // IMPORTANT: le schema utilise @@unique([cartId, productId, variantId])
+  // donc il n'existe PAS de cartId_productId (sans variantId).
+  // Ici on gère le cas "sans variante" => variantId = null.
+  const existingItem = await prisma.cartItem.findFirst({
     where: {
-      cartId_productId: {
-        cartId: cart.id,
-        productId,
-      },
+      cartId: cart.id,
+      productId,
+      variantId: null,
     },
   });
 
