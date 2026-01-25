@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function CartScreen() {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export default function CartScreen() {
   const [cart, setCart] = useState<any>(null);
   const [updating, setUpdating] = useState<string | null>(null);
 
+  // Charger à l'ouverture ET à chaque retour sur l'écran (évite un panier obsolète après checkout)
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -35,6 +37,13 @@ export default function CartScreen() {
     }
     loadCart();
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!user || user.accountType !== 'BUYER') return;
+      loadCart();
+    }, [user])
+  );
 
   const loadCart = async () => {
     try {

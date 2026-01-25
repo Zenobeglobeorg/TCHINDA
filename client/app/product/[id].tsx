@@ -16,6 +16,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
+import { Picker } from '@react-native-picker/picker';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ export default function ProductScreen() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProduct();
@@ -46,6 +48,13 @@ export default function ProductScreen() {
 
       if (productRes.success) {
         setProduct(productRes.data);
+        const p: any = productRes.data;
+        if (p?.hasVariants && Array.isArray(p?.variants) && p.variants.length > 0) {
+          const firstActive = p.variants.find((v: any) => v?.isActive) || p.variants[0];
+          setSelectedVariantId((prev) => prev || (firstActive?.id ? String(firstActive.id) : null));
+        } else {
+          setSelectedVariantId(null);
+        }
       }
 
       if (reviewsRes.success) {
@@ -72,9 +81,16 @@ export default function ProductScreen() {
   const addToCart = async (opts?: { silent?: boolean }) => {
     setAddingToCart(true);
     try {
+      if (product?.hasVariants) {
+        if (!selectedVariantId) {
+          Alert.alert('Variante requise', 'Veuillez sélectionner une variante.');
+          return false;
+        }
+      }
       const response = await apiService.post('/api/buyer/cart/items', {
         productId: id,
         quantity,
+        ...(product?.hasVariants ? { variantId: selectedVariantId } : {}),
       });
 
       if (response.success) {
@@ -259,6 +275,32 @@ export default function ProductScreen() {
               </ThemedText>
             )}
           </View>
+
+          {/* Variants */}
+          {product?.hasVariants && Array.isArray(product?.variants) && product.variants.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Variante</ThemedText>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={selectedVariantId || ''}
+                  onValueChange={(value) => setSelectedVariantId(value ? String(value) : null)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Sélectionner une variante" value="" />
+                  {product.variants
+                    .filter((v: any) => v?.isActive)
+                    .map((v: any) => (
+                      <Picker.Item
+                        key={String(v.id)}
+                        label={`${v.name}${v.stock === 0 ? ' (Rupture)' : ''}`}
+                        value={String(v.id)}
+                        enabled={v.stock !== 0}
+                      />
+                    ))}
+                </Picker>
+              </View>
+            </View>
+          )}
 
           {/* Stock Status */}
           <View style={styles.stockContainer}>
@@ -531,6 +573,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#FFF',
+  },
+  picker: {
+    width: '100%',
+    height: 52,
   },
   description: {
     fontSize: 16,

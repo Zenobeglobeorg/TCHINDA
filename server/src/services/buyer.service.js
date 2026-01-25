@@ -389,6 +389,7 @@ export const getCart = async (userId) => {
     include: {
       items: {
         include: {
+          variant: true,
           product: {
             include: {
               seller: {
@@ -416,6 +417,7 @@ export const getCart = async (userId) => {
       include: {
         items: {
           include: {
+            variant: true,
             product: true,
           },
         },
@@ -465,7 +467,7 @@ export const getCart = async (userId) => {
 /**
  * Add to cart
  */
-export const addToCart = async (userId, productId, quantity = 1) => {
+export const addToCart = async (userId, productId, quantity = 1, variantId = null) => {
   // Get or create cart
   let cart = await prisma.cart.findUnique({
     where: { userId },
@@ -497,17 +499,45 @@ export const addToCart = async (userId, productId, quantity = 1) => {
     throw err;
   }
 
+  // Si le produit a des variantes, exiger une variantId valide
+  const normalizedVariantId = variantId ? String(variantId) : null;
+  let variant = null;
+  if (product.hasVariants) {
+    if (!normalizedVariantId) {
+      const err = new Error('Veuillez sélectionner une variante');
+      err.statusCode = 400;
+      throw err;
+    }
+    variant = await prisma.productVariant.findUnique({
+      where: { id: normalizedVariantId },
+    });
+    if (!variant || variant.productId !== product.id || !variant.isActive) {
+      const err = new Error('Variante invalide');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (variant.stock <= 0) {
+      const err = new Error('Variante en rupture de stock');
+      err.statusCode = 400;
+      throw err;
+    }
+  } else if (normalizedVariantId) {
+    // Produit sans variantes: refuser une variantId pour éviter incohérences
+    const err = new Error('Ce produit n’a pas de variantes');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const safeQty = Math.max(1, Number(quantity) || 1);
 
   // Check if item already in cart
   // IMPORTANT: le schema utilise @@unique([cartId, productId, variantId])
-  // donc il n'existe PAS de cartId_productId (sans variantId).
-  // Ici on gère le cas "sans variante" => variantId = null.
+  // donc la variante fait partie de l'identité de l'article.
   const existingItem = await prisma.cartItem.findFirst({
     where: {
       cartId: cart.id,
       productId,
-      variantId: null,
+      variantId: normalizedVariantId,
     },
   });
 
@@ -523,8 +553,10 @@ export const addToCart = async (userId, productId, quantity = 1) => {
       data: {
         cartId: cart.id,
         productId,
+        variantId: normalizedVariantId,
         quantity: safeQty,
-        price: product.price,
+        // Si variante: prendre son prix, sinon prix produit
+        price: variant ? variant.price : product.price,
         currency: product.currency,
       },
     });
@@ -542,7 +574,9 @@ export const updateCartItem = async (userId, itemId, quantity) => {
   });
 
   if (!cart) {
-    throw new Error('Panier non trouvé');
+    const err = new Error('Panier non trouvé');
+    err.statusCode = 404;
+    throw err;
   }
 
   const item = await prisma.cartItem.findFirst({
@@ -550,7 +584,9 @@ export const updateCartItem = async (userId, itemId, quantity) => {
   });
 
   if (!item) {
-    throw new Error('Article non trouvé dans le panier');
+    const err = new Error('Article non trouvé dans le panier');
+    err.statusCode = 404;
+    throw err;
   }
 
   if (quantity <= 0) {
@@ -761,14 +797,16 @@ export const createOrder = async (userId, orderData) => {
       items: {
         create: cart.items.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId || null,
           quantity: item.quantity,
           price: item.price,
           currency: item.currency,
           total: parseFloat(item.price) * item.quantity,
           productSnapshot: {
             name: item.product?.name,
-            image: item.product?.images?.[0],
-            sku: item.product?.sku,
+            image: item.variant?.images?.[0] || item.product?.images?.[0],
+            sku: item.variant?.sku || item.product?.sku,
+            variantName: item.variant?.name || null,
           },
         })),
       },

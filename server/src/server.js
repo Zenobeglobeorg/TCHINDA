@@ -39,6 +39,10 @@ const PORT = process.env.PORT || 5000;
 // Nécessaire pour express-rate-limit (X-Forwarded-For) et req.ip correct
 app.set('trust proxy', 1);
 
+// Éviter les réponses 304 (ETag) sur des endpoints dynamiques (panier, wishlist, etc.)
+// Sinon le client peut garder des données obsolètes et envoyer If-None-Match => 304 sans body.
+app.disable('etag');
+
 // Security middleware avec configuration améliorée
 app.use(helmet({
   contentSecurityPolicy: {
@@ -59,6 +63,14 @@ app.use(helmet({
   xssFilter: true,
 }));
 app.use(compression());
+
+// Désactiver le cache côté API (données utilisateur)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 
 // CORS configuration
 const getAllowedOrigins = () => {

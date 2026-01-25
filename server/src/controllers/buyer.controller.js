@@ -223,8 +223,8 @@ export const getCart = async (req, res, next) => {
 export const addToCart = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { productId, quantity = 1 } = req.body;
-    const cart = await buyerService.addToCart(userId, productId, quantity);
+    const { productId, quantity = 1, variantId = null } = req.body;
+    const cart = await buyerService.addToCart(userId, productId, quantity, variantId);
     res.json({ success: true, data: cart, message: 'Article ajouté au panier' });
   } catch (error) {
     next(error);
