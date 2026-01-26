@@ -160,7 +160,10 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  // IMPORTANT (web): certains headers (ex: Cache-Control / Pragma) ne sont pas "CORS-safelisted"
+  // et déclenchent un preflight OPTIONS. Il faut donc les autoriser explicitement,
+  // sinon le navigateur bloque la requête ("Request header field cache-control is not allowed...").
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma'],
 };
 app.use(cors(corsOptions));
 

@@ -1,5 +1,6 @@
 import { API_CONFIG } from '@/constants/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Clés de stockage
 const STORAGE_KEYS = {
@@ -140,7 +141,9 @@ class ApiService {
       }
       // Éviter le cache HTTP (ex: 304 sur /cart, /orders, etc.)
       const method = (options.method || 'GET').toUpperCase();
-      if (method === 'GET' || method === 'HEAD') {
+      // Sur le web, ajouter des headers comme "Cache-Control" déclenche un preflight CORS.
+      // On préfère donc utiliser l'option fetch "cache: no-store" quand possible.
+      if ((method === 'GET' || method === 'HEAD') && Platform.OS !== 'web') {
         if (!headers['Cache-Control']) headers['Cache-Control'] = 'no-store';
         if (!headers['Pragma']) headers['Pragma'] = 'no-cache';
       }
@@ -156,11 +159,16 @@ class ApiService {
 
       let response: Response;
       try {
-        response = await fetch(url, {
+        const fetchOptions: RequestInit = {
           ...options,
           headers,
           signal: controller.signal,
-        });
+        };
+        if ((method === 'GET' || method === 'HEAD') && Platform.OS === 'web') {
+          // "cache" n'est pas implémenté partout en RN, mais est supporté sur le web.
+          (fetchOptions as any).cache = 'no-store';
+        }
+        response = await fetch(url, fetchOptions);
         clearTimeout(timeoutId);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
@@ -209,14 +217,18 @@ class ApiService {
             const retryTimeoutId = setTimeout(() => retryController.abort(), API_CONFIG.TIMEOUT || 10000);
             
             try {
-              const retryResponse = await fetch(url, {
+              const retryOptions: RequestInit = {
                 ...options,
                 headers: {
                   ...headers,
                   'Authorization': `Bearer ${this.token}`,
                 },
                 signal: retryController.signal,
-              });
+              };
+              if ((method === 'GET' || method === 'HEAD') && Platform.OS === 'web') {
+                (retryOptions as any).cache = 'no-store';
+              }
+              const retryResponse = await fetch(url, retryOptions);
               clearTimeout(retryTimeoutId);
               
               const retryData = await retryResponse.json();
