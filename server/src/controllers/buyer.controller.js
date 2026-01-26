@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 import * as buyerService from '../services/buyer.service.js';
+import { uploadService } from '../services/upload.service.js';
 
 /**
  * Get buyer profile
@@ -433,13 +434,25 @@ export const requestPhoneVerification = async (req, res, next) => {
 export const submitKYC = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const kycData = req.body;
+    const kycData = { ...(req.body || {}) };
+
+    if (!kycData.documentType || !kycData.documentNumber) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Type et numéro de document requis' },
+      });
+    }
     
-    // Handle file uploads if present
-    if (req.files) {
-      if (req.files.documentFront) kycData.documentFront = req.files.documentFront[0].path;
-      if (req.files.documentBack) kycData.documentBack = req.files.documentBack[0].path;
-      if (req.files.selfie) kycData.selfie = req.files.selfie[0].path;
+    // Upload KYC files to Supabase if provided (multipart/form-data)
+    if (req.files && (req.files.documentFront || req.files.documentBack || req.files.selfie)) {
+      const urls = await uploadService.uploadKycDocuments({
+        userId,
+        filesByField: req.files,
+      });
+
+      if (urls.documentFront) kycData.documentFront = urls.documentFront;
+      if (urls.documentBack) kycData.documentBack = urls.documentBack;
+      if (urls.selfie) kycData.selfie = urls.selfie;
     }
 
     const verification = await buyerService.submitKYC(userId, kycData);

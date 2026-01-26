@@ -5,7 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
+  TextInput,
+  Platform,
+  useWindowDimensions,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,17 +19,18 @@ import { apiService } from '@/services/api.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Colors } from '@/constants/Colors';
 
-const { width } = Dimensions.get('window');
-
 export default function BuyerHomeScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
   const colors = useThemeColors();
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
   const [refreshing, setRefreshing] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; slug?: string }>>([]);
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [homeSearch, setHomeSearch] = useState('');
 
   // Rediriger les vendeurs vers l'espace vendeur
   useEffect(() => {
@@ -72,10 +75,11 @@ export default function BuyerHomeScreen() {
 
   const loadCatalog = useCallback(async (categoryId: string | null) => {
     try {
+      const limit = isWeb ? 24 : 10;
       const [catRes, prodRes] = await Promise.all([
         apiService.get('/api/categories'),
         apiService.get(
-          `/api/products?sortBy=newest&limit=10${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`
+          `/api/products?sortBy=newest&limit=${limit}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`
         ),
       ]);
 
@@ -144,6 +148,11 @@ export default function BuyerHomeScreen() {
       paddingTop: 60,
       backgroundColor: colors.card,
     },
+    contentMaxWidth: {
+      width: '100%',
+      maxWidth: 1200,
+      alignSelf: 'center',
+    },
     greeting: {
       fontSize: 24,
       fontWeight: 'bold',
@@ -153,6 +162,29 @@ export default function BuyerHomeScreen() {
     subtitle: {
       fontSize: 14,
       color: colors.placeholder,
+    },
+    verificationPill: {
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      gap: 6,
+      borderWidth: 1,
+    },
+    verificationPillOk: {
+      backgroundColor: '#D4EDDA',
+      borderColor: '#C3E6CB',
+    },
+    verificationPillWarn: {
+      backgroundColor: '#FFF3CD',
+      borderColor: '#FFEEBA',
+    },
+    verificationPillText: {
+      fontSize: 12,
+      fontWeight: '600',
     },
     cartButton: {
       width: 50,
@@ -192,6 +224,13 @@ export default function BuyerHomeScreen() {
       borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: 10,
+      color: colors.text,
+      fontSize: 14,
+      paddingVertical: 0,
     },
     searchPlaceholder: {
       marginLeft: 10,
@@ -276,6 +315,11 @@ export default function BuyerHomeScreen() {
     productsContainer: {
       paddingRight: 20,
     },
+    productsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 16,
+    },
     productCard: {
       width: 160,
       backgroundColor: colors.card,
@@ -287,6 +331,10 @@ export default function BuyerHomeScreen() {
       shadowOpacity: colors === Colors.dark ? 0.3 : 0.1,
       shadowRadius: 4,
       elevation: 3,
+    },
+    productCardWeb: {
+      width: Math.max(220, Math.floor((width - 40 - 16 * 3) / 4)),
+      marginRight: 0,
     },
     productImagePlaceholder: {
       width: '100%',
@@ -343,6 +391,18 @@ export default function BuyerHomeScreen() {
     },
   }), [colors]);
 
+  const goToProducts = (opts?: { search?: string; categoryId?: string | null }) => {
+    const search = (opts?.search ?? '').trim();
+    const categoryId = opts?.categoryId ?? null;
+    router.push({
+      pathname: '/products',
+      params: {
+        ...(search ? { search } : {}),
+        ...(categoryId ? { categoryId } : {}),
+      },
+    });
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -361,6 +421,29 @@ export default function BuyerHomeScreen() {
             <ThemedText style={styles.subtitle}>
               Découvrez nos meilleures offres
             </ThemedText>
+            {!!user && user.accountType === 'BUYER' && (
+              <TouchableOpacity
+                style={[
+                  styles.verificationPill,
+                  user.kycVerified ? styles.verificationPillOk : styles.verificationPillWarn,
+                ]}
+                onPress={() => router.push('/buyer/verification')}
+              >
+                <IconSymbol
+                  name={user.kycVerified ? 'checkmark.shield.fill' : 'exclamationmark.triangle.fill'}
+                  size={14}
+                  color={user.kycVerified ? '#1B5E20' : '#7A5A00'}
+                />
+                <ThemedText
+                  style={[
+                    styles.verificationPillText,
+                    { color: user.kycVerified ? '#1B5E20' : '#7A5A00' },
+                  ]}
+                >
+                  {user.kycVerified ? 'Compte vérifié (KYC)' : 'Compte non vérifié: limites'}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity
             style={styles.cartButton}
@@ -376,12 +459,21 @@ export default function BuyerHomeScreen() {
         </View>
 
         {/* Barre de recherche */}
-        <TouchableOpacity style={styles.searchBar}>
+        <View style={styles.searchBar}>
           <IconSymbol name="magnifyingglass" size={20} color={colors.placeholder} />
-          <ThemedText style={styles.searchPlaceholder}>
-            Rechercher des produits...
-          </ThemedText>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher des produits..."
+            placeholderTextColor={colors.placeholder}
+            value={homeSearch}
+            onChangeText={setHomeSearch}
+            returnKeyType="search"
+            onSubmitEditing={() => goToProducts({ search: homeSearch, categoryId: selectedCategoryId })}
+          />
+          <TouchableOpacity onPress={() => goToProducts({ search: homeSearch, categoryId: selectedCategoryId })}>
+            <IconSymbol name="arrow.right.circle.fill" size={22} color={colors.tint} />
+          </TouchableOpacity>
+        </View>
 
         {/* Bannières promotionnelles */}
         <ScrollView
@@ -455,34 +547,61 @@ export default function BuyerHomeScreen() {
               <ThemedText style={styles.seeAll}>Voir tout</ThemedText>
             </TouchableOpacity>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productsContainer}
-          >
-            {featuredProducts.map((product) => (
-              <TouchableOpacity
-                key={product.id}
-                style={styles.productCard}
-                onPress={() => router.push(`/product/${product.id}`)}
-              >
-                {product?.images?.[0] && /^https?:\/\//i.test(product.images[0]) ? (
-                  <Image
-                    source={{ uri: product.images[0] }}
-                    style={{ width: '100%', height: 140, borderRadius: 8, marginBottom: 10 }}
-                  />
-                ) : (
-                  <View style={styles.productImagePlaceholder}>
-                    <IconSymbol name="photo" size={40} color={colors.placeholder} />
-                  </View>
-                )}
-                <ThemedText style={styles.productName} numberOfLines={2}>
-                  {product.name}
-                </ThemedText>
-                <ThemedText style={styles.productPrice}>{formatPrice(product)}</ThemedText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {isWeb ? (
+            <View style={styles.productsGrid}>
+              {featuredProducts.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  style={[styles.productCard, styles.productCardWeb]}
+                  onPress={() => router.push(`/product/${product.id}`)}
+                >
+                  {product?.images?.[0] && /^https?:\/\//i.test(product.images[0]) ? (
+                    <Image
+                      source={{ uri: product.images[0] }}
+                      style={{ width: '100%', height: 160, borderRadius: 8, marginBottom: 10 }}
+                    />
+                  ) : (
+                    <View style={styles.productImagePlaceholder}>
+                      <IconSymbol name="photo" size={40} color={colors.placeholder} />
+                    </View>
+                  )}
+                  <ThemedText style={styles.productName} numberOfLines={2}>
+                    {product.name}
+                  </ThemedText>
+                  <ThemedText style={styles.productPrice}>{formatPrice(product)}</ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.productsContainer}
+            >
+              {featuredProducts.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  style={styles.productCard}
+                  onPress={() => router.push(`/product/${product.id}`)}
+                >
+                  {product?.images?.[0] && /^https?:\/\//i.test(product.images[0]) ? (
+                    <Image
+                      source={{ uri: product.images[0] }}
+                      style={{ width: '100%', height: 140, borderRadius: 8, marginBottom: 10 }}
+                    />
+                  ) : (
+                    <View style={styles.productImagePlaceholder}>
+                      <IconSymbol name="photo" size={40} color={colors.placeholder} />
+                    </View>
+                  )}
+                  <ThemedText style={styles.productName} numberOfLines={2}>
+                    {product.name}
+                  </ThemedText>
+                  <ThemedText style={styles.productPrice}>{formatPrice(product)}</ThemedText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* Offres flash */}

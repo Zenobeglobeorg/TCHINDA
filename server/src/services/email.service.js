@@ -3,11 +3,18 @@ import nodemailer from 'nodemailer';
 // Configuration du transporteur email
 let transporter = null;
 
+const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase(); // smtp | emailjs
+
 /**
  * Initialise le transporteur email
  */
 const initTransporter = () => {
   if (transporter) return transporter;
+
+  // Si on utilise EmailJS, pas besoin de transporter SMTP
+  if (EMAIL_PROVIDER === 'emailjs') {
+    return null;
+  }
 
   // Vérifier si les credentials email sont configurés
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -58,6 +65,53 @@ const initTransporter = () => {
  */
 export const sendEmail = async (to, subject, html, text = null) => {
   try {
+    // Provider EmailJS (recommandé pour éviter SMTP)
+    if (EMAIL_PROVIDER === 'emailjs') {
+      const serviceId = process.env.EMAILJS_SERVICE_ID;
+      const templateId = process.env.EMAILJS_TEMPLATE_ID;
+      const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+      const privateKey = process.env.EMAILJS_PRIVATE_KEY; // EmailJS "accessToken" (server-side)
+
+      if (!serviceId || !templateId || !publicKey) {
+        console.warn('⚠️  EmailJS non configuré (EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY).');
+        return { success: false, message: 'EmailJS non configuré', testMode: true };
+      }
+
+      const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@tchinda.com';
+      const fromName = process.env.EMAIL_FROM_NAME || 'TCHINDA';
+
+      const payload = {
+        service_id: serviceId,
+        template_id: templateId,
+        user_id: publicKey,
+        // Private Key optionnelle (recommandée côté serveur)
+        ...(privateKey ? { accessToken: privateKey } : {}),
+        template_params: {
+          to_email: to,
+          from_email: fromEmail,
+          from_name: fromName,
+          subject,
+          // Texte par défaut: version texte sans HTML
+          message_text: text || String(html || '').replace(/<[^>]*>/g, ''),
+          // HTML complet si tu veux l'utiliser dans le template
+          message_html: html,
+        },
+      };
+
+      const resp = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        const raw = await resp.text().catch(() => '');
+        throw new Error(`EmailJS error (${resp.status}): ${raw || 'unknown error'}`);
+      }
+
+      return { success: true, provider: 'emailjs' };
+    }
+
     const emailTransporter = initTransporter();
 
     if (!emailTransporter) {
@@ -194,6 +248,95 @@ Si vous n'avez pas demandé ce code, veuillez ignorer cet email.
 ---
 Cet email a été envoyé automatiquement, merci de ne pas y répondre.
 © ${new Date().getFullYear()} TCHINDA. Tous droits réservés.
+  `;
+
+  return await sendEmail(email, subject, html, text);
+};
+
+/**
+ * Envoie un code OTP de connexion par email
+ */
+export const sendLoginOtpEmail = async (email, code, firstName = null) => {
+  const subject = 'Code de connexion - TCHINDA';
+  const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .container {
+          background-color: #f9f9f9;
+          border-radius: 10px;
+          padding: 30px;
+          border: 1px solid #e0e0e0;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo { font-size: 28px; font-weight: bold; color: #624cac; margin-bottom: 10px; }
+        .code-box {
+          background-color: #624cac;
+          color: white;
+          font-size: 32px;
+          font-weight: bold;
+          text-align: center;
+          padding: 20px;
+          border-radius: 8px;
+          letter-spacing: 5px;
+          margin: 30px 0;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #e0e0e0;
+          font-size: 12px;
+          color: #666;
+          text-align: center;
+        }
+        .warning {
+          color: #d32f2f;
+          font-size: 14px;
+          margin-top: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="logo">TCHINDA</div>
+        </div>
+        <p>${greeting}</p>
+        <p>Voici votre code de connexion :</p>
+        <div class="code-box">${code}</div>
+        <p>Ce code est valide pendant <strong>10 minutes</strong>.</p>
+        <p class="warning">⚠️ Si vous n'avez pas demandé ce code, veuillez sécuriser votre compte.</p>
+        <div class="footer">
+          <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+          <p>&copy; ${new Date().getFullYear()} TCHINDA. Tous droits réservés.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+${greeting}
+
+Voici votre code de connexion :
+
+${code}
+
+Ce code est valide pendant 10 minutes.
+
+Si vous n'avez pas demandé ce code, veuillez sécuriser votre compte.
   `;
 
   return await sendEmail(email, subject, html, text);

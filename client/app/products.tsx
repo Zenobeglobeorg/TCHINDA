@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
@@ -20,12 +21,15 @@ const { width } = Dimensions.get('window');
 
 export default function ProductsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ search?: string; categoryId?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const initialSearch = typeof params.search === 'string' ? params.search : '';
+  const initialCategoryId = typeof params.categoryId === 'string' ? params.categoryId : null;
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategoryId);
   const [sortBy, setSortBy] = useState('relevance');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showFilters, setShowFilters] = useState(false);
@@ -36,6 +40,16 @@ export default function ProductsScreen() {
     loadCategories();
     loadProducts();
   }, []);
+
+  // Synchroniser si on arrive depuis la home avec un paramètre
+  useEffect(() => {
+    if (typeof params.search === 'string' && params.search !== searchQuery) {
+      setSearchQuery(params.search);
+    }
+    if (typeof params.categoryId === 'string' && params.categoryId !== selectedCategory) {
+      setSelectedCategory(params.categoryId);
+    }
+  }, [params.search, params.categoryId]);
 
   useEffect(() => {
     // Reset page when filters change

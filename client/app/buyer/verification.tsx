@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -14,6 +15,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
+import { authService } from '@/services/auth.service';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function VerificationScreen() {
   const router = useRouter();
@@ -39,6 +42,21 @@ export default function VerificationScreen() {
     selfie: '',
   });
   const [kycSubmitting, setKycSubmitting] = useState(false);
+
+  const setKycField = (field: keyof typeof kycData, next: string) => {
+    setKycData((prev) => {
+      const current = prev[field];
+      // cleanup web blob URLs to avoid memory leak
+      if (Platform.OS === 'web') {
+        try {
+          if (current && typeof current === 'string' && current.startsWith('blob:') && current !== next) {
+            URL.revokeObjectURL(current);
+          }
+        } catch {}
+      }
+      return { ...prev, [field]: next };
+    });
+  };
 
   useEffect(() => {
     loadVerificationStatus();
@@ -80,19 +98,19 @@ export default function VerificationScreen() {
 
     setLoading(true);
     try {
-      // In production, this would verify the code
-      // For now, we'll simulate success
-      Alert.alert('Succès', 'Email vérifié avec succès', [
-        {
-          text: 'OK',
-          onPress: async () => {
-            await refreshUser();
-            await loadVerificationStatus();
-            setEmailCode('');
-            setEmailCodeSent(false);
-          },
-        },
-      ]);
+      const email = user?.email;
+      if (!email) throw new Error('Email utilisateur manquant');
+
+      const response = await authService.verifyEmail(email, emailCode);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Code invalide ou expiré');
+      }
+
+      Alert.alert('Succès', 'Email vérifié avec succès');
+      await refreshUser();
+      await loadVerificationStatus();
+      setEmailCode('');
+      setEmailCodeSent(false);
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     } finally {
@@ -130,22 +148,101 @@ export default function VerificationScreen() {
 
     setLoading(true);
     try {
-      // In production, this would verify the code
-      Alert.alert('Succès', 'Téléphone vérifié avec succès', [
-        {
-          text: 'OK',
-          onPress: async () => {
-            await refreshUser();
-            await loadVerificationStatus();
-            setPhoneCode('');
-            setPhoneCodeSent(false);
-          },
-        },
-      ]);
+      const phone = user?.phone;
+      if (!phone) throw new Error('Numéro de téléphone manquant');
+
+      const response = await authService.verifyPhone(phone, phoneCode);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Code invalide ou expiré');
+      }
+
+      Alert.alert('Succès', 'Téléphone vérifié avec succès');
+      await refreshUser();
+      await loadVerificationStatus();
+      setPhoneCode('');
+      setPhoneCodeSent(false);
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const pickKycFile = async (field: 'documentFront' | 'documentBack' | 'selfie') => {
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.multiple = false;
+        input.onchange = () => {
+          const file = (input.files && input.files[0]) || null;
+          if (!file) return;
+          const uri = URL.createObjectURL(file);
+          setKycField(field, uri);
+        };
+        input.click();
+        return;
+      }
+
+      // Mobile: camera / galerie (comme produits)
+      Alert.alert(
+        'Choisir un document',
+        'Choisissez une option',
+        [
+          {
+            text: 'Caméra',
+            onPress: async () => {
+              try {
+                const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+                if (cameraStatus !== 'granted') {
+                  Alert.alert('Permissions requises', 'Autorisez l’accès à la caméra.');
+                  return;
+                }
+
+                const result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  quality: 0.8,
+                  allowsEditing: false,
+                });
+
+                if (!result.canceled && result.assets && result.assets[0]?.uri) {
+                  setKycField(field, result.assets[0].uri);
+                }
+              } catch {
+                Alert.alert('Erreur', "Impossible d'accéder à la caméra");
+              }
+            },
+          },
+          {
+            text: 'Galerie',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Permissions requises', 'Autorisez l’accès à la galerie.');
+                  return;
+                }
+
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  quality: 0.8,
+                  allowsEditing: false,
+                });
+
+                if (!result.canceled && result.assets && result.assets[0]?.uri) {
+                  setKycField(field, result.assets[0].uri);
+                }
+              } catch {
+                Alert.alert('Erreur', "Impossible d'ouvrir la galerie");
+              }
+            },
+          },
+          { text: 'Annuler', style: 'cancel' },
+        ]
+      );
+    } catch {
+      Alert.alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
     }
   };
 
@@ -157,7 +254,48 @@ export default function VerificationScreen() {
 
     setKycSubmitting(true);
     try {
-      const response = await apiService.post('/api/buyer/verification/kyc', kycData);
+      // Envoyer en multipart/form-data si on a des fichiers locaux; sinon fallback JSON
+      const hasLocalFiles =
+        (kycData.documentFront && !/^https?:\/\//i.test(kycData.documentFront)) ||
+        (kycData.documentBack && !/^https?:\/\//i.test(kycData.documentBack)) ||
+        (kycData.selfie && !/^https?:\/\//i.test(kycData.selfie));
+
+      let response;
+      if (hasLocalFiles) {
+        const fd = new FormData();
+        fd.append('documentType', kycData.documentType);
+        fd.append('documentNumber', kycData.documentNumber);
+
+        const appendFile = async (field: string, uri: string, filename: string) => {
+          if (!uri) return;
+          if (/^https?:\/\//i.test(uri)) return; // déjà distant
+
+          if (Platform.OS === 'web') {
+            const resp = await fetch(uri);
+            const blob = await resp.blob();
+            // @ts-ignore
+            fd.append(field, blob, filename);
+          } else {
+            // @ts-ignore
+            fd.append(field, { uri, name: filename, type: 'image/jpeg' });
+          }
+        };
+
+        if (kycData.documentFront) {
+          await appendFile('documentFront', kycData.documentFront, `kyc-front-${Date.now()}.jpg`);
+        }
+        if (kycData.documentBack) {
+          await appendFile('documentBack', kycData.documentBack, `kyc-back-${Date.now()}.jpg`);
+        }
+        if (kycData.selfie) {
+          await appendFile('selfie', kycData.selfie, `kyc-selfie-${Date.now()}.jpg`);
+        }
+
+        response = await apiService.post('/api/buyer/verification/kyc', fd);
+      } else {
+        response = await apiService.post('/api/buyer/verification/kyc', kycData);
+      }
+
       if (response.success) {
         Alert.alert(
           'Succès',
@@ -167,6 +305,16 @@ export default function VerificationScreen() {
               text: 'OK',
               onPress: async () => {
                 await loadVerificationStatus();
+
+                // cleanup blob urls on web
+                if (Platform.OS === 'web') {
+                  try {
+                    if (kycData.documentFront?.startsWith('blob:')) URL.revokeObjectURL(kycData.documentFront);
+                    if (kycData.documentBack?.startsWith('blob:')) URL.revokeObjectURL(kycData.documentBack);
+                    if (kycData.selfie?.startsWith('blob:')) URL.revokeObjectURL(kycData.selfie);
+                  } catch {}
+                }
+
                 setKycData({
                   documentType: '',
                   documentNumber: '',
@@ -482,36 +630,42 @@ export default function VerificationScreen() {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <ThemedText style={styles.inputLabel}>URL Document recto</ThemedText>
+                  <ThemedText style={styles.inputLabel}>Document recto (photo/fichier)</ThemedText>
                   <TextInput
                     style={styles.input}
-                    placeholder="URL de l'image du document recto"
+                    placeholder="Choisir un fichier ou coller une URL"
                     value={kycData.documentFront}
                     onChangeText={(text) => setKycData({ ...kycData, documentFront: text })}
                   />
-                  <ThemedText style={styles.inputHint}>
-                    Dans une version complète, vous pourriez uploader une image
-                  </ThemedText>
+                  <TouchableOpacity style={styles.resendButton} onPress={() => pickKycFile('documentFront')}>
+                    <ThemedText style={styles.resendButtonText}>Choisir un fichier</ThemedText>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <ThemedText style={styles.inputLabel}>URL Document verso</ThemedText>
+                  <ThemedText style={styles.inputLabel}>Document verso (photo/fichier)</ThemedText>
                   <TextInput
                     style={styles.input}
-                    placeholder="URL de l'image du document verso"
+                    placeholder="Choisir un fichier ou coller une URL"
                     value={kycData.documentBack}
                     onChangeText={(text) => setKycData({ ...kycData, documentBack: text })}
                   />
+                  <TouchableOpacity style={styles.resendButton} onPress={() => pickKycFile('documentBack')}>
+                    <ThemedText style={styles.resendButtonText}>Choisir un fichier</ThemedText>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <ThemedText style={styles.inputLabel}>URL Selfie avec document</ThemedText>
+                  <ThemedText style={styles.inputLabel}>Selfie avec document (photo/fichier)</ThemedText>
                   <TextInput
                     style={styles.input}
-                    placeholder="URL de votre selfie avec le document"
+                    placeholder="Choisir un fichier ou coller une URL"
                     value={kycData.selfie}
                     onChangeText={(text) => setKycData({ ...kycData, selfie: text })}
                   />
+                  <TouchableOpacity style={styles.resendButton} onPress={() => pickKycFile('selfie')}>
+                    <ThemedText style={styles.resendButtonText}>Choisir un fichier</ThemedText>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.infoCard}>

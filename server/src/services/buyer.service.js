@@ -1,5 +1,143 @@
 import { prisma } from '../utils/prisma.js';
 import { generateOrderNumber } from '../utils/order.utils.js';
+import { randomUUID } from 'crypto';
+import { sendEmailVerificationCode, sendPhoneVerificationCode } from './auth.service.js';
+
+const normalizeMoney = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const getVerificationContext = async (userId) => {
+  return await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      emailVerified: true,
+      phoneVerified: true,
+      kycVerified: true,
+      verificationStatus: true,
+    },
+  });
+};
+
+const isUnlimitedVerified = (user) => !!user?.kycVerified;
+
+const getMaxAmountForUser = (user) => {
+  if (isUnlimitedVerified(user)) return null;
+  // Montants configurables via env (par défaut: conservateurs)
+  const rawUnverified = process.env.LIMIT_UNVERIFIED_MAX_AMOUNT || '50000';
+  const rawEmailVerified = process.env.LIMIT_EMAIL_VERIFIED_MAX_AMOUNT || '200000';
+  const max = user?.emailVerified ? rawEmailVerified : rawUnverified;
+  const n = Number(max);
+  return Number.isFinite(n) ? n : null;
+};
+
+const enforceWalletTxLimits = async ({ userId, walletId, amount, currency }) => {
+  const user = await getVerificationContext(userId);
+  if (!user) {
+    const err = new Error('Utilisateur non trouvé');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (isUnlimitedVerified(user)) return;
+
+  const maxPerDay = Number(process.env.LIMIT_UNVERIFIED_WALLET_TX_PER_DAY || 5);
+  const count = await prisma.transaction.count({
+    where: {
+      walletId,
+      type: { in: ['DEPOSIT', 'WITHDRAWAL', 'PAYMENT'] },
+      createdAt: { gte: startOfToday() },
+    },
+  });
+
+  if (Number.isFinite(maxPerDay) && count >= maxPerDay) {
+    const err = new Error(
+      'Limite atteinte: maximum 5 transactions/jour pour un compte non vérifié. Veuillez compléter la vérification (email + KYC) pour des accès illimités.'
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const maxAmount = getMaxAmountForUser(user);
+  const safeAmount = normalizeMoney(amount);
+  if (maxAmount !== null && safeAmount > maxAmount) {
+    const err = new Error(
+      `Montant trop élevé pour votre niveau de vérification. Limite actuelle: ${maxAmount} ${currency || ''}`.trim()
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+};
+
+const enforceOrderLimits = async ({ userId, total, currency, isWalletPayment }) => {
+  const user = await getVerificationContext(userId);
+  if (!user) {
+    const err = new Error('Utilisateur non trouvé');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (isUnlimitedVerified(user)) return;
+
+  const maxOrdersPerDay = Number(process.env.LIMIT_UNVERIFIED_ORDERS_PER_DAY || 5);
+  const orderCount = await prisma.order.count({
+    where: {
+      userId,
+      createdAt: { gte: startOfToday() },
+    },
+  });
+
+  if (Number.isFinite(maxOrdersPerDay) && orderCount >= maxOrdersPerDay) {
+    const err = new Error(
+      'Limite atteinte: maximum 5 commandes/jour pour un compte non vérifié. Veuillez compléter la vérification (email + KYC) pour des accès illimités.'
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Si paiement wallet: appliquer aussi les limites montant
+  if (isWalletPayment) {
+    const maxAmount = getMaxAmountForUser(user);
+    const safeTotal = normalizeMoney(total);
+    if (maxAmount !== null && safeTotal > maxAmount) {
+      const err = new Error(
+        `Montant trop élevé pour votre niveau de vérification. Limite actuelle: ${maxAmount} ${currency || ''}`.trim()
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+};
+
+const ensureWalletCurrency = async (tx, walletId, currency) => {
+  const cur = currency || 'XOF';
+  let walletCurrency = await tx.walletCurrency.findUnique({
+    where: {
+      walletId_currency: {
+        walletId,
+        currency: cur,
+      },
+    },
+  });
+
+  if (!walletCurrency) {
+    walletCurrency = await tx.walletCurrency.create({
+      data: {
+        walletId,
+        currency: cur,
+        balance: 0,
+      },
+    });
+  }
+
+  return walletCurrency;
+};
 
 /**
  * Get buyer profile with related data
@@ -213,6 +351,7 @@ export const getTransactions = async (userId, options = {}) => {
  */
 export const deposit = async (userId, { amount, currency, paymentMethod }) => {
   const wallet = await getWallet(userId);
+  await enforceWalletTxLimits({ userId, walletId: wallet.id, amount, currency });
 
   // Find or create currency wallet
   let walletCurrency = await prisma.walletCurrency.findUnique({
@@ -262,6 +401,7 @@ export const deposit = async (userId, { amount, currency, paymentMethod }) => {
  */
 export const withdraw = async (userId, { amount, currency, paymentMethod }) => {
   const wallet = await getWallet(userId);
+  await enforceWalletTxLimits({ userId, walletId: wallet.id, amount, currency });
 
   const walletCurrency = await prisma.walletCurrency.findUnique({
     where: {
@@ -780,7 +920,105 @@ export const createOrder = async (userId, orderData) => {
 
   const total = subtotal + shippingCost;
 
-  // Create order
+  const paymentMethod = orderData.paymentMethod || 'WALLET';
+  const currency = orderData.currency || 'XOF';
+
+  await enforceOrderLimits({
+    userId,
+    total,
+    currency,
+    isWalletPayment: paymentMethod === 'WALLET',
+  });
+
+  // IMPORTANT: la page checkout affiche "Payer maintenant".
+  // Donc si paymentMethod=WALLET, on débite réellement le wallet et on marque la commande comme payée.
+  if (paymentMethod === 'WALLET') {
+    const wallet = await getWallet(userId);
+    await enforceWalletTxLimits({ userId, walletId: wallet.id, amount: total, currency });
+    const safeTotal = normalizeMoney(total);
+    const now = new Date();
+    const paymentReference = `PAY-${randomUUID()}`;
+
+    const paidOrder = await prisma.$transaction(async (tx) => {
+      const walletCurrency = await ensureWalletCurrency(tx, wallet.id, currency);
+      const currentBalance = normalizeMoney(walletCurrency.balance);
+      if (currentBalance < safeTotal) {
+        const err = new Error('Solde insuffisant');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      await tx.walletCurrency.update({
+        where: { id: walletCurrency.id },
+        data: { balance: currentBalance - safeTotal },
+      });
+
+      const order = await tx.order.create({
+        data: {
+          orderNumber: generateOrderNumber(),
+          userId,
+          status: 'CONFIRMED',
+          subtotal,
+          shippingCost,
+          total,
+          currency,
+          shippingAddressId: orderData.shippingAddressId,
+          billingAddressId: orderData.billingAddressId,
+          paymentMethod,
+          paymentStatus: 'PAID',
+          paymentReference,
+          paidAt: now,
+          items: {
+            create: cart.items.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId || null,
+              quantity: item.quantity,
+              price: item.price,
+              currency: item.currency,
+              total: parseFloat(item.price) * item.quantity,
+              productSnapshot: {
+                name: item.product?.name,
+                image: item.variant?.images?.[0] || item.product?.images?.[0],
+                sku: item.variant?.sku || item.product?.sku,
+                variantName: item.variant?.name || null,
+              },
+            })),
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'PAYMENT',
+          amount: safeTotal,
+          currency,
+          status: 'COMPLETED',
+          reference: paymentReference,
+          description: `Paiement commande ${order.orderNumber}`,
+          paymentMethod: 'WALLET',
+          metadata: { orderId: order.id },
+        },
+      });
+
+      // Clear cart only after successful payment + order creation
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+      return order;
+    });
+
+    return paidOrder;
+  }
+
+  // Autres méthodes (non implémentées): on crée une commande en attente de paiement, puis on vide le panier
+  // (flux classique: "commande créée" -> paiement externe plus tard).
   const order = await prisma.order.create({
     data: {
       orderNumber: generateOrderNumber(),
@@ -789,10 +1027,10 @@ export const createOrder = async (userId, orderData) => {
       subtotal,
       shippingCost,
       total,
-      currency: orderData.currency || 'XOF',
+      currency,
       shippingAddressId: orderData.shippingAddressId,
       billingAddressId: orderData.billingAddressId,
-      paymentMethod: orderData.paymentMethod || 'WALLET',
+      paymentMethod,
       paymentStatus: 'PENDING',
       items: {
         create: cart.items.map((item) => ({
@@ -820,9 +1058,7 @@ export const createOrder = async (userId, orderData) => {
     },
   });
 
-  // Clear cart
   await clearCart(userId);
-
   return order;
 };
 
@@ -896,6 +1132,102 @@ export const createBuyNowOrder = async (userId, orderData) => {
 
   const total = subtotal + shippingCost;
 
+  const paymentMethod = orderData.paymentMethod || 'WALLET';
+  const currency = product.currency || orderData.currency || 'XOF';
+
+  await enforceOrderLimits({
+    userId,
+    total,
+    currency,
+    isWalletPayment: paymentMethod === 'WALLET',
+  });
+
+  if (paymentMethod === 'WALLET') {
+    const wallet = await getWallet(userId);
+    await enforceWalletTxLimits({ userId, walletId: wallet.id, amount: total, currency });
+    const safeTotal = normalizeMoney(total);
+    const now = new Date();
+    const paymentReference = `PAY-${randomUUID()}`;
+
+    const paidOrder = await prisma.$transaction(async (tx) => {
+      const walletCurrency = await ensureWalletCurrency(tx, wallet.id, currency);
+      const currentBalance = normalizeMoney(walletCurrency.balance);
+      if (currentBalance < safeTotal) {
+        const err = new Error('Solde insuffisant');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      await tx.walletCurrency.update({
+        where: { id: walletCurrency.id },
+        data: { balance: currentBalance - safeTotal },
+      });
+
+      const order = await tx.order.create({
+        data: {
+          orderNumber: generateOrderNumber(),
+          userId,
+          sellerId: product.sellerId,
+          status: 'CONFIRMED',
+          subtotal,
+          shippingCost,
+          total,
+          currency,
+          shippingAddressId: orderData.shippingAddressId,
+          billingAddressId: orderData.billingAddressId,
+          paymentMethod,
+          paymentStatus: 'PAID',
+          paymentReference,
+          paidAt: now,
+          items: {
+            create: [
+              {
+                productId: product.id,
+                variantId: normalizedVariantId,
+                quantity: safeQty,
+                price: unitPrice,
+                currency: product.currency,
+                total: parseFloat(unitPrice) * safeQty,
+                productSnapshot: {
+                  name: product.name,
+                  image: variant?.images?.[0] || product?.images?.[0],
+                  sku: variant?.sku || product?.sku,
+                  variantName: variant?.name || null,
+                },
+              },
+            ],
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+              variant: true,
+            },
+          },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'PAYMENT',
+          amount: safeTotal,
+          currency,
+          status: 'COMPLETED',
+          reference: paymentReference,
+          description: `Paiement commande ${order.orderNumber}`,
+          paymentMethod: 'WALLET',
+          metadata: { orderId: order.id },
+        },
+      });
+
+      return order;
+    });
+
+    return paidOrder;
+  }
+
   const order = await prisma.order.create({
     data: {
       orderNumber: generateOrderNumber(),
@@ -905,10 +1237,10 @@ export const createBuyNowOrder = async (userId, orderData) => {
       subtotal,
       shippingCost,
       total,
-      currency: product.currency || orderData.currency || 'XOF',
+      currency,
       shippingAddressId: orderData.shippingAddressId,
       billingAddressId: orderData.billingAddressId,
-      paymentMethod: orderData.paymentMethod || 'WALLET',
+      paymentMethod,
       paymentStatus: 'PENDING',
       items: {
         create: [
@@ -987,27 +1319,72 @@ export const getVerificationStatus = async (userId) => {
  * Request email verification
  */
 export const requestEmailVerification = async (userId) => {
-  // This would typically send an email with verification code
-  // For now, we'll just return success
-  // In production, integrate with email service
-  return { success: true };
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    const err = new Error('Utilisateur non trouvé');
+    err.statusCode = 404;
+    throw err;
+  }
+  return await sendEmailVerificationCode(user.email);
 };
 
 /**
  * Request phone verification
  */
 export const requestPhoneVerification = async (userId) => {
-  // This would typically send an SMS with verification code
-  // For now, we'll just return success
-  // In production, integrate with SMS service
-  return { success: true };
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    const err = new Error('Utilisateur non trouvé');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!user.phone) {
+    const err = new Error('Numéro de téléphone requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  return await sendPhoneVerificationCode(user.phone);
 };
 
 /**
  * Submit KYC
  */
 export const submitKYC = async (userId, kycData) => {
-  return await prisma.verification.create({
+  // If there is already a pending verification, update it instead of creating duplicates.
+  const existingPending = await prisma.verification.findFirst({
+    where: {
+      userId,
+      method: 'KYC_IDENTITY',
+      status: 'PENDING',
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingPending) {
+    const updated = await prisma.verification.update({
+      where: { id: existingPending.id },
+      data: {
+        documentType: kycData.documentType ?? existingPending.documentType,
+        documentNumber: kycData.documentNumber ?? existingPending.documentNumber,
+        documentFront: kycData.documentFront ?? existingPending.documentFront,
+        documentBack: kycData.documentBack ?? existingPending.documentBack,
+        selfie: kycData.selfie ?? existingPending.selfie,
+        updatedAt: new Date(),
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        kycVerified: false,
+        verificationStatus: 'PENDING',
+      },
+    });
+
+    return updated;
+  }
+
+  const created = await prisma.verification.create({
     data: {
       userId,
       method: 'KYC_IDENTITY',
@@ -1019,6 +1396,16 @@ export const submitKYC = async (userId, kycData) => {
       selfie: kycData.selfie,
     },
   });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      kycVerified: false,
+      verificationStatus: 'PENDING',
+    },
+  });
+
+  return created;
 };
 
 /**

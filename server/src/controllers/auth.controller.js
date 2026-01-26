@@ -9,6 +9,8 @@ import {
   sendPhoneVerificationCode,
   requestPasswordReset,
   resetPassword,
+  requestLoginOtp,
+  loginWithOtp,
 } from '../services/auth.service.js';
 
 /**
@@ -43,6 +45,53 @@ export const login = async (req, res, next) => {
     });
   } catch (error) {
     // Utiliser le middleware d'erreur global pour cohérence
+    next(error);
+  }
+};
+
+/**
+ * Demander un code OTP de connexion par email
+ */
+export const requestLoginOtpController = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Email requis' },
+      });
+    }
+
+    const result = await requestLoginOtp(email);
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Vérifier OTP et connecter l'utilisateur
+ */
+export const loginWithOtpController = async (req, res, next) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Email et code requis' },
+      });
+    }
+
+    const result = await loginWithOtp(email, code);
+    res.status(200).json({
+      success: true,
+      message: 'Connexion réussie',
+      data: result,
+    });
+  } catch (error) {
     next(error);
   }
 };

@@ -41,6 +41,33 @@ export const createEmailVerificationCode = async (email, userId) => {
 };
 
 /**
+ * Crée un code OTP pour la connexion (email)
+ */
+export const createLoginOtpCode = async (email, userId) => {
+  await prisma.verificationCode.deleteMany({
+    where: {
+      email,
+      type: 'LOGIN_OTP',
+    },
+  });
+
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+
+  await prisma.verificationCode.create({
+    data: {
+      email,
+      userId,
+      code,
+      type: 'LOGIN_OTP',
+      expiresAt,
+    },
+  });
+
+  return code;
+};
+
+/**
  * Crée un code de vérification pour un téléphone
  */
 export const createPhoneVerificationCode = async (phone, userId) => {
@@ -72,9 +99,10 @@ export const createPhoneVerificationCode = async (phone, userId) => {
  * Vérifie un code de vérification
  */
 export const verifyCode = async (identifier, code, type) => {
-  const where = type === 'EMAIL' 
-    ? { email: identifier, type, code }
-    : { phone: identifier, type, code };
+  // Tout ce qui n'est pas PHONE est considéré comme basé sur email (EMAIL, LOGIN_OTP, etc.)
+  const where = type === 'PHONE'
+    ? { phone: identifier, type, code }
+    : { email: identifier, type, code };
 
   const verificationCode = await prisma.verificationCode.findFirst({
     where: {

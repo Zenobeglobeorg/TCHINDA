@@ -17,6 +17,11 @@ export interface LoginData {
   password: string;
 }
 
+export interface LoginOtpVerifyData {
+  email: string;
+  code: string;
+}
+
 export interface AuthResponse {
   user: any;
   token: string;
@@ -69,6 +74,25 @@ class AuthService {
 
     if (response.success && response.data) {
       // Sauvegarder les tokens et l'utilisateur
+      await apiService.setToken(response.data.token);
+      await apiService.setRefreshToken(response.data.refreshToken);
+      await apiService.setUser(response.data.user);
+      return response;
+    }
+
+    return response;
+  }
+
+  // Demander un code OTP de connexion (email)
+  async requestLoginOtp(email: string) {
+    return apiService.post('/api/auth/login-otp/request', { email });
+  }
+
+  // Connexion via OTP email
+  async loginWithOtp(data: LoginOtpVerifyData) {
+    const response = await apiService.post<AuthResponse>('/api/auth/login-otp/verify', data);
+
+    if (response.success && response.data) {
       await apiService.setToken(response.data.token);
       await apiService.setRefreshToken(response.data.refreshToken);
       await apiService.setUser(response.data.user);

@@ -3,6 +3,8 @@ import rateLimit from 'express-rate-limit';
 import {
   register,
   login,
+  requestLoginOtpController,
+  loginWithOtpController,
   refreshToken,
   logout,
   verifyEmail,
@@ -61,6 +63,20 @@ router.post('/register', authLimiter, registerValidation, validate, register);
  * @access  Public
  */
 router.post('/login', authLimiter, loginValidation, validate, login);
+
+/**
+ * @route   POST /api/auth/login-otp/request
+ * @desc    Demander un code OTP de connexion (email)
+ * @access  Public
+ */
+router.post('/login-otp/request', authLimiter, requestLoginOtpController);
+
+/**
+ * @route   POST /api/auth/login-otp/verify
+ * @desc    Vérifier le code OTP et connecter
+ * @access  Public
+ */
+router.post('/login-otp/verify', authLimiter, loginWithOtpController);
 
 /**
  * @route   POST /api/auth/refresh-token

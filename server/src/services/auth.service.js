@@ -1,11 +1,12 @@
 import { prisma } from '../utils/prisma.js';
 import { hashPassword, comparePassword } from '../utils/password.utils.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.utils.js';
-import { sendWelcomeEmail, sendVerificationCodeEmail } from './email.service.js';
+import { sendWelcomeEmail, sendVerificationCodeEmail, sendLoginOtpEmail } from './email.service.js';
 import { sendVerificationCodeSMS } from './sms.service.js';
 import { 
   createEmailVerificationCode, 
   createPhoneVerificationCode,
+  createLoginOtpCode,
   verifyCode 
 } from './verification-code.service.js';
 import { createPasswordResetToken, resetPasswordWithToken } from './password-reset.service.js';
@@ -484,4 +485,153 @@ export const requestPasswordReset = async (email) => {
  */
 export const resetPassword = async (token, newPassword) => {
   return await resetPasswordWithToken(token, newPassword);
+};
+
+/**
+ * Demander un code OTP de connexion (sans mot de passe).
+ * Règle: seulement si l'email est vérifié ET que l'utilisateur s'est déjà connecté au moins une fois.
+ */
+export const requestLoginOtp = async (email) => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      emailVerified: true,
+      lastLogin: true,
+      loginAttempts: true,
+      lockedUntil: true,
+      accountStatus: true,
+    },
+  });
+
+  // Protection contre l'énumération
+  if (!user) {
+    return { message: 'Si cet email existe, un code de connexion a été envoyé' };
+  }
+
+  if (user.accountStatus !== 'ACTIVE') {
+    const err = new Error('Compte inactif. Accès refusé.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Vérifier verrouillage
+  if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+    const minutesLeft = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
+    const err = new Error(`Compte verrouillé. Réessayez dans ${minutesLeft} minute(s).`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!user.emailVerified) {
+    const err = new Error('Veuillez vérifier votre email avant la connexion par code.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!user.lastLogin) {
+    const err = new Error('Connexion par mot de passe requise pour la première connexion.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const code = await createLoginOtpCode(email, user.id);
+
+  try {
+    await sendLoginOtpEmail(email, code, user.firstName);
+  } catch (error) {
+    console.error('Erreur envoi OTP login:', error);
+    // Toujours répondre de façon générique
+    return { message: 'Si cet email existe, un code de connexion a été envoyé' };
+  }
+
+  return { message: 'Code de connexion envoyé par email' };
+};
+
+/**
+ * Connexion par OTP email
+ */
+export const loginWithOtp = async (email, code) => {
+  return await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { email },
+      include: {
+        buyerProfile: true,
+        sellerProfile: true,
+        adminProfile: true,
+        moderatorProfile: true,
+        accountantProfile: true,
+        deliveryProfile: true,
+        commercialProfile: true,
+        wallet: true,
+      },
+    });
+
+    // Ne pas révéler si l'utilisateur existe
+    if (!user) {
+      const err = new Error('Code invalide ou expiré');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (user.accountStatus !== 'ACTIVE') {
+      const err = new Error('Compte inactif. Accès refusé.');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (!user.emailVerified) {
+      const err = new Error('Veuillez vérifier votre email avant la connexion par code.');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const minutesLeft = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
+      const err = new Error(`Compte verrouillé. Réessayez dans ${minutesLeft} minute(s).`);
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Vérifier le code OTP
+    await verifyCode(email, code, 'LOGIN_OTP');
+
+    // Réinitialiser tentatives + MAJ lastLogin
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        loginAttempts: 0,
+        lockedUntil: null,
+        lastLogin: new Date(),
+      },
+    });
+
+    const token = generateToken(user.id, user.accountType, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    await tx.refreshToken.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [{ expiresAt: { lt: new Date() } }, { isRevoked: true }],
+      },
+    });
+
+    await tx.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      token,
+      refreshToken,
+    };
+  });
 };

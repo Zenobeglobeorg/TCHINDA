@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,7 +11,6 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
-import { API_CONFIG } from '@/constants/config';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -51,7 +50,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             setIsChanging(true);
             try {
-              let response;
+              let response: any;
               
               if (newType === 'SELLER') {
                 // Changer vers SELLER
@@ -65,9 +64,8 @@ export default function SettingsScreen() {
 
               if (response.success) {
                 // Mettre à jour le token si fourni
-                if (response.data?.token) {
-                  await apiService.setToken(response.data.token);
-                }
+                const nextToken = response?.data?.token;
+                if (nextToken) await apiService.setToken(nextToken);
                 
                 // Rafraîchir les données utilisateur
                 await refreshUser();
@@ -77,7 +75,7 @@ export default function SettingsScreen() {
                 
                 alert(
                   'Succès',
-                  response.message || `Vous êtes maintenant ${newType === 'SELLER' ? 'vendeur' : 'acheteur'}`,
+                  `Vous êtes maintenant ${newType === 'SELLER' ? 'vendeur' : 'acheteur'}`,
                   [
                     {
                       text: 'OK',
@@ -452,6 +450,26 @@ export default function SettingsScreen() {
               </ThemedText>
             </View>
           </View>
+
+          <View style={styles.verificationRow}>
+            <ThemedText style={styles.verificationLabel}>KYC vérifié:</ThemedText>
+            <View style={[styles.statusBadge, user.kycVerified && styles.statusBadgeSuccess]}>
+              <ThemedText style={styles.statusText}>
+                {user.kycVerified ? '✓ Vérifié' : '✗ Non vérifié'}
+              </ThemedText>
+            </View>
+          </View>
+
+          {user.accountType === 'BUYER' && (
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={() => router.push('/buyer/verification')}
+            >
+              <ThemedText style={[styles.buttonText, styles.secondaryButtonText]}>
+                Gérer la vérification
+              </ThemedText>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Apparence */}

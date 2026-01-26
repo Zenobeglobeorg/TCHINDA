@@ -24,6 +24,9 @@ export default function LoginScreen() {
   const { login, isLoading: authLoading, user, refreshUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirection automatique si déjà connecté
@@ -74,6 +77,59 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRequestOtp = async () => {
+    if (!email.trim()) {
+      alert('Erreur', 'Veuillez entrer votre email');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Erreur', 'Veuillez entrer un email valide');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const resp = await authService.requestLoginOtp(email.trim());
+      if (!resp.success) {
+        alert('Erreur', resp.error?.message || 'Impossible d’envoyer le code');
+        return;
+      }
+      setOtpSent(true);
+      alert('Succès', 'Un code a été envoyé par email (valide 10 minutes).');
+    } catch (e: any) {
+      alert('Erreur', e.message || 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOtpLogin = async () => {
+    if (!email.trim()) {
+      alert('Erreur', 'Veuillez entrer votre email');
+      return;
+    }
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      alert('Erreur', 'Veuillez entrer un code valide (6 chiffres)');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const resp = await authService.loginWithOtp({ email: email.trim(), code: otpCode.trim() });
+      if (!resp.success || !resp.data) {
+        alert('Erreur de connexion', resp.error?.message || 'Code invalide ou expiré');
+        return;
+      }
+      await refreshUser();
+      // La redirection se fera via useEffect(user)
+    } catch (e: any) {
+      alert('Erreur', e.message || 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }
@@ -236,18 +292,49 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Mot de passe</ThemedText>
-              <TextInput
-                style={styles.input}
-                placeholder="Votre mot de passe"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
+            {/* Choix mode connexion */}
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[styles.modeButton, authMode === 'password' && styles.modeButtonActive]}
+                disabled={loading}
+                onPress={() => {
+                  setAuthMode('password');
+                  setOtpSent(false);
+                  setOtpCode('');
+                }}
+              >
+                <ThemedText style={[styles.modeText, authMode === 'password' && styles.modeTextActive]}>
+                  Mot de passe
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, authMode === 'otp' && styles.modeButtonActive]}
+                disabled={loading}
+                onPress={() => {
+                  setAuthMode('otp');
+                  setPassword('');
+                }}
+              >
+                <ThemedText style={[styles.modeText, authMode === 'otp' && styles.modeTextActive]}>
+                  Code email
+                </ThemedText>
+              </TouchableOpacity>
             </View>
+
+            {authMode === 'password' ? (
+              <>
+                <View style={styles.inputContainer}>
+                  <ThemedText style={styles.label}>Mot de passe</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Votre mot de passe"
+                    placeholderTextColor="#999"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
 
             <TouchableOpacity 
               style={styles.forgotPassword} 
@@ -275,6 +362,77 @@ export default function LoginScreen() {
                 </ThemedText>
               )}
             </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {!otpSent ? (
+                  <>
+                    <ThemedText style={styles.otpHint}>
+                      Connexion sans mot de passe: disponible si votre email est vérifié et que vous vous êtes déjà connecté au moins une fois.
+                    </ThemedText>
+                    <TouchableOpacity
+                      style={[
+                        styles.loginButton,
+                        loading && styles.loginButtonDisabled,
+                      ]}
+                      onPress={handleRequestOtp}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <ThemedText style={styles.loginButtonText}>
+                          Envoyer le code
+                        </ThemedText>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.inputContainer}>
+                      <ThemedText style={styles.label}>Code reçu par email</ThemedText>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="000000"
+                        placeholderTextColor="#999"
+                        value={otpCode}
+                        onChangeText={setOtpCode}
+                        keyboardType="numeric"
+                        maxLength={6}
+                        editable={!loading}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.loginButton,
+                        loading && styles.loginButtonDisabled,
+                      ]}
+                      onPress={handleOtpLogin}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <ThemedText style={styles.loginButtonText}>
+                          Se connecter
+                        </ThemedText>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.forgotPassword}
+                      disabled={loading}
+                      onPress={handleRequestOtp}
+                    >
+                      <ThemedText style={styles.forgotPasswordText}>
+                        Renvoyer le code
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
           </View>
 
           {/* Ligne séparatrice */}
@@ -429,6 +587,39 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
     marginBottom: 30,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modeButtonActive: {
+    backgroundColor: '#624cacff',
+  },
+  modeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
+    opacity: 1,
+  },
+  otpHint: {
+    fontSize: 12,
+    opacity: 0.75,
+    marginBottom: 12,
+    lineHeight: 16,
   },
   inputContainer: {
     marginBottom: 20,

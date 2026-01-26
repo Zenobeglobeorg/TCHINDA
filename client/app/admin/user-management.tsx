@@ -39,6 +39,21 @@ interface Verification {
   status: 'PENDING' | 'VERIFIED' | 'REJECTED';
   documentType?: string;
   documentNumber?: string;
+  documentFront?: string;
+  documentBack?: string;
+  selfie?: string;
+  rejectionReason?: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
+    kycVerified?: boolean;
+    verificationStatus?: string;
+  };
   createdAt: string;
 }
 
@@ -116,20 +131,13 @@ export default function UserManagementScreen() {
   const loadVerifications = async () => {
     try {
       setLoading(true);
-      // TODO: Remplacer par l'endpoint réel /api/admin/verifications
-      // const response = await apiService.get('/api/admin/verifications?status=PENDING');
-      const mockVerifications: Verification[] = [
-        {
-          id: '1',
-          userId: '1',
-          method: 'KYC_IDENTITY',
-          status: 'PENDING',
-          documentType: 'CNI',
-          documentNumber: '123456789',
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      setVerifications(mockVerifications);
+      const response = await apiService.get<Verification[]>(
+        '/api/admin/verifications?status=PENDING&method=KYC_IDENTITY'
+      );
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Impossible de charger les vérifications');
+      }
+      setVerifications((response.data as any) || []);
     } catch (error) {
       console.error('Error loading verifications:', error);
       alert('Erreur', 'Impossible de charger les vérifications');
@@ -277,10 +285,20 @@ export default function UserManagementScreen() {
     }
 
     try {
-      // TODO: Implémenter l'appel API réel
-      // await apiService.post(`/api/admin/verifications/${selectedVerification.id}/${verificationAction}`, {
-      //   rejectionReason: verificationAction === 'reject' ? rejectionReason : undefined,
-      // });
+      setActionLoading(true);
+      if (verificationAction === 'approve') {
+        const resp = await apiService.post(`/api/admin/verifications/${selectedVerification.id}/approve`, {
+          notes: null,
+        });
+        if (!resp.success) throw new Error(resp.error?.message || 'Impossible d’approuver');
+      } else {
+        const resp = await apiService.post(`/api/admin/verifications/${selectedVerification.id}/reject`, {
+          rejectionReason: rejectionReason.trim(),
+          notes: null,
+        });
+        if (!resp.success) throw new Error(resp.error?.message || 'Impossible de rejeter');
+      }
+
       alert('Succès', `Vérification ${verificationAction === 'approve' ? 'approuvée' : 'rejetée'}`);
       setShowVerificationModal(false);
       setSelectedVerification(null);
@@ -288,6 +306,8 @@ export default function UserManagementScreen() {
       loadVerifications();
     } catch (error: any) {
       alert('Erreur', error.message || 'Erreur lors de l\'action');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -584,7 +604,9 @@ export default function UserManagementScreen() {
                     Vérification {verification.documentType || 'KYC'}
                   </ThemedText>
                   <ThemedText style={[styles.verificationSubtitle, { color: textColor + '80' }]}>
-                    Utilisateur ID: {verification.userId}
+                    {verification.user?.email
+                      ? `Utilisateur: ${verification.user.email}`
+                      : `Utilisateur ID: ${verification.userId}`}
                   </ThemedText>
                   {verification.documentNumber && (
                     <ThemedText style={[styles.verificationText, { color: textColor + '60' }]}>

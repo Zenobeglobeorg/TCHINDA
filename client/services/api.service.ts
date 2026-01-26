@@ -136,7 +136,10 @@ class ApiService {
           headers[key] = value;
         });
       }
-      if (!headers['Content-Type']) {
+      const isFormData =
+        typeof FormData !== 'undefined' && options.body instanceof FormData;
+      // Ne pas forcer Content-Type pour FormData: fetch ajoute automatiquement le boundary.
+      if (!isFormData && !headers['Content-Type']) {
         headers['Content-Type'] = 'application/json';
       }
       // Éviter le cache HTTP (ex: 304 sur /cart, /orders, etc.)
@@ -371,23 +374,26 @@ class ApiService {
   }
 
   async post<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   }
 
   async put<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   }
 
   async patch<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.request<T>(endpoint, {
       method: 'PATCH',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   }
 

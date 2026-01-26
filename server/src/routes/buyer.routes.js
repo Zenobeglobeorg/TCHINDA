@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
 import * as buyerController from '../controllers/buyer.controller.js';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -60,7 +61,33 @@ router.put('/orders/:id/cancel', buyerController.cancelOrder);
 router.get('/verification', buyerController.getVerificationStatus);
 router.post('/verification/email', buyerController.requestEmailVerification);
 router.post('/verification/phone', buyerController.requestPhoneVerification);
-router.post('/verification/kyc', buyerController.submitKYC);
+
+// Upload KYC (multipart/form-data)
+const maxFileSize = parseInt(process.env.MAX_FILE_SIZE, 10) || 10 * 1024 * 1024; // 10MB
+const uploadKyc = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: maxFileSize, files: 3 },
+  fileFilter: (req, file, cb) => {
+    const ok =
+      (file.mimetype && file.mimetype.startsWith('image/')) ||
+      file.mimetype === 'application/pdf';
+    if (ok) return cb(null, true);
+    const err = new Error('Formats autorisés: images ou PDF');
+    // @ts-ignore
+    err.statusCode = 400;
+    return cb(err);
+  },
+});
+
+router.post(
+  '/verification/kyc',
+  uploadKyc.fields([
+    { name: 'documentFront', maxCount: 1 },
+    { name: 'documentBack', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 },
+  ]),
+  buyerController.submitKYC
+);
 router.get('/verification/kyc', buyerController.getKYCStatus);
 
 // Subscription routes

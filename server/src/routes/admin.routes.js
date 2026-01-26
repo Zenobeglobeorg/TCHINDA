@@ -8,6 +8,11 @@ import {
   createUser,
 } from '../controllers/admin.controller.js';
 import {
+  listVerifications,
+  approveVerification,
+  rejectVerification,
+} from '../controllers/admin.verification.controller.js';
+import {
   listAdminCategories,
   createAdminCategory,
   updateAdminCategory,
@@ -55,6 +60,27 @@ router.put('/users/:id', updateUser);
  * @access  Private (ADMIN)
  */
 router.put('/users/:id/status', updateUserStatus);
+
+/**
+ * @route   GET /api/admin/verifications
+ * @desc    Lister les vérifications (ex: KYC) - filtrable via query (status/method/userId)
+ * @access  Private (ADMIN)
+ */
+router.get('/verifications', listVerifications);
+
+/**
+ * @route   POST /api/admin/verifications/:id/approve
+ * @desc    Approuver une vérification
+ * @access  Private (ADMIN)
+ */
+router.post('/verifications/:id/approve', approveVerification);
+
+/**
+ * @route   POST /api/admin/verifications/:id/reject
+ * @desc    Rejeter une vérification
+ * @access  Private (ADMIN)
+ */
+router.post('/verifications/:id/reject', rejectVerification);
 
 /**
  * @route   GET /api/admin/categories
