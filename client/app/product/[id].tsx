@@ -139,11 +139,26 @@ export default function ProductScreen() {
   };
 
   const buyNow = async () => {
-    // Add to cart first, then navigate to checkout
-    const ok = await addToCart({ silent: true });
-    if (ok) {
-      router.push('/buyer/checkout');
+    if (!user) {
+      Alert.alert('Connectez-vous', 'Veuillez vous connecter pour acheter.', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Se connecter', onPress: () => router.push('/Login') },
+      ]);
+      return;
     }
+    if (user.accountType !== 'BUYER') {
+      Alert.alert('Accès refusé', 'Cette action est réservée aux acheteurs.');
+      return;
+    }
+    if (product?.hasVariants && !selectedVariantId) {
+      Alert.alert('Variante requise', 'Veuillez sélectionner une variante.');
+      return;
+    }
+
+    const pid = encodeURIComponent(String(id));
+    const qty = encodeURIComponent(String(quantity));
+    const vid = selectedVariantId ? encodeURIComponent(String(selectedVariantId)) : '';
+    router.push(`/buyer/checkout?productId=${pid}&quantity=${qty}${vid ? `&variantId=${vid}` : ''}`);
   };
 
   if (loading) {

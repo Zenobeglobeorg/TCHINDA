@@ -827,6 +827,122 @@ export const createOrder = async (userId, orderData) => {
 };
 
 /**
+ * Create order for a single item ("buy now") without touching the cart
+ */
+export const createBuyNowOrder = async (userId, orderData) => {
+  const { productId, variantId = null, quantity = 1 } = orderData || {};
+
+  const safeQty = Math.max(1, Number(quantity) || 1);
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+  });
+
+  if (!product) {
+    const err = new Error('Produit non trouvé');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const allowedStatuses = new Set(['ACTIVE', 'PENDING']);
+  if (!product.isActive || !allowedStatuses.has(product.status)) {
+    const err = new Error('Produit non disponible');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalizedVariantId = variantId ? String(variantId) : null;
+  let variant = null;
+  if (product.hasVariants) {
+    if (!normalizedVariantId) {
+      const err = new Error('Veuillez sélectionner une variante');
+      err.statusCode = 400;
+      throw err;
+    }
+    variant = await prisma.productVariant.findUnique({ where: { id: normalizedVariantId } });
+    if (!variant || variant.productId !== product.id || !variant.isActive) {
+      const err = new Error('Variante invalide');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (variant.stock <= 0) {
+      const err = new Error('Variante en rupture de stock');
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    if (normalizedVariantId) {
+      const err = new Error('Ce produit n’a pas de variantes');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (product.stock <= 0) {
+      const err = new Error('Produit en rupture de stock');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const unitPrice = variant ? variant.price : product.price;
+  const subtotal = parseFloat(unitPrice) * safeQty;
+
+  // Get user to check subscription for free shipping
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  const shippingCost =
+    user?.subscriptionType === 'GOLD' || user?.subscriptionType === 'DIAMOND' ? 0 : orderData.shippingCost || 0;
+
+  const total = subtotal + shippingCost;
+
+  const order = await prisma.order.create({
+    data: {
+      orderNumber: generateOrderNumber(),
+      userId,
+      sellerId: product.sellerId,
+      status: 'PENDING',
+      subtotal,
+      shippingCost,
+      total,
+      currency: product.currency || orderData.currency || 'XOF',
+      shippingAddressId: orderData.shippingAddressId,
+      billingAddressId: orderData.billingAddressId,
+      paymentMethod: orderData.paymentMethod || 'WALLET',
+      paymentStatus: 'PENDING',
+      items: {
+        create: [
+          {
+            productId: product.id,
+            variantId: normalizedVariantId,
+            quantity: safeQty,
+            price: unitPrice,
+            currency: product.currency,
+            total: parseFloat(unitPrice) * safeQty,
+            productSnapshot: {
+              name: product.name,
+              image: variant?.images?.[0] || product?.images?.[0],
+              sku: variant?.sku || product?.sku,
+              variantName: variant?.name || null,
+            },
+          },
+        ],
+      },
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
+          variant: true,
+        },
+      },
+    },
+  });
+
+  return order;
+};
+
+/**
  * Cancel order
  */
 export const cancelOrder = async (userId, orderId) => {

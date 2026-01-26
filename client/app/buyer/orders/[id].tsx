@@ -106,7 +106,10 @@ export default function OrderDetailsScreen() {
           {(order.items || []).map((it: any) => (
             <View key={it.id} style={styles.itemRow}>
               <ThemedText style={[styles.itemName, { color: textColor }]} numberOfLines={1}>
-                {it.productSnapshot?.name || it.product?.name || 'Produit'}
+                {(it.productSnapshot?.name || it.product?.name || 'Produit') +
+                  ((it.productSnapshot?.variantName || it.variant?.name)
+                    ? ` • ${it.productSnapshot?.variantName || it.variant?.name}`
+                    : '')}
               </ThemedText>
               <ThemedText style={[styles.itemQty, { color: textColor + '80' }]}>x{it.quantity}</ThemedText>
             </View>

@@ -53,6 +53,7 @@ router.delete('/wishlist/:id', buyerController.removeFromWishlist);
 router.get('/orders', buyerController.getOrders);
 router.get('/orders/:id', buyerController.getOrder);
 router.post('/orders', buyerController.createOrder);
+router.post('/orders/buy-now', buyerController.createBuyNowOrder);
 router.put('/orders/:id/cancel', buyerController.cancelOrder);
 
 // Verification routes

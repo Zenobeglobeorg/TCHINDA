@@ -361,6 +361,20 @@ export const createOrder = async (req, res, next) => {
 };
 
 /**
+ * Create a "buy now" order (single item) without touching cart
+ */
+export const createBuyNowOrder = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const orderData = req.body;
+    const order = await buyerService.createBuyNowOrder(userId, orderData);
+    res.status(201).json({ success: true, data: order, message: 'Commande créée avec succès' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Cancel order
  */
 export const cancelOrder = async (req, res, next) => {

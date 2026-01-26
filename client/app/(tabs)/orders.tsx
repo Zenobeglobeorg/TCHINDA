@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -31,8 +32,16 @@ export default function OrdersScreen() {
       setLoading(false);
       return;
     }
+    setLoading(true);
     loadOrders();
-  }, [filter]);
+  }, [user, filter]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!user || user.accountType !== 'BUYER') return;
+      loadOrders();
+    }, [user, filter])
+  );
 
   const loadOrders = async () => {
     try {
@@ -230,7 +239,10 @@ export default function OrdersScreen() {
                 {order.items?.slice(0, 3).map((item: any, index: number) => (
                   <View key={item.id || index} style={styles.orderItem}>
                     <ThemedText style={styles.orderItemName} numberOfLines={1}>
-                      {item.productSnapshot?.name || item.product?.name || 'Produit'}
+                      {(item.productSnapshot?.name || item.product?.name || 'Produit') +
+                        ((item.productSnapshot?.variantName || item.variant?.name)
+                          ? ` • ${item.productSnapshot?.variantName || item.variant?.name}`
+                          : '')}
                     </ThemedText>
                     <ThemedText style={styles.orderItemQuantity}>
                       x{item.quantity}
