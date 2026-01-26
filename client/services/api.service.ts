@@ -138,6 +138,12 @@ class ApiService {
       if (!headers['Content-Type']) {
         headers['Content-Type'] = 'application/json';
       }
+      // Éviter le cache HTTP (ex: 304 sur /cart, /orders, etc.)
+      const method = (options.method || 'GET').toUpperCase();
+      if (method === 'GET' || method === 'HEAD') {
+        if (!headers['Cache-Control']) headers['Cache-Control'] = 'no-store';
+        if (!headers['Pragma']) headers['Pragma'] = 'no-cache';
+      }
 
       // Ajouter le token d'authentification si disponible
       if (this.token) {

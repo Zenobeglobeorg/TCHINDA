@@ -142,7 +142,11 @@ export default function CartScreen() {
       return;
     }
 
-    router.push('/buyer/checkout');
+    try {
+      router.push({ pathname: '/buyer/checkout' } as any);
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
+    }
   };
 
   const calculateTotal = () => {

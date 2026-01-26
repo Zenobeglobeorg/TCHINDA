@@ -155,10 +155,21 @@ export default function ProductScreen() {
       return;
     }
 
-    const pid = encodeURIComponent(String(id));
-    const qty = encodeURIComponent(String(quantity));
-    const vid = selectedVariantId ? encodeURIComponent(String(selectedVariantId)) : '';
-    router.push(`/buyer/checkout?productId=${pid}&quantity=${qty}${vid ? `&variantId=${vid}` : ''}`);
+    try {
+      const params: Record<string, string> = {
+        productId: String(id),
+        quantity: String(quantity),
+      };
+      if (selectedVariantId) params.variantId = String(selectedVariantId);
+
+      // Navigation robuste (web + mobile) via params
+      router.push({
+        pathname: '/buyer/checkout',
+        params,
+      } as any);
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
+    }
   };
 
   if (loading) {
