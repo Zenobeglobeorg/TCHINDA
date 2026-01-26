@@ -8,7 +8,94 @@ function safeNumber(value) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function normalizeMoney(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function safeLimit(value, fallback = 20) {
+  return Math.min(50, Math.max(1, Number(value) || fallback));
+}
+
 export const catalogService = {
+  async listDeals(filters = {}) {
+    const { limit = 12 } = filters;
+    const now = new Date();
+    const take = safeLimit(limit, 12);
+
+    const promos = await prisma.promotion.findMany({
+      where: {
+        isActive: true,
+        productId: { not: null },
+        startDate: { lte: now },
+        endDate: { gte: now },
+        product: {
+          isActive: true,
+          status: { in: VISIBLE_PRODUCT_STATUSES },
+        },
+      },
+      orderBy: [{ discountValue: 'desc' }, { createdAt: 'desc' }],
+      take,
+      include: {
+        product: {
+          include: {
+            category: { select: { id: true, name: true, slug: true } },
+            seller: {
+              select: {
+                id: true,
+                fullName: true,
+                firstName: true,
+                lastName: true,
+                sellerProfile: { select: { shopName: true, shopLogo: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const deals = promos
+      .filter((p) => !!p.product)
+      .map((p) => {
+        const product = p.product;
+        const price = normalizeMoney(product.price);
+        const discountValue = normalizeMoney(p.discountValue);
+        const discountType = String(p.discountType || '').toUpperCase();
+
+        let dealPrice = price;
+        let discountLabel = '';
+        if (discountType === 'PERCENTAGE') {
+          const pct = Math.min(100, Math.max(0, discountValue));
+          dealPrice = Math.max(0, price * (1 - pct / 100));
+          discountLabel = `-${pct}%`;
+        } else if (discountType === 'FIXED_AMOUNT') {
+          dealPrice = Math.max(0, price - discountValue);
+          discountLabel = `-${discountValue}`;
+        }
+
+        return {
+          promotion: {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            discountType: p.discountType,
+            discountValue: p.discountValue,
+            startDate: p.startDate,
+            endDate: p.endDate,
+          },
+          product,
+          pricing: {
+            originalPrice: price,
+            dealPrice,
+            currency: product.currency || 'XOF',
+            discountLabel,
+          },
+        };
+      });
+
+    return deals;
+  },
+
   async listCategories() {
     const categories = await prisma.category.findMany({
       where: { isActive: true },
@@ -132,8 +219,8 @@ export const catalogService = {
     }
 
     const safePage = Math.max(1, Number(page) || 1);
-    const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
-    const skip = (safePage - 1) * safeLimit;
+    const safeLim = safeLimit(limit, 20);
+    const skip = (safePage - 1) * safeLim;
 
     const [totalItems, products] = await Promise.all([
       prisma.product.count({ where }),
@@ -141,7 +228,7 @@ export const catalogService = {
         where,
         orderBy,
         skip,
-        take: safeLimit,
+        take: safeLim,
         include: {
           category: { select: { id: true, name: true, slug: true } },
           seller: {
@@ -157,13 +244,13 @@ export const catalogService = {
       }),
     ]);
 
-    const totalPages = Math.max(1, Math.ceil(totalItems / safeLimit));
+    const totalPages = Math.max(1, Math.ceil(totalItems / safeLim));
 
     return {
       products,
       pagination: {
         page: safePage,
-        limit: safeLimit,
+        limit: safeLim,
         totalItems,
         totalPages,
         hasNextPage: safePage < totalPages,

@@ -21,16 +21,17 @@ const { width } = Dimensions.get('window');
 
 export default function ProductsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ search?: string; categoryId?: string }>();
+  const params = useLocalSearchParams<{ search?: string; categoryId?: string; sortBy?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const initialSearch = typeof params.search === 'string' ? params.search : '';
   const initialCategoryId = typeof params.categoryId === 'string' ? params.categoryId : null;
+  const initialSortBy = typeof params.sortBy === 'string' ? params.sortBy : 'relevance';
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategoryId);
-  const [sortBy, setSortBy] = useState('relevance');
+  const [sortBy, setSortBy] = useState(initialSortBy);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -49,7 +50,10 @@ export default function ProductsScreen() {
     if (typeof params.categoryId === 'string' && params.categoryId !== selectedCategory) {
       setSelectedCategory(params.categoryId);
     }
-  }, [params.search, params.categoryId]);
+    if (typeof params.sortBy === 'string' && params.sortBy !== sortBy) {
+      setSortBy(params.sortBy);
+    }
+  }, [params.search, params.categoryId, params.sortBy]);
 
   useEffect(() => {
     // Reset page when filters change
@@ -59,9 +63,9 @@ export default function ProductsScreen() {
 
   const loadCategories = async () => {
     try {
-      const response = await apiService.get('/api/categories');
+      const response = await apiService.get<any[]>('/api/categories');
       if (response.success) {
-        setCategories(response.data || []);
+        setCategories((response.data as any[]) || []);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -84,9 +88,10 @@ export default function ProductsScreen() {
       params.append('page', reset ? '1' : page.toString());
       params.append('limit', '20');
 
-      const response = await apiService.get(`/api/products?${params.toString()}`);
+      const response = await apiService.get<any>(`/api/products?${params.toString()}`);
       if (response.success) {
-        const newProducts = response.data?.products || response.data || [];
+        const data: any = response.data as any;
+        const newProducts = data?.products || data || [];
         if (reset) {
           setProducts(newProducts);
         } else {

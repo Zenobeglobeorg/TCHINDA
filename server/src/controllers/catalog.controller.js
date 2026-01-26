@@ -30,6 +30,16 @@ export const listProducts = async (req, res, next) => {
   }
 };
 
+export const listDeals = async (req, res, next) => {
+  try {
+    const limit = Number(req.query?.limit) || 12;
+    const deals = await catalogService.listDeals({ limit });
+    res.json({ success: true, data: deals });
+  } catch (e) {
+    next(e);
+  }
+};
+
 export const getProductById = async (req, res, next) => {
   try {
     const product = await catalogService.getProductById(req.params.id);

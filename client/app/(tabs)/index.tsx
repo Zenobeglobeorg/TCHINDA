@@ -29,6 +29,9 @@ export default function BuyerHomeScreen() {
   const [cartCount, setCartCount] = useState(0);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; slug?: string }>>([]);
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [topSales, setTopSales] = useState<any[]>([]);
+  const [recommended, setRecommended] = useState<any[]>([]);
+  const [deals, setDeals] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [homeSearch, setHomeSearch] = useState('');
 
@@ -76,11 +79,14 @@ export default function BuyerHomeScreen() {
   const loadCatalog = useCallback(async (categoryId: string | null) => {
     try {
       const limit = isWeb ? 24 : 10;
-      const [catRes, prodRes] = await Promise.all([
+      const [catRes, prodRes, topRes, recRes, dealsRes] = await Promise.all([
         apiService.get('/api/categories'),
         apiService.get(
           `/api/products?sortBy=newest&limit=${limit}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`
         ),
+        apiService.get(`/api/products?sortBy=popular&limit=${isWeb ? 16 : 10}`),
+        apiService.get(`/api/products?sortBy=rating&limit=${isWeb ? 16 : 10}`),
+        apiService.get(`/api/deals?limit=${isWeb ? 16 : 10}`),
       ]);
 
       if (catRes.success) {
@@ -92,6 +98,23 @@ export default function BuyerHomeScreen() {
         const data = (prodRes.data as any) || {};
         const products = Array.isArray(data) ? data : data.products || [];
         setFeaturedProducts(products);
+      }
+
+      if (topRes.success) {
+        const data = (topRes.data as any) || {};
+        const products = Array.isArray(data) ? data : data.products || [];
+        setTopSales(products);
+      }
+
+      if (recRes.success) {
+        const data = (recRes.data as any) || {};
+        const products = Array.isArray(data) ? data : data.products || [];
+        setRecommended(products);
+      }
+
+      if (dealsRes.success) {
+        const data = (dealsRes.data as any) || [];
+        setDeals(Array.isArray(data) ? data : data.deals || []);
       }
     } catch (e) {
       // non bloquant pour la home
@@ -312,6 +335,35 @@ export default function BuyerHomeScreen() {
       color: colors.text,
       textAlign: 'center',
     },
+    categoryCarousel: {
+      paddingRight: 20,
+      gap: 10,
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      gap: 8,
+      minWidth: 110,
+    },
+    categoryChipIcon: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    categoryChipText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+      maxWidth: 120,
+    },
     productsContainer: {
       paddingRight: 20,
     },
@@ -356,6 +408,39 @@ export default function BuyerHomeScreen() {
       fontWeight: 'bold',
       color: colors.tint,
     },
+    productCardInner: {
+      position: 'relative',
+    },
+    badgePromo: {
+      position: 'absolute',
+      zIndex: 2,
+      top: 8,
+      left: 8,
+      backgroundColor: '#FF6A00',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    badgePromoText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    dealPriceRow: {
+      marginTop: 8,
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 8,
+    },
+    dealNewPrice: {
+      color: '#FF6A00',
+      fontWeight: '800',
+    },
+    dealOldPrice: {
+      color: colors.placeholder,
+      textDecorationLine: 'line-through',
+      fontSize: 12,
+    },
     flashOffer: {
       flexDirection: 'row',
       backgroundColor: colors.tint,
@@ -391,16 +476,85 @@ export default function BuyerHomeScreen() {
     },
   }), [colors]);
 
-  const goToProducts = (opts?: { search?: string; categoryId?: string | null }) => {
+  const goToProducts = (opts?: { search?: string; categoryId?: string | null; sortBy?: string }) => {
     const search = (opts?.search ?? '').trim();
     const categoryId = opts?.categoryId ?? null;
+    const sortBy = opts?.sortBy;
     router.push({
       pathname: '/products',
       params: {
         ...(search ? { search } : {}),
         ...(categoryId ? { categoryId } : {}),
+        ...(sortBy ? { sortBy } : {}),
       },
     });
+  };
+
+  const renderProductCard = (product: any, extra?: { badgeText?: string }) => {
+    const img = product?.images?.[0];
+    const hasImg = img && /^https?:\/\//i.test(img);
+    return (
+      <View style={styles.productCardInner}>
+        {extra?.badgeText ? (
+          <View style={styles.badgePromo}>
+            <ThemedText style={styles.badgePromoText}>{extra.badgeText}</ThemedText>
+          </View>
+        ) : null}
+        {hasImg ? (
+          <Image
+            source={{ uri: img }}
+            style={{ width: '100%', height: 160, borderRadius: 8, marginBottom: 10 }}
+          />
+        ) : (
+          <View style={styles.productImagePlaceholder}>
+            <IconSymbol name="photo" size={40} color={colors.placeholder} />
+          </View>
+        )}
+        <ThemedText style={styles.productName} numberOfLines={2}>
+          {product?.name}
+        </ThemedText>
+        <ThemedText style={styles.productPrice}>{formatPrice(product)}</ThemedText>
+      </View>
+    );
+  };
+
+  const renderProductsSection = (title: string, items: any[], opts?: { seeAllSortBy?: string }) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+          <TouchableOpacity onPress={() => goToProducts({ sortBy: opts?.seeAllSortBy })}>
+            <ThemedText style={styles.seeAll}>Voir tout</ThemedText>
+          </TouchableOpacity>
+        </View>
+        {isWeb ? (
+          <View style={styles.productsGrid}>
+            {items.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={[styles.productCard, styles.productCardWeb]}
+                onPress={() => router.push(`/product/${p.id}`)}
+              >
+                {renderProductCard(p)}
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productsContainer}>
+            {items.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={styles.productCard}
+                onPress={() => router.push(`/product/${p.id}`)}
+              >
+                {renderProductCard(p)}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -458,6 +612,7 @@ export default function BuyerHomeScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.contentMaxWidth}>
         {/* Barre de recherche */}
         <View style={styles.searchBar}>
           <IconSymbol name="magnifyingglass" size={20} color={colors.placeholder} />
@@ -496,46 +651,108 @@ export default function BuyerHomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Catégories */}
+        {/* Catégories (carousel) */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Catégories</ThemedText>
-          <View style={styles.categoriesGrid}>
-            {uiCategories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={styles.categoryCard}
-                onPress={() => {
-                  if (category.id === 'ALL') {
-                    setSelectedCategoryId(null);
-                    loadCatalog(null);
-                    return;
-                  }
-                  const next = selectedCategoryId === category.id ? null : category.id;
-                  setSelectedCategoryId(next);
-                  loadCatalog(next);
-                }}
-                onLongPress={() => {
-                  if (category.id !== 'ALL') {
-                    router.push(`/category/${category.id}`);
-                  }
-                }}
-              >
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    {
-                      backgroundColor: category.color,
-                      opacity: selectedCategoryId && category.id !== 'ALL' && selectedCategoryId !== category.id ? 0.75 : 1,
-                    },
-                  ]}
-                >
-                  <IconSymbol name={category.icon} size={28} color="#FFFFFF" />
-                </View>
-                <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Catégories</ThemedText>
+            <TouchableOpacity onPress={() => goToProducts()}>
+              <ThemedText style={styles.seeAll}>Voir tout</ThemedText>
+            </TouchableOpacity>
           </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryCarousel}>
+            {uiCategories.map((category) => {
+              const active =
+                category.id === 'ALL'
+                  ? !selectedCategoryId
+                  : selectedCategoryId === category.id;
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryChip,
+                    active && { borderColor: colors.tint, backgroundColor: colors.tint + '18' },
+                  ]}
+                  onPress={() => {
+                    if (category.id === 'ALL') {
+                      setSelectedCategoryId(null);
+                      loadCatalog(null);
+                      return;
+                    }
+                    const next = selectedCategoryId === category.id ? null : category.id;
+                    setSelectedCategoryId(next);
+                    loadCatalog(next);
+                  }}
+                >
+                  <View style={[styles.categoryChipIcon, { backgroundColor: category.color }]}>
+                    <IconSymbol name={category.icon} size={16} color="#FFFFFF" />
+                  </View>
+                  <ThemedText style={styles.categoryChipText} numberOfLines={1}>
+                    {category.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
+
+        {/* Top deals */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Top deals</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/products')}>
+              <ThemedText style={styles.seeAll}>Voir tout</ThemedText>
+            </TouchableOpacity>
+          </View>
+          {deals?.length ? (
+            isWeb ? (
+              <View style={styles.productsGrid}>
+                {deals.map((d: any) => (
+                  <TouchableOpacity
+                    key={d?.promotion?.id || d?.product?.id}
+                    style={[styles.productCard, styles.productCardWeb]}
+                    onPress={() => router.push(`/product/${d.product.id}`)}
+                  >
+                    {renderProductCard(d.product, { badgeText: d?.pricing?.discountLabel || 'Promo' })}
+                    <View style={styles.dealPriceRow}>
+                      <ThemedText style={styles.dealNewPrice}>
+                        {Number(d?.pricing?.dealPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                      </ThemedText>
+                      <ThemedText style={styles.dealOldPrice}>
+                        {Number(d?.pricing?.originalPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productsContainer}>
+                {deals.map((d: any) => (
+                  <TouchableOpacity
+                    key={d?.promotion?.id || d?.product?.id}
+                    style={styles.productCard}
+                    onPress={() => router.push(`/product/${d.product.id}`)}
+                  >
+                    {renderProductCard(d.product, { badgeText: d?.pricing?.discountLabel || 'Promo' })}
+                    <View style={styles.dealPriceRow}>
+                      <ThemedText style={styles.dealNewPrice}>
+                        {Number(d?.pricing?.dealPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                      </ThemedText>
+                      <ThemedText style={styles.dealOldPrice}>
+                        {Number(d?.pricing?.originalPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )
+          ) : (
+            <ThemedText style={{ color: colors.placeholder }}>Aucune promotion active.</ThemedText>
+          )}
+        </View>
+
+        {renderProductsSection('Top ventes', topSales, { seeAllSortBy: 'popular' })}
+        {renderProductsSection('Recommandés', recommended, { seeAllSortBy: 'rating' })}
 
         {/* Produits en vedette */}
         <View style={styles.section}>
@@ -620,6 +837,7 @@ export default function BuyerHomeScreen() {
               <ThemedText style={styles.flashOfferButtonText}>Voir</ThemedText>
             </TouchableOpacity>
           </View>
+        </View>
         </View>
       </ScrollView>
     </ThemedView>

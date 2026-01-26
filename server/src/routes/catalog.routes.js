@@ -3,6 +3,7 @@ import {
   listCategories,
   getCategoryById,
   listProducts,
+  listDeals,
   getProductById,
   getProductReviews,
 } from '../controllers/catalog.controller.js';
@@ -15,6 +16,8 @@ router.get('/categories/:id', getCategoryById);
 
 // Products (public)
 router.get('/products', listProducts);
+// Deals (public)
+router.get('/deals', listDeals);
 router.get('/products/:id', getProductById);
 router.get('/products/:id/reviews', getProductReviews);
 

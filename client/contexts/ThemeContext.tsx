@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme as useRNColorScheme, Platform } from 'react-native';
+// import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
@@ -14,68 +14,30 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = '@tchinda_theme_mode';
 
-// Fonction pour détecter le thème système du navigateur sur web
-const getSystemColorSchemeWeb = (): 'light' | 'dark' => {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') {
-    return 'light';
-  }
-
-  // Détecter via media query
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-
-  return 'light';
-};
+// NOTE: thème système désactivé pour forcer le clair par défaut.
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const systemColorScheme = useRNColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('auto');
+  // const systemColorScheme = useRNColorScheme(); // (désactivé pour forcer le thème clair)
+  // Par défaut: thème clair (ne suit pas le système)
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
   const [isLoading, setIsLoading] = useState(true);
-  const [webSystemScheme, setWebSystemScheme] = useState<'light' | 'dark'>(() => 
-    Platform.OS === 'web' ? getSystemColorSchemeWeb() : 'light'
-  );
+  // const [webSystemScheme, setWebSystemScheme] = useState<'light' | 'dark'>(() =>
+  //   Platform.OS === 'web' ? getSystemColorSchemeWeb() : 'light'
+  // );
 
   // Charger la préférence sauvegardée
   useEffect(() => {
     loadThemePreference();
   }, []);
 
-  // Écouter les changements du thème système sur web
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      
-      const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
-        setWebSystemScheme(e.matches ? 'dark' : 'light');
-      };
-
-      // Écouter les changements
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener('change', handleChange);
-      } else {
-        // Fallback pour les anciens navigateurs
-        mediaQuery.addListener(handleChange);
-      }
-
-      // Appel initial
-      handleChange(mediaQuery);
-
-      return () => {
-        if (mediaQuery.removeEventListener) {
-          mediaQuery.removeEventListener('change', handleChange);
-        } else {
-          mediaQuery.removeListener(handleChange);
-        }
-      };
-    }
-  }, []);
+  // (désactivé) écoute thème système web
 
   const loadThemePreference = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
       if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
-        setThemeModeState(savedTheme as ThemeMode);
+        // Forcer le clair par défaut: si l'utilisateur avait "auto", on le remplace par "light"
+        setThemeModeState(savedTheme === 'auto' ? 'light' : (savedTheme as ThemeMode));
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
@@ -95,12 +57,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Déterminer le colorScheme actuel
   const getColorScheme = (): 'light' | 'dark' => {
-    // Si le mode est 'auto', utiliser le thème système
+    // Si le mode est 'auto', pour l'instant on reste en clair (ne pas suivre le système)
     if (themeMode === 'auto') {
-      if (Platform.OS === 'web') {
-        return webSystemScheme;
-      }
-      return systemColorScheme ?? 'light';
+      return 'light';
     }
     
     // Sinon, utiliser le mode choisi manuellement
