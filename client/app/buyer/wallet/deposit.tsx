@@ -49,26 +49,73 @@ export default function DepositScreen() {
 
     setLoading(true);
     try {
-      const response = await apiService.post('/api/buyer/wallet/deposit', {
-        amount: parseFloat(amount),
-        currency,
-        paymentMethod: paymentMethod.id,
-        paymentInfo, // Informations de paiement
-      });
+      // Si c'est MTN ou Orange, utiliser le service mobile money
+      if (paymentMethod.id === 'mtn_money' || paymentMethod.id === 'orange_money') {
+        const provider = paymentMethod.id === 'mtn_money' ? 'MTN' : 'ORANGE';
+        
+        const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
+          amount: parseFloat(amount),
+          currency,
+          provider,
+          phoneNumber: paymentInfo.phoneNumber,
+          type: 'DEPOSIT',
+        });
 
-      if (response.success) {
-        alert(
-          'Succès',
-          `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`,
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        if (paymentRes.success) {
+          alert(
+            'Paiement initié',
+            `Un SMS de confirmation a été envoyé au ${paymentInfo.phoneNumber}. Veuillez confirmer le paiement avec le code reçu.`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // En production, ouvrir un modal pour entrer le code de confirmation
+                  // Pour l'instant, on simule la confirmation automatique
+                  setTimeout(async () => {
+                    try {
+                      const confirmRes = await apiService.post(
+                        `/api/buyer/payments/mobile-money/${paymentRes.data.paymentId}/confirm`,
+                        { confirmationCode: '123456' } // Code de test
+                      );
+                      if (confirmRes.success) {
+                        alert('Succès', 'Dépôt effectué avec succès', [
+                          { text: 'OK', onPress: () => router.back() },
+                        ]);
+                      }
+                    } catch (error: any) {
+                      alert('Erreur', error.message || 'Erreur lors de la confirmation');
+                    }
+                  }, 2000);
+                },
+              },
+            ]
+          );
+        } else {
+          alert('Erreur', paymentRes.error?.message || 'Erreur lors de l\'initiation du paiement');
+        }
       } else {
-        alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
+        // Autres méthodes de paiement (carte, virement, etc.)
+        const response = await apiService.post('/api/buyer/wallet/deposit', {
+          amount: parseFloat(amount),
+          currency,
+          paymentMethod: paymentMethod.id,
+          paymentInfo,
+        });
+
+        if (response.success) {
+          alert(
+            'Succès',
+            `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`,
+            [
+              {
+                text: 'OK',
+                onPress: () => router.back(),
+              },
+            ]
+          );
+        } else {
+          alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
+        }
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');

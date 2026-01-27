@@ -1,6 +1,7 @@
 import { prisma } from '../utils/prisma.js';
 import * as buyerService from '../services/buyer.service.js';
 import { uploadService } from '../services/upload.service.js';
+import * as mobileMoneyService from '../services/mobile-money.service.js';
 
 /**
  * Get buyer profile
@@ -510,6 +511,70 @@ export const cancelSubscription = async (req, res, next) => {
     const userId = req.user.id;
     await buyerService.cancelSubscription(userId);
     res.json({ success: true, message: 'Abonnement annulé' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Initiate mobile money payment (for wallet deposit or order payment)
+ */
+export const initiateMobileMoneyPayment = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { amount, currency, provider, phoneNumber, type, orderId } = req.body;
+    
+    const result = await mobileMoneyService.initiateMobileMoneyPayment(userId, {
+      amount: parseFloat(amount),
+      currency: currency || 'XOF',
+      provider, // 'MTN' or 'ORANGE'
+      phoneNumber,
+      type, // 'DEPOSIT' or 'ORDER'
+      orderId,
+    });
+    
+    res.status(201).json({ success: true, data: result, message: 'Paiement initié' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Check mobile money payment status
+ */
+export const checkMobileMoneyPaymentStatus = async (req, res, next) => {
+  try {
+    const paymentId = req.params.paymentId;
+    const status = await mobileMoneyService.checkPaymentStatus(paymentId);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Confirm mobile money payment
+ */
+export const confirmMobileMoneyPayment = async (req, res, next) => {
+  try {
+    const paymentId = req.params.paymentId;
+    const { confirmationCode } = req.body;
+    
+    const result = await mobileMoneyService.confirmMobileMoneyPayment(paymentId, confirmationCode);
+    res.json({ success: true, data: result, message: 'Paiement confirmé' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Cancel mobile money payment
+ */
+export const cancelMobileMoneyPayment = async (req, res, next) => {
+  try {
+    const paymentId = req.params.paymentId;
+    const result = await mobileMoneyService.cancelMobileMoneyPayment(paymentId);
+    res.json({ success: true, data: result, message: 'Paiement annulé' });
   } catch (error) {
     next(error);
   }

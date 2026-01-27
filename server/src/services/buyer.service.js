@@ -1068,6 +1068,12 @@ export const createOrder = async (userId, orderData) => {
 export const createBuyNowOrder = async (userId, orderData) => {
   const { productId, variantId = null, quantity = 1 } = orderData || {};
 
+  if (!productId) {
+    const err = new Error('productId est requis');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const safeQty = Math.max(1, Number(quantity) || 1);
 
   const product = await prisma.product.findUnique({

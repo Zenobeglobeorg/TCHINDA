@@ -7,6 +7,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -15,6 +17,8 @@ import { apiService } from '@/services/api.service';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
+import PaymentInfoForm from '@/components/PaymentInfoForm';
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -82,6 +86,15 @@ export default function CheckoutScreen() {
     }
   };
 
+  const loadWallet = async () => {
+    try {
+      const res = await apiService.get('/api/buyer/wallet');
+      if (res.success) setWallet(res.data);
+    } catch (error) {
+      console.error('Error loading wallet:', error);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -91,6 +104,7 @@ export default function CheckoutScreen() {
       setLoading(false);
       return;
     }
+    loadWallet();
     if (isBuyNow) loadBuyNow();
     else loadCart();
   }, [user, isBuyNow, params?.productId, params?.variantId, params?.quantity]);
@@ -117,34 +131,145 @@ export default function CheckoutScreen() {
 
   const total = subtotal + shipping;
 
-  const createOrder = async () => {
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    setSelectedPaymentMethod(method);
+    if (method.id === 'wallet') {
+      setPaymentMethod('WALLET');
+      setShowPaymentModal(false);
+    } else if (method.id === 'mtn_money') {
+      setPaymentMethod('MTN');
+      setShowPaymentInfoForm(true);
+    } else if (method.id === 'orange_money') {
+      setPaymentMethod('ORANGE');
+      setShowPaymentInfoForm(true);
+    } else {
+      setShowPaymentModal(false);
+      Alert.alert('Info', 'Cette méthode de paiement sera disponible prochainement');
+    }
+  };
+
+  const handlePaymentInfoSubmit = async (paymentInfo: any) => {
+    if (!paymentMethod || !selectedPaymentMethod) return;
+
+    setCreating(true);
     try {
-      setCreating(true);
-      const res = isBuyNow
+      // D'abord créer la commande en PENDING
+      const orderRes = isBuyNow
         ? await apiService.post('/api/buyer/orders/buy-now', {
             productId: buyNowItem?.productId,
-            variantId: buyNowItem?.variantId,
+            variantId: buyNowItem?.variantId || null,
             quantity: buyNowItem?.quantity || 1,
             shippingCost: shipping,
             currency: buyNowItem?.currency || 'XOF',
-            paymentMethod: 'WALLET',
+            paymentMethod: paymentMethod,
           })
         : await apiService.post('/api/buyer/orders', {
             shippingCost: shipping,
             currency: cart?.currency || 'XOF',
-            paymentMethod: 'WALLET',
+            paymentMethod: paymentMethod,
           });
 
-      if (!res.success) {
-        Alert.alert('Erreur', res.error?.message || 'Impossible de créer la commande');
+      if (!orderRes.success) {
+        Alert.alert('Erreur', orderRes.error?.message || 'Impossible de créer la commande');
         return;
       }
-      Alert.alert('Succès', 'Commande créée !', [
-        {
-          text: 'Voir mes commandes',
-          onPress: () => router.replace('/(tabs)/orders'),
-        },
-      ]);
+
+      const orderId = orderRes.data?.id;
+
+      // Initier le paiement mobile money
+      const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
+        amount: total,
+        currency: isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF',
+        provider: paymentMethod,
+        phoneNumber: paymentInfo.phoneNumber,
+        type: 'ORDER',
+        orderId,
+      });
+
+      if (!paymentRes.success) {
+        Alert.alert('Erreur', paymentRes.error?.message || 'Impossible d\'initier le paiement');
+        return;
+      }
+
+      setPaymentId(paymentRes.data?.paymentId);
+      setShowPaymentInfoForm(false);
+      setShowConfirmationModal(true);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Erreur lors du paiement');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!paymentId) return;
+
+    setCreating(true);
+    try {
+      const res = await apiService.post(`/api/buyer/payments/mobile-money/${paymentId}/confirm`, {
+        confirmationCode: confirmationCode || '123456', // Code de test
+      });
+
+      if (res.success) {
+        setShowConfirmationModal(false);
+        Alert.alert('Succès', 'Paiement confirmé ! Commande créée.', [
+          {
+            text: 'Voir mes commandes',
+            onPress: () => router.replace('/(tabs)/orders'),
+          },
+        ]);
+      } else {
+        Alert.alert('Erreur', res.error?.message || 'Code de confirmation invalide');
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Erreur lors de la confirmation');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createOrder = async () => {
+    if (!paymentMethod) {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      
+      if (isBuyNow && !buyNowItem?.productId) {
+        Alert.alert('Erreur', 'Informations produit manquantes');
+        return;
+      }
+
+      // Si paiement par wallet, créer directement
+      if (paymentMethod === 'WALLET') {
+        const res = isBuyNow
+          ? await apiService.post('/api/buyer/orders/buy-now', {
+              productId: buyNowItem?.productId,
+              variantId: buyNowItem?.variantId || null,
+              quantity: buyNowItem?.quantity || 1,
+              shippingCost: shipping,
+              currency: buyNowItem?.currency || 'XOF',
+              paymentMethod: 'WALLET',
+            })
+          : await apiService.post('/api/buyer/orders', {
+              shippingCost: shipping,
+              currency: cart?.currency || 'XOF',
+              paymentMethod: 'WALLET',
+            });
+
+        if (!res.success) {
+          Alert.alert('Erreur', res.error?.message || 'Impossible de créer la commande');
+          return;
+        }
+        Alert.alert('Succès', 'Commande créée !', [
+          {
+            text: 'Voir mes commandes',
+            onPress: () => router.replace('/(tabs)/orders'),
+          },
+        ]);
+      }
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Erreur lors du paiement');
     } finally {
@@ -239,9 +364,59 @@ export default function CheckoutScreen() {
                 </ThemedText>
               </View>
 
+              {/* Payment Method Selection */}
+              {!paymentMethod && (
+                <TouchableOpacity
+                  style={[styles.paymentMethodButton, { borderColor: tintColor }]}
+                  onPress={() => setShowPaymentModal(true)}
+                >
+                  <IconSymbol name="creditcard.fill" size={20} color={tintColor} />
+                  <ThemedText style={[styles.paymentMethodButtonText, { color: tintColor }]}>
+                    Choisir un mode de paiement
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+
+              {paymentMethod && (
+                <View style={styles.selectedPaymentMethod}>
+                  <View style={styles.selectedPaymentMethodLeft}>
+                    <IconSymbol 
+                      name={paymentMethod === 'WALLET' ? 'wallet.pass.fill' : 'creditcard.fill'} 
+                      size={20} 
+                      color={tintColor} 
+                    />
+                    <ThemedText style={[styles.selectedPaymentMethodText, { color: textColor }]}>
+                      {paymentMethod === 'WALLET' && 'Portefeuille'}
+                      {paymentMethod === 'MTN' && 'MTN Mobile Money'}
+                      {paymentMethod === 'ORANGE' && 'Orange Money'}
+                    </ThemedText>
+                  </View>
+                  <TouchableOpacity onPress={() => {
+                    setPaymentMethod(null);
+                    setSelectedPaymentMethod(null);
+                  }}>
+                    <IconSymbol name="xmark.circle.fill" size={20} color={textColor + '60'} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Wallet Balance Info */}
+              {paymentMethod === 'WALLET' && wallet && (
+                <View style={styles.walletInfo}>
+                  <ThemedText style={[styles.walletInfoText, { color: textColor + '80' }]}>
+                    Solde disponible: {wallet?.walletCurrencies?.[0]?.balance || 0} {isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF'}
+                  </ThemedText>
+                  {parseFloat(wallet?.walletCurrencies?.[0]?.balance || 0) < total && (
+                    <ThemedText style={[styles.walletWarning, { color: '#F44336' }]}>
+                      Solde insuffisant. Veuillez recharger votre portefeuille.
+                    </ThemedText>
+                  )}
+                </View>
+              )}
+
               <TouchableOpacity
-                style={[styles.primaryButton, { backgroundColor: tintColor, opacity: creating ? 0.7 : 1 }]}
-                disabled={creating}
+                style={[styles.primaryButton, { backgroundColor: tintColor, opacity: (creating || !paymentMethod) ? 0.7 : 1 }]}
+                disabled={creating || !paymentMethod}
                 onPress={createOrder}
               >
                 {creating ? <ActivityIndicator color="#FFF" /> : <ThemedText style={styles.primaryButtonText}>Payer maintenant</ThemedText>}
@@ -279,9 +454,59 @@ export default function CheckoutScreen() {
               </ThemedText>
             </View>
 
+            {/* Payment Method Selection */}
+            {!paymentMethod && (
+              <TouchableOpacity
+                style={[styles.paymentMethodButton, { borderColor: tintColor }]}
+                onPress={() => setShowPaymentModal(true)}
+              >
+                <IconSymbol name="creditcard.fill" size={20} color={tintColor} />
+                <ThemedText style={[styles.paymentMethodButtonText, { color: tintColor }]}>
+                  Choisir un mode de paiement
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+
+            {paymentMethod && (
+              <View style={styles.selectedPaymentMethod}>
+                <View style={styles.selectedPaymentMethodLeft}>
+                  <IconSymbol 
+                    name={paymentMethod === 'WALLET' ? 'wallet.pass.fill' : 'creditcard.fill'} 
+                    size={20} 
+                    color={tintColor} 
+                  />
+                  <ThemedText style={[styles.selectedPaymentMethodText, { color: textColor }]}>
+                    {paymentMethod === 'WALLET' && 'Portefeuille'}
+                    {paymentMethod === 'MTN' && 'MTN Mobile Money'}
+                    {paymentMethod === 'ORANGE' && 'Orange Money'}
+                  </ThemedText>
+                </View>
+                <TouchableOpacity onPress={() => {
+                  setPaymentMethod(null);
+                  setSelectedPaymentMethod(null);
+                }}>
+                  <IconSymbol name="xmark.circle.fill" size={20} color={textColor + '60'} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Wallet Balance Info */}
+            {paymentMethod === 'WALLET' && wallet && (
+              <View style={styles.walletInfo}>
+                <ThemedText style={[styles.walletInfoText, { color: textColor + '80' }]}>
+                  Solde disponible: {wallet?.walletCurrencies?.[0]?.balance || 0} {cart?.currency || 'XOF'}
+                </ThemedText>
+                {parseFloat(wallet?.walletCurrencies?.[0]?.balance || 0) < total && (
+                  <ThemedText style={[styles.walletWarning, { color: '#F44336' }]}>
+                    Solde insuffisant. Veuillez recharger votre portefeuille.
+                  </ThemedText>
+                )}
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: tintColor, opacity: creating ? 0.7 : 1 }]}
-              disabled={creating}
+              style={[styles.primaryButton, { backgroundColor: tintColor, opacity: (creating || !paymentMethod) ? 0.7 : 1 }]}
+              disabled={creating || !paymentMethod}
               onPress={createOrder}
             >
               {creating ? (
@@ -293,6 +518,82 @@ export default function CheckoutScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Payment Method Modal */}
+      <PaymentMethodModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentMethodSelect}
+        title="Choisir un mode de paiement"
+        loading={creating}
+      />
+
+      {/* Payment Info Form */}
+      {selectedPaymentMethod && (
+        <PaymentInfoForm
+          visible={showPaymentInfoForm}
+          paymentMethod={selectedPaymentMethod}
+          amount={total}
+          currency={isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF'}
+          onClose={() => {
+            setShowPaymentInfoForm(false);
+            setSelectedPaymentMethod(null);
+            setPaymentMethod(null);
+          }}
+          onSubmit={handlePaymentInfoSubmit}
+          loading={creating}
+          transactionType="deposit"
+        />
+      )}
+
+      {/* Confirmation Code Modal */}
+      <Modal visible={showConfirmationModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>
+                Confirmer le paiement
+              </ThemedText>
+              <TouchableOpacity onPress={() => setShowConfirmationModal(false)}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ThemedText style={[styles.modalText, { color: textColor + '80' }]}>
+              Un SMS de confirmation a été envoyé. Entrez le code reçu :
+            </ThemedText>
+            <TextInput
+              style={[styles.confirmationInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
+              placeholder="Code de confirmation"
+              placeholderTextColor={textColor + '60'}
+              value={confirmationCode}
+              onChangeText={setConfirmationCode}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#F5F5F5' }]}
+                onPress={() => setShowConfirmationModal(false)}
+              >
+                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleConfirmPayment}
+                disabled={creating || !confirmationCode}
+              >
+                {creating ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={[styles.modalButtonText, { color: '#FFF' }]}>
+                    Confirmer
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -315,5 +616,99 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 18, fontWeight: 'bold' },
   primaryButton: { marginTop: 16, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   primaryButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  paymentMethodButton: {
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  paymentMethodButtonText: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  selectedPaymentMethod: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedPaymentMethodLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectedPaymentMethodText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  walletInfo: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F0F7FF',
+  },
+  walletInfoText: {
+    fontSize: 12,
+  },
+  walletWarning: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalText: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  confirmationInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 18,
+    textAlign: 'center',
+    letterSpacing: 8,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 

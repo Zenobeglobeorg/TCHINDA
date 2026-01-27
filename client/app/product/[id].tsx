@@ -87,11 +87,15 @@ export default function ProductScreen() {
           return false;
         }
       }
-      const response = await apiService.post('/api/buyer/cart/items', {
-        productId: id,
-        quantity,
-        ...(product?.hasVariants ? { variantId: selectedVariantId } : {}),
-      });
+      const payload: any = {
+        productId: String(id),
+        quantity: Number(quantity) || 1,
+      };
+      if (product?.hasVariants && selectedVariantId) {
+        payload.variantId = String(selectedVariantId);
+      }
+      
+      const response = await apiService.post('/api/buyer/cart/items', payload);
 
       if (response.success) {
         if (!opts?.silent) {

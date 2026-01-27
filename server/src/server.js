@@ -285,7 +285,7 @@ app.use(errorHandler);
 if (process.env.ENABLE_CLEANUP_JOBS === 'true') {
   try {
     const { startCleanupJobs } = await import('./jobs/cleanup.job.js');
-    startCleanupJobs();
+    await startCleanupJobs();
   } catch (error) {
     console.warn('⚠️  Impossible de démarrer les jobs de nettoyage (node-cron peut-être non installé):', error.message);
     console.warn('   Pour activer les jobs de nettoyage, installez node-cron: npm install node-cron');
