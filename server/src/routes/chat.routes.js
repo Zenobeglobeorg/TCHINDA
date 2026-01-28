@@ -22,6 +22,7 @@ import {
   getReportsController,
   updateReportController,
   getAuditLogsController,
+  searchUsersController,
 } from '../controllers/chat.controller.js';
 
 const router = express.Router();
@@ -49,6 +50,12 @@ router.post(
 router.get(
   '/conversations',
   getConversationsController
+);
+
+// Route pour rechercher des utilisateurs
+router.get(
+  '/users/search',
+  searchUsersController
 );
 
 router.get(

@@ -15,6 +15,58 @@ import { emitToConversation } from '../services/chat/websocket.service.js';
 import { prisma } from '../utils/prisma.js';
 
 /**
+ * Recherche des utilisateurs pour démarrer une conversation
+ * GET /api/chat/users/search
+ */
+export const searchUsersController = async (req, res, next) => {
+  try {
+    const { q, limit = 20 } = req.query;
+
+    if (!q || q.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'La recherche doit contenir au moins 2 caractères' },
+      });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q } },
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } },
+        ],
+        // Exclure l'utilisateur actuel
+        id: { not: req.userId },
+        // Inclure tous les types de comptes pour le chat
+        accountStatus: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        photo: true,
+        accountType: true,
+      },
+      take: parseInt(limit),
+      orderBy: [
+        { firstName: 'asc' },
+        { lastName: 'asc' },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Crée une nouvelle conversation
  * POST /api/chat/conversation
  */

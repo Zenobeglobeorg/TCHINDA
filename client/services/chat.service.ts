@@ -175,7 +175,7 @@ class ChatService {
       photo?: string;
       accountType: string;
       isOnline?: boolean;
-    }>>(`/api/users/search?${params}`);
+    }>>(`/api/chat/users/search?${params}`);
   }
 
   /**

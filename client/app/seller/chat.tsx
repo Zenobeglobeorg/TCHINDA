@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { ChatLayout } from '@/components/chat/ChatLayout';
@@ -13,6 +13,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Conversation } from '@/services/chat.service';
 import { useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function SellerChatTab() {
   const router = useRouter();
@@ -34,11 +35,23 @@ export default function SellerChatTab() {
     }
   };
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: borderColor, backgroundColor }]}>
-        <ThemedText style={[styles.headerTitle, { color: textColor }]}>Messages</ThemedText>
+        <View style={styles.headerLeft}>
+          {/* Bouton retour sur mobile/web responsive */}
+          {(Platform.OS !== 'web' || (typeof window !== 'undefined' && window.innerWidth < 768)) && (
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <IconSymbol name="chevron.left" size={24} color={textColor} />
+            </TouchableOpacity>
+          )}
+          <ThemedText style={[styles.headerTitle, { color: textColor }]}>Messages</ThemedText>
+        </View>
         <View style={styles.headerRight}>
           {isConnected ? (
             <View style={[styles.statusIndicator, { backgroundColor: '#28A745' }]} />
@@ -76,6 +89,15 @@ const styles = StyleSheet.create({
       top: 0,
       zIndex: 100,
     }),
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    marginRight: 8,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 20,

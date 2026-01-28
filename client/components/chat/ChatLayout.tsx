@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Platform, Dimensions, TouchableOpacity, Modal } from 'react-native';
 import { ThemedView } from '../ThemedView';
+import { ThemedText } from '../ThemedText';
 import { ConversationList } from './ConversationList';
 import { ChatRoom } from './ChatRoom';
 import { UserSearch } from './UserSearch';
