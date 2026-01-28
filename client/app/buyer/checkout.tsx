@@ -33,6 +33,14 @@ export default function CheckoutScreen() {
   const [cart, setCart] = useState<any>(null);
   const [buyNowItem, setBuyNowItem] = useState<any>(null);
   const [creating, setCreating] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'WALLET' | 'MTN' | 'ORANGE' | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [wallet, setWallet] = useState<any>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   const isBuyNow = !!params?.productId;
 
