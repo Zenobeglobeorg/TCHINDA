@@ -46,11 +46,11 @@ export const canUsersChat = async (userId1, userId2, type) => {
       );
 
     case 'SUPPORT':
-      // USER ↔ SUPPORT (ADMIN, MODERATOR, COMMERCIAL)
-      const supportTypes = ['ADMIN', 'MODERATOR', 'COMMERCIAL'];
-      return (
-        supportTypes.includes(type1) || supportTypes.includes(type2)
-      );
+      // Pour SUPPORT, permettre à tous les utilisateurs actifs de discuter entre eux
+      // (BUYER ↔ SELLER, BUYER ↔ BUYER, SELLER ↔ SELLER, etc.)
+      // Tous les types de comptes peuvent créer des conversations SUPPORT
+      const allowedTypes = ['BUYER', 'SELLER', 'ADMIN', 'MODERATOR', 'COMMERCIAL', 'DELIVERY', 'ACCOUNTANT'];
+      return allowedTypes.includes(type1) && allowedTypes.includes(type2);
 
     default:
       return false;
