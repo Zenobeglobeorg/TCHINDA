@@ -13,6 +13,7 @@ import {
 } from '../middleware/chat.middleware.js';
 import {
   createConversationController,
+  getConversationController,
   getConversationsController,
   getMessagesController,
   sendMessageController,
@@ -45,6 +46,12 @@ router.post(
   '/conversation',
   canCreateConversation,
   createConversationController
+);
+
+router.get(
+  '/conversation/:id',
+  canAccessConversation,
+  getConversationController
 );
 
 router.get(

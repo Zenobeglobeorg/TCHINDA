@@ -67,6 +67,77 @@ export const searchUsersController = async (req, res, next) => {
 };
 
 /**
+ * Récupère une conversation par ID
+ * GET /api/chat/conversation/:id
+ */
+export const getConversationController = async (req, res, next) => {
+  try {
+    const { id: conversationId } = req.params;
+    const userId = req.userId;
+
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participant1: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            photo: true,
+            accountType: true,
+          },
+        },
+        participant2: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            photo: true,
+            accountType: true,
+          },
+        },
+        lastMessage: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            senderId: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Conversation non trouvée' },
+      });
+    }
+
+    // Vérifier que l'utilisateur est participant
+    const isParticipant = 
+      conversation.participant1Id === userId || 
+      conversation.participant2Id === userId;
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Accès non autorisé à cette conversation' },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: conversation,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Crée une nouvelle conversation
  * POST /api/chat/conversation
  */
