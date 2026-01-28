@@ -95,73 +95,80 @@ function SellerLayoutContent() {
             default: {},
           }),
         }}
-      />
-      <Tabs.Screen
-        name="products"
-        options={{
-          title: 'Produits',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Commandes',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="marketing"
-        options={{
-          title: 'Marketing',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="megaphone.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="shop"
-        options={{
-          title: 'Boutique',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: 'Portefeuille',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="sponsorship"
-        options={{
-          title: 'Sponsorisation',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="star.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: 'Tableau de bord',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="products"
+          options={{
+            title: 'Produits',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="orders"
+          options={{
+            title: 'Commandes',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="marketing"
+          options={{
+            title: 'Marketing',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="megaphone.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="shop"
+          options={{
+            title: 'Boutique',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
           name="chat"
           options={{
             title: 'Chat',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
           }}
         />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profil',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Paramètres',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
-
+        <Tabs.Screen
+          name="wallet"
+          options={{
+            title: 'Portefeuille',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="sponsorship"
+          options={{
+            title: 'Sponsorisation',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="star.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profil',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Paramètres',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+          }}
+        />
+      </Tabs>
+    );
+  }
 }
 
 const styles = StyleSheet.create({

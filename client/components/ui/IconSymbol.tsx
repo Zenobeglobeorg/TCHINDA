@@ -28,6 +28,8 @@ const MAPPING = {
   'heart': 'favorite-border',
   'bag.fill': 'shopping-bag',
   'creditcard.fill': 'credit-card',
+  'message.fill':'chat',
+  'message':'chat',
   'person.fill': 'person',
   'gearshape.fill': 'settings',
   'magnifyingglass': 'search',
