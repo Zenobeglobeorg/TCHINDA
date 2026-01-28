@@ -19,6 +19,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ChatButton } from '@/components/chat/ChatButton';
 
 export default function SellerDashboard() {
   const router = useRouter();
@@ -132,20 +133,23 @@ export default function SellerDashboard() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <ThemedText type="title">Tableau de bord</ThemedText>
-            <TouchableOpacity
-              style={[styles.switchButton, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
-              onPress={handleSwitchToBuyer}
-              disabled={isChanging}
-            >
-              {isChanging ? (
-                <ActivityIndicator size="small" color={tintColor} />
-              ) : (
-                <>
-                  <IconSymbol name="arrow.left.circle.fill" size={16} color={tintColor} />
-                  <Text style={[styles.switchButtonText, { color: tintColor }]}>Mode Acheteur</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <ChatButton variant="icon" contextType="ORDER" />
+              <TouchableOpacity
+                style={[styles.switchButton, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
+                onPress={handleSwitchToBuyer}
+                disabled={isChanging}
+              >
+                {isChanging ? (
+                  <ActivityIndicator size="small" color={tintColor} />
+                ) : (
+                  <>
+                    <IconSymbol name="arrow.left.circle.fill" size={16} color={tintColor} />
+                    <Text style={[styles.switchButtonText, { color: tintColor }]}>Mode Acheteur</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.periodSelector}>
             {(['DAILY', 'WEEKLY', 'MONTHLY'] as const).map((p) => (

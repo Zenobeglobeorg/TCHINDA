@@ -65,6 +65,14 @@ export const API_CONFIG = {
       FACEBOOK: '/api/auth/facebook',
       APPLE: '/api/auth/apple',
     },
+    CHAT: {
+      CONVERSATIONS: '/api/chat/conversations',
+      CONVERSATION: '/api/chat/conversation',
+      MESSAGES: '/api/chat/conversation/:id/messages',
+      MESSAGE: '/api/chat/message',
+      REPORT: '/api/chat/message/:id/report',
+      UPLOAD: '/api/chat/upload',
+    },
   },
   
   // Timeouts

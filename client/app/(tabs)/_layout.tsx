@@ -136,6 +136,13 @@ function TabLayoutContent() {
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
               }}
             />
+            <Tabs.Screen
+              name="chat"
+              options={{
+                title: 'Chat',
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+              }}
+            />
             </Tabs>
           </View>
         </View>
@@ -193,6 +200,13 @@ function TabLayoutContent() {
         options={{
           title: 'Paramètres',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
         }}
       />
     </Tabs>

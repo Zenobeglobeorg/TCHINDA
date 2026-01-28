@@ -14,20 +14,20 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'index', title: 'Accueil', icon: 'house.fill', route: '' }, // Route vide = /(tabs) pour index
-  { name: 'cart', title: 'Panier', icon: 'cart.fill', route: '/cart' },
-  { name: 'wishlist', title: 'Favoris', icon: 'heart.fill', route: '/wishlist' },
-  { name: 'orders', title: 'Commandes', icon: 'bag.fill', route: '/orders' },
-  { name: 'wallet', title: 'Portefeuille', icon: 'creditcard.fill', route: '/wallet' },
-  { name: 'chat', title: 'Chat', icon: 'message.fill', route: '/chat' },
-  { name: 'profile', title: 'Profil', icon: 'person.fill', route: '/profile' },
-  { name: 'settings', title: 'Paramètres', icon: 'gearshape.fill', route: '/settings' },
+  { name: 'dashboard', title: 'Tableau de bord', icon: 'chart.bar.fill', route: '/seller/dashboard' },
+  { name: 'products', title: 'Produits', icon: 'cube.box.fill', route: '/seller/products' },
+  { name: 'orders', title: 'Commandes', icon: 'bag.fill', route: '/seller/orders' },
+  { name: 'marketing', title: 'Marketing', icon: 'megaphone.fill', route: '/seller/marketing' },
+  { name: 'shop', title: 'Boutique', icon: 'storefront.fill', route: '/seller/shop' },
+  { name: 'chat', title: 'Chat', icon: 'message.fill', route: '/seller/chat' },
+  { name: 'wallet', title: 'Portefeuille', icon: 'creditcard.fill', route: '/seller/wallet' },
+  { name: 'sponsorship', title: 'Sponsorisation', icon: 'star.fill', route: '/seller/sponsorship' },
 ];
 
 // Breakpoint pour déterminer mobile/desktop
 const SIDEBAR_BREAKPOINT = 768;
 
-export function WebSidebar() {
+export function WebSidebarSeller() {
   const router = useRouter();
   const segments = useSegments();
   const { user } = useAuth();
@@ -58,16 +58,10 @@ export function WebSidebar() {
 
   // Déterminer la route active à partir des segments
   const getActiveRoute = () => {
-    // segments sera quelque chose comme ['(tabs)', 'index'] ou ['(tabs)', 'cart']
-    // ou ['(tabs)'] pour la page index
-    if (segments.length >= 2 && segments[0] === '(tabs)') {
+    if (segments.length >= 2 && segments[0] === 'seller') {
       return segments[1];
     }
-    // Si on est sur /(tabs) sans segment suivant, c'est l'index
-    if (segments.length === 1 && segments[0] === '(tabs)') {
-      return 'index';
-    }
-    return 'index'; // Par défaut
+    return 'dashboard'; // Par défaut
   };
 
   const activeRoute = getActiveRoute();
@@ -77,14 +71,10 @@ export function WebSidebar() {
   };
 
   const handleNavigate = (route: string) => {
-    // Pour index (route vide), naviguer vers /(tabs) directement
-    // Pour les autres routes, utiliser /(tabs)/route
-    const path = route === '' ? '/(tabs)' : `/(tabs)${route}`;
-    router.push(path as any);
+    router.push(route as any);
     
     // Fermer la sidebar après navigation sur mobile
     if (isMobile) {
-      // Petit délai pour laisser l'animation se faire
       setTimeout(() => closeSidebar(), 300);
     }
   };
@@ -112,7 +102,7 @@ export function WebSidebar() {
         {/* Logo/Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>TCHINDA</Text>
-          <Text style={styles.tagline}>Marketplace</Text>
+          <Text style={styles.tagline}>Vendeur</Text>
         </View>
 
         {/* Navigation Items */}
@@ -168,7 +158,7 @@ export function WebSidebar() {
 const styles = StyleSheet.create({
   overlay: {
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       position: 'fixed',
       top: 0,
       left: 0,
@@ -185,7 +175,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: Colors.light.border,
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       position: 'fixed',
       left: 0,
       top: 0,
@@ -199,13 +189,13 @@ const styles = StyleSheet.create({
   },
   sidebarMobile: {
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       transform: 'translateX(-100%)',
     }),
   },
   sidebarMobileOpen: {
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       transform: 'translateX(0)',
       boxShadow: '2px 0 16px rgba(0, 0, 0, 0.15)',
     }),
@@ -233,7 +223,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 12,
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       overflowY: 'auto',
       flex: 1,
     }),
@@ -246,7 +236,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
     borderRadius: 8,
     ...(Platform.OS === 'web' && {
-      // @ts-ignore - Web-specific styles
+      // @ts-ignore
       cursor: 'pointer',
       transition: 'background-color 0.2s ease',
     }),
@@ -255,7 +245,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.section,
     borderLeftWidth: 3,
     borderLeftColor: Colors.light.tint,
-    paddingLeft: 13, // 16 - 3 pour compenser la bordure
+    paddingLeft: 13,
   },
   navText: {
     fontSize: 15,

@@ -9,42 +9,88 @@ import {
   SafeAreaView,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
+import { alert } from '@/utils/alert';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web' || width > 768;
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const segments = useSegments();
   const { user, logout } = useAuth();
   const backgroundColor = useThemeColor({}, 'background');
   const cardColor = useThemeColor({}, 'card');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [geolocationEnabled, setGeolocationEnabled] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
-    Alert.alert('Déconnexion', 'Êtes-vous sûr de vouloir vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Déconnexion',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/Login');
+    alert(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              
+              // Appeler logout qui nettoie les données et tokens
+              await logout();
+              
+              // Attendre que le logout soit complètement terminé
+              // (stockage nettoyé, état mis à jour)
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Forcer la navigation vers la page de login
+              // Utiliser replace pour empêcher de revenir en arrière
+              router.replace('/Login');
+              
+              // Double vérification : si on est toujours sur une page protégée après 500ms, réessayer
+              setTimeout(() => {
+                try {
+                  const currentSegment = segments[0];
+                  // Si on est toujours sur commercial ou autre page protégée, forcer la navigation
+                  if (currentSegment && (currentSegment === 'commercial' || currentSegment === 'seller' || currentSegment === 'admin')) {
+                    console.log('Forcer navigation vers Login (vérification)');
+                    router.push('/Login');
+                  }
+                } catch (fallbackError) {
+                  console.error('Erreur vérification navigation:', fallbackError);
+                }
+              }, 500);
+            } catch (error) {
+              console.error('Erreur lors de la déconnexion:', error);
+              // Même en cas d'erreur, essayer de rediriger
+              try {
+                router.replace('/Login');
+              } catch (navError) {
+                console.error('Erreur de navigation:', navError);
+                alert('Erreur', 'Une erreur est survenue lors de la déconnexion. Veuillez relancer l\'application.');
+              }
+            } finally {
+              setIsLoading(false);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const settingsSections = [
@@ -175,11 +221,18 @@ export default function SettingsScreen() {
         ))}
 
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: useThemeColor({}, 'error') }]}
+          style={[styles.logoutButton, { backgroundColor: errorColor }]}
           onPress={handleLogout}
+          disabled={isLoading}
         >
-          <IconSymbol name="rectangle.portrait.and.arrow.right" size={24} color="#FFFFFF" />
-          <ThemedText style={styles.logoutButtonText}>Déconnexion</ThemedText>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <IconSymbol name="rectangle.portrait.and.arrow.right" size={24} color="#FFFFFF" />
+              <ThemedText style={styles.logoutButtonText}>Déconnexion</ThemedText>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

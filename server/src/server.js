@@ -14,6 +14,7 @@ import sellerRoutes from './routes/seller.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import commercialRoutes from './routes/commercial.routes.js';
 import catalogRoutes from './routes/catalog.routes.js';
+import chatRoutes from './routes/chat.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -276,6 +277,7 @@ app.use('/api/buyer', buyerRoutes);
 app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/commercial', commercialRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);
@@ -292,11 +294,39 @@ if (process.env.ENABLE_CLEANUP_JOBS === 'true') {
   }
 }
 
+// Créer le serveur HTTP pour Socket.IO
+import { createServer } from 'http';
+const httpServer = createServer(app);
+
+// Initialiser WebSocket pour le chat
+// Le chat est activé par défaut, peut être désactivé avec ENABLE_CHAT=false
+const enableChat = process.env.ENABLE_CHAT !== 'false';
+
+if (enableChat) {
+  try {
+    const { initializeWebSocket } = await import('./services/chat/websocket.service.js');
+    const { initializePresenceService } = await import('./services/chat/presence.service.js');
+    
+    // Initialiser le service de présence
+    await initializePresenceService();
+    
+    // Initialiser WebSocket
+    initializeWebSocket(httpServer);
+    console.log('✅ Module de chat temps réel activé');
+  } catch (error) {
+    console.warn('⚠️  Impossible d\'initialiser le module de chat:', error.message);
+    console.warn('   Assurez-vous que socket.io est installé: npm install socket.io');
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+const serverInstance = httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  if (enableChat) {
+    console.log(`💬 Chat temps réel: activé`);
+  }
 });
 
 export default app;

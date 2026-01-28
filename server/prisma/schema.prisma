@@ -107,11 +107,18 @@ model User {
   refreshTokens     RefreshToken[]
   verificationCodes VerificationCode[]
   passwordResetTokens PasswordResetToken[]
-  cart              Cart?
+  cart              Cart?              
   wishlist          WishlistItem[]
   orders            Order[]
   reviews           Review[]
   products          Product[]         // Produits vendus (si vendeur)
+  
+  // Relations Chat
+  conversationsAsParticipant1 Conversation[] @relation("ConversationParticipant1")
+  conversationsAsParticipant2 Conversation[] @relation("ConversationParticipant2")
+  messages          Message[]
+  messageReports    MessageReport[]
+  chatAuditLogs     ChatAuditLog[]
   
   // Timestamps
   createdAt         DateTime          @default(now())
@@ -927,5 +934,208 @@ model Review {
   @@index([rating])
   @@index([isVisible])
 }
+
+// ============================================
+// MODULE CHAT - Entités pour le chat temps réel
+// ============================================
+
+// Enum pour le type de conversation
+enum ConversationType {
+  ORDER           // Chat lié à une commande
+  DELIVERY        // Chat lié à une livraison
+  SUPPORT         // Chat avec le support
+}
+
+// Enum pour le statut de la conversation
+enum ConversationStatus {
+  ACTIVE          // Conversation active
+  ARCHIVED        // Conversation archivée
+  CLOSED          // Conversation fermée
+}
+
+// Enum pour le statut du message
+enum MessageStatus {
+  SENT            // Message envoyé
+  DELIVERED       // Message livré
+  READ            // Message lu
+  EDITED          // Message modifié
+  DELETED         // Message supprimé
+}
+
+// Enum pour le type de signalement
+enum ReportReason {
+  SPAM            // Spam
+  HARASSMENT      // Harcèlement
+  INAPPROPRIATE   // Contenu inapproprié
+  SCAM            // Arnaque
+  OTHER           // Autre
+}
+
+// Table des conversations
+model Conversation {
+  id                String            @id @default(uuid())
+  type              ConversationType
+  status            ConversationStatus @default(ACTIVE)
+  
+  // Participants
+  participant1Id    String            // Premier participant
+  participant2Id    String            // Deuxième participant
+  
+  // Contexte (optionnel selon le type)
+  orderId           String?           // ID de la commande si type = ORDER
+  deliveryId        String?           // ID de la livraison si type = DELIVERY
+  supportTicketId   String?           // ID du ticket support si type = SUPPORT
+  
+  // Métadonnées
+  lastMessageAt     DateTime?         // Date du dernier message
+  lastMessageId     String?           // ID du dernier message
+  unreadCount1      Int               @default(0) // Messages non lus pour participant1
+  unreadCount2      Int               @default(0) // Messages non lus pour participant2
+  
+  // Relations
+  participant1      User              @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2      User              @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  messages          Message[]
+  lastMessage       Message?          @relation("ConversationLastMessage", fields: [lastMessageId], references: [id])
+  attachments       Attachment[]
+  reports           MessageReport[]
+  auditLogs         ChatAuditLog[]
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([type])
+  @@index([status])
+  @@index([orderId])
+  @@index([deliveryId])
+  @@index([lastMessageAt])
+  // Index composite pour trouver rapidement les conversations d'un utilisateur
+  @@index([participant1Id, status])
+  @@index([participant2Id, status])
+}
+
+// Table des messages
+model Message {
+  id                String            @id @default(uuid())
+  conversationId    String
+  senderId          String
+  content           String            // Contenu du message (peut être vide si pièce jointe uniquement)
+  translatedContent Json?             // Contenu traduit par langue {fr: "...", en: "...", ...}
+  status            MessageStatus     @default(SENT)
+  language          String            @default("fr") // Langue du message original
+  
+  // Accusé de lecture
+  readAt            DateTime?
+  readBy            String[]          @default([]) // IDs des utilisateurs qui ont lu
+  
+  // Métadonnées
+  editedAt          DateTime?
+  deletedAt         DateTime?
+  replyToId         String?           // ID du message auquel on répond
+  
+  // Relations
+  conversation      Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationAsLastMessage Conversation[] @relation("ConversationLastMessage")
+  sender            User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo           Message?          @relation("MessageReply", fields: [replyToId], references: [id])
+  replies           Message[]         @relation("MessageReply")
+  attachments       Attachment[]
+  reports           MessageReport[]
+  auditLogs         ChatAuditLog[]
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([replyToId])
+}
+
+// Table des pièces jointes
+model Attachment {
+  id                String            @id @default(uuid())
+  messageId         String?
+  conversationId    String?           // Pour les pièces jointes partagées directement dans la conversation
+  type              String            // image, document, video, audio
+  fileName          String
+  fileUrl           String            // URL du fichier
+  fileSize          Int                // Taille en bytes
+  mimeType          String
+  thumbnailUrl      String?           // URL de la miniature (pour images/vidéos)
+  
+  // Relations
+  message           Message?          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation      Conversation?     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([messageId])
+  @@index([conversationId])
+  @@index([type])
+}
+
+// Table des signalements de messages
+model MessageReport {
+  id                String            @id @default(uuid())
+  messageId         String
+  conversationId    String
+  reportedById      String            // Utilisateur qui signale
+  reason            ReportReason
+  description       String?           // Description détaillée
+  status            String            @default("PENDING") // PENDING, REVIEWED, RESOLVED, DISMISSED
+  reviewedBy        String?           // Admin/Moderator qui a examiné
+  reviewedAt        DateTime?
+  reviewNotes       String?
+  
+  // Relations
+  message           Message           @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation      Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reportedBy        User              @relation(fields: [reportedById], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([messageId])
+  @@index([conversationId])
+  @@index([reportedById])
+  @@index([status])
+}
+
+// Table des logs d'audit pour le chat
+model ChatAuditLog {
+  id                String            @id @default(uuid())
+  conversationId    String?
+  messageId         String?
+  action            String            // CREATE_CONVERSATION, SEND_MESSAGE, DELETE_MESSAGE, REPORT_MESSAGE, etc.
+  performedBy       String            // ID de l'utilisateur/admin qui a effectué l'action
+  targetUserId      String?           // ID de l'utilisateur ciblé (si applicable)
+  details           Json?             // Détails supplémentaires de l'action
+  ipAddress         String?
+  userAgent         String?
+  
+  // Relations
+  conversation      Conversation?     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message           Message?          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([performedBy])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Ajouter les relations manquantes dans le modèle User
+// (Ces relations seront ajoutées dans le modèle User existant)
 
 
