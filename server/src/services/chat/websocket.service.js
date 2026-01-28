@@ -98,7 +98,13 @@ export const initializeWebSocket = (httpServer) => {
     // Événement: Rejoindre une conversation
     socket.on('conversation:join', async (data) => {
       try {
-        const { conversationId } = data;
+        // Le frontend peut envoyer soit une string directement, soit un objet
+        const conversationId = typeof data === 'string' ? data : data?.conversationId;
+
+        if (!conversationId) {
+          socket.emit('error', { message: 'conversationId est requis' });
+          return;
+        }
 
         // Vérifier l'accès à la conversation
         const conversation = await prisma.conversation.findUnique({
@@ -134,15 +140,23 @@ export const initializeWebSocket = (httpServer) => {
 
     // Événement: Quitter une conversation
     socket.on('conversation:leave', (data) => {
-      const { conversationId } = data;
-      socket.leave(`conversation:${conversationId}`);
-      socket.emit('conversation:left', { conversationId });
+      // Le frontend peut envoyer soit une string directement, soit un objet
+      const conversationId = typeof data === 'string' ? data : data?.conversationId;
+      if (conversationId) {
+        socket.leave(`conversation:${conversationId}`);
+        socket.emit('conversation:left', { conversationId });
+      }
     });
 
     // Événement: Envoyer un message
     socket.on('message:send', async (data) => {
       try {
         const { conversationId, content, language, replyToId } = data;
+
+        if (!conversationId) {
+          socket.emit('error', { message: 'conversationId est requis' });
+          return;
+        }
 
         // Créer le message
         const message = await sendMessage({
@@ -162,6 +176,11 @@ export const initializeWebSocket = (httpServer) => {
         const conversation = await prisma.conversation.findUnique({
           where: { id: conversationId },
         });
+
+        if (!conversation) {
+          console.error('[WebSocket] Conversation non trouvée:', conversationId);
+          return;
+        }
 
         const recipientId = conversation.participant1Id === userId
           ? conversation.participant2Id
@@ -198,19 +217,25 @@ export const initializeWebSocket = (httpServer) => {
 
     // Événement: Typing indicator
     socket.on('typing:start', (data) => {
-      const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('typing:start', {
-        conversationId,
-        userId,
-      });
+      // Le frontend peut envoyer soit une string directement, soit un objet
+      const conversationId = typeof data === 'string' ? data : data?.conversationId;
+      if (conversationId) {
+        socket.to(`conversation:${conversationId}`).emit('typing:start', {
+          conversationId,
+          userId,
+        });
+      }
     });
 
     socket.on('typing:stop', (data) => {
-      const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('typing:stop', {
-        conversationId,
-        userId,
-      });
+      // Le frontend peut envoyer soit une string directement, soit un objet
+      const conversationId = typeof data === 'string' ? data : data?.conversationId;
+      if (conversationId) {
+        socket.to(`conversation:${conversationId}`).emit('typing:stop', {
+          conversationId,
+          userId,
+        });
+      }
     });
 
     // Gestion de la déconnexion
