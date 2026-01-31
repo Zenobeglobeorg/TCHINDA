@@ -96,12 +96,15 @@ class SocketService {
         this.emitLocal('socket:error', error);
       });
 
-      // Événements du chat
-      this.socket.on('message:new', (message: Message) => {
+      // Événements du chat (serveur envoie le message directement ou { message })
+      this.socket.on('message:new', (payload: Message | { message: Message }) => {
+        const message = payload && typeof payload === 'object' && 'message' in payload
+          ? (payload as { message: Message }).message
+          : (payload as Message);
         this.emitLocal('message:new', message);
       });
 
-      this.socket.on('messages:read', (data: { messageIds: string[]; readerId: string }) => {
+      this.socket.on('messages:read', (data: { conversationId?: string; readBy?: string; messageIds?: string[]; readerId?: string }) => {
         this.emitLocal('messages:read', data);
       });
 

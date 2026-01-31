@@ -72,6 +72,8 @@ function SellerLayoutContent() {
               <Stack.Screen name="chat" />
               <Stack.Screen name="wallet" />
               <Stack.Screen name="sponsorship" />
+              <Stack.Screen name="profile" />
+              <Stack.Screen name="settings" />
             </Stack>
           </View>
         </View>

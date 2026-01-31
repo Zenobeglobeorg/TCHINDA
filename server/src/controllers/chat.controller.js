@@ -182,9 +182,15 @@ export const getConversationsController = async (req, res, next) => {
 
     const conversations = await getUserConversations(userId, { type, status });
 
+    // Exposer unreadCount selon l'utilisateur (participant1 -> unreadCount1, participant2 -> unreadCount2)
+    const data = conversations.map((c) => ({
+      ...c,
+      unreadCount: c.participant1Id === userId ? (c.unreadCount1 ?? 0) : (c.unreadCount2 ?? 0),
+    }));
+
     res.json({
       success: true,
-      data: conversations,
+      data,
     });
   } catch (error) {
     next(error);
@@ -241,8 +247,8 @@ export const sendMessageController = async (req, res, next) => {
       replyToId,
     });
 
-    // Émettre via WebSocket
-    emitToConversation(conversationId, 'message:new', { message });
+    // Émettre via WebSocket (même format que websocket.service)
+    emitToConversation(conversationId, 'message:new', message);
 
     res.status(201).json({
       success: true,

@@ -20,6 +20,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { MessageBubble } from './MessageBubble';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChatUnread } from '@/contexts/ChatUnreadContext';
 import { IconSymbol } from '../ui/IconSymbol';
 import * as ImagePicker from 'expo-image-picker';
 import { chatService } from '@/services/chat.service';
@@ -31,6 +32,7 @@ interface ChatRoomProps {
 
 export function ChatRoom({ conversationId, onBack }: ChatRoomProps) {
   const { user } = useAuth();
+  const { refreshUnread } = useChatUnread();
   const {
     currentConversation,
     messages,
@@ -74,9 +76,11 @@ export function ChatRoom({ conversationId, onBack }: ChatRoomProps) {
       );
       if (unreadMessages.length > 0) {
         markAsRead(unreadMessages.map((msg) => msg.id));
+        // Mettre à jour le badge des non-lus (sidebar / tab)
+        setTimeout(() => refreshUnread(), 500);
       }
     }
-  }, [messages, currentConversation, user, markAsRead]);
+  }, [messages, currentConversation, user, markAsRead, refreshUnread]);
 
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
@@ -290,7 +294,7 @@ export function ChatRoom({ conversationId, onBack }: ChatRoomProps) {
       />
 
       {/* Input */}
-      <View style={[styles.inputContainer, { borderTopColor: borderColor }]}>
+      <View style={[styles.inputContainer, { borderTopColor: borderColor, backgroundColor }]}>
         <TouchableOpacity onPress={handlePickImage} style={styles.attachButton}>
           <IconSymbol name="paperclip" size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -302,16 +306,32 @@ export function ChatRoom({ conversationId, onBack }: ChatRoomProps) {
           placeholderTextColor="#999"
           multiline
           maxLength={1000}
+          returnKeyType="send"
+          onSubmitEditing={inputText.trim() ? handleSend : undefined}
         />
         <TouchableOpacity
           onPress={handleSend}
           disabled={!inputText.trim() || sending}
-          style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton,
+            inputText.trim() && !sending && styles.sendButtonActive,
+            (!inputText.trim() || sending) && styles.sendButtonDisabled
+          ]}
+          activeOpacity={0.7}
         >
           {sending ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <IconSymbol name="arrow.up.circle.fill" size={32} color={inputText.trim() ? '#007AFF' : '#999'} />
+            <View style={[
+              styles.sendButtonContent,
+              inputText.trim() && styles.sendButtonContentActive
+            ]}>
+              <IconSymbol 
+                name="arrow.up.circle.fill" 
+                size={32} 
+                color={inputText.trim() ? '#FFFFFF' : '#999'} 
+              />
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -404,8 +424,24 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 40,
+    minHeight: 40,
+  },
+  sendButtonContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonContentActive: {
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    padding: 2,
+  },
+  sendButtonActive: {
+    // Style pour le bouton actif
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
 });

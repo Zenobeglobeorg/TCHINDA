@@ -299,19 +299,31 @@ export const markMessagesAsRead = async (conversationId, userId) => {
     throw new Error('Vous n\'êtes pas autorisé à accéder à cette conversation');
   }
 
-  // Marquer tous les messages non lus comme lus
-  const result = await prisma.message.updateMany({
+  // Récupérer les messages reçus (pas envoyés par moi) pour cette conversation
+  const messagesToMark = await prisma.message.findMany({
     where: {
       conversationId,
       senderId: { not: userId },
-      readBy: { not: { has: userId } },
     },
-    data: {
-      status: 'READ',
-      readAt: new Date(),
-      readBy: { push: userId },
-    },
+    select: { id: true, readBy: true },
   });
+
+  // Filtrer ceux pas encore lus par userId (évite les filtres Prisma array has/not)
+  const unreadIds = messagesToMark
+    .filter((m) => !Array.isArray(m.readBy) || !m.readBy.includes(userId))
+    .map((m) => m.id);
+
+  // Marquer chaque message comme lu (update permet push sur readBy)
+  for (const id of unreadIds) {
+    await prisma.message.update({
+      where: { id },
+      data: {
+        status: 'READ',
+        readAt: new Date(),
+        readBy: { push: userId },
+      },
+    });
+  }
 
   // Réinitialiser le compteur de messages non lus
   const isParticipant1 = conversation.participant1Id === userId;
@@ -322,7 +334,7 @@ export const markMessagesAsRead = async (conversationId, userId) => {
     },
   });
 
-  return result;
+  return { count: unreadIds.length };
 };
 
 /**

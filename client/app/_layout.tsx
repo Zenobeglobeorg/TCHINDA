@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ChatUnreadProvider } from '@/contexts/ChatUnreadContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { WebThemeProvider } from '@/components/WebThemeProvider';
 
@@ -122,7 +123,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <ChatUnreadProvider>
+          <AppContent />
+        </ChatUnreadProvider>
       </AuthProvider>
     </ThemeProvider>
   );

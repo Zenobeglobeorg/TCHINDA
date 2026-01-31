@@ -16,37 +16,9 @@ export default function SplashScreen() {
   const hasNavigated = useRef(false);
   const navigationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Vérifier la connexion internet
+  // État de connexion (éviter fetch externe pour ne pas déclencher CORS)
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        // Vérifier la connexion en essayant de faire une requête simple
-        // On utilise un timeout pour ne pas bloquer trop longtemps
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        try {
-          await fetch('https://www.google.com', {
-            method: 'HEAD',
-            signal: controller.signal,
-            cache: 'no-cache',
-          });
-          setIsConnected(true);
-        } catch (fetchError) {
-          // Si la requête échoue, on considère quand même qu'il y a une connexion
-          // car l'utilisateur pourrait être sur un réseau local
-          setIsConnected(true);
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      } catch (error) {
-        // En cas d'erreur, on considère qu'il y a une connexion
-        // pour ne pas bloquer l'utilisateur
-        setIsConnected(true);
-      }
-    };
-
-    checkConnection();
+    setIsConnected(true);
   }, []);
 
   useEffect(() => {

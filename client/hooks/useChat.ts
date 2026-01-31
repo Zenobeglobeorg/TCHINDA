@@ -89,44 +89,68 @@ export function useChat(options: UseChatOptions = {}) {
     attachmentUrls: string[] = [],
     replyToId?: string
   ) => {
-    if (!currentConversation) {
+    if (!currentConversation || !user) {
       setError('Aucune conversation sélectionnée');
       return false;
     }
 
+    const text = (content || '').trim();
+    if (!text && (!attachmentUrls || attachmentUrls.length === 0)) {
+      return false;
+    }
+
     try {
-      // Essayer d'envoyer via WebSocket d'abord
       if (socketService.connected) {
+        // Mise à jour optimiste : afficher le message tout de suite
+        const optimisticMessage: Message = {
+          id: `temp-${Date.now()}`,
+          conversationId: currentConversation.id,
+          senderId: user.id,
+          content: text,
+          language: language || 'fr',
+          status: 'SENT',
+          readBy: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          sender: {
+            id: user.id,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            accountType: user.accountType || 'BUYER',
+          },
+          replyToId,
+        };
+        setMessages((prev) => [...prev, optimisticMessage]);
+
         socketService.sendMessage({
           conversationId: currentConversation.id,
-          content,
+          content: text,
           language,
           attachmentUrls,
           replyToId,
         });
         return true;
-      } else {
-        // Fallback sur REST
-        const response = await chatService.sendMessage({
-          conversationId: currentConversation.id,
-          content,
-          language,
-          attachmentUrls,
-          replyToId,
-        });
-        if (response.success && response.data) {
-          setMessages((prev) => [...prev, response.data!]);
-          return true;
-        } else {
-          setError(response.error?.message || 'Erreur lors de l\'envoi du message');
-          return false;
-        }
       }
+
+      // Fallback REST
+      const response = await chatService.sendMessage({
+        conversationId: currentConversation.id,
+        content: text,
+        language,
+        attachmentUrls,
+        replyToId,
+      });
+      if (response.success && response.data) {
+        setMessages((prev) => [...prev, response.data!]);
+        return true;
+      }
+      setError(response.error?.message || 'Erreur lors de l\'envoi du message');
+      return false;
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'envoi du message');
       return false;
     }
-  }, [currentConversation]);
+  }, [currentConversation, user]);
 
   // Marquer les messages comme lus
   const markAsRead = useCallback(async (messageIds: string[]) => {
@@ -223,28 +247,41 @@ export function useChat(options: UseChatOptions = {}) {
     if (!socketService.connected) return;
 
     const unsubscribeNewMessage = socketService.on('message:new', (message: Message) => {
+      if (!message?.id) return;
       if (message.conversationId === currentConversation?.id) {
-        setMessages((prev) => [...prev, message]);
-        // Marquer automatiquement comme lu si c'est la conversation active
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev;
+          // Remplacer le message optimiste (temp-) par le vrai message du serveur
+          const isFromMe = message.senderId === user?.id;
+          const withoutOptimistic = isFromMe
+            ? prev.filter((m) => !(m.id.startsWith('temp-') && m.senderId === user?.id && m.content === message.content))
+            : prev;
+          if (withoutOptimistic.some((m) => m.id === message.id)) return withoutOptimistic;
+          return [...withoutOptimistic, message];
+        });
         if (user && message.senderId !== user.id) {
           markAsRead([message.id]);
         }
       }
-      // Mettre à jour la liste des conversations
       loadConversations();
     });
 
-    const unsubscribeMessagesRead = socketService.on('messages:read', (data: { messageIds: string[]; readerId: string }) => {
+    const unsubscribeMessagesRead = socketService.on('messages:read', (data: { conversationId?: string; readBy?: string; messageIds?: string[]; readerId?: string }) => {
+      const readerId = data.readBy ?? data.readerId;
+      if (!readerId) return;
       setMessages((prev) =>
-        prev.map((msg) =>
-          data.messageIds.includes(msg.id) && !msg.readBy.includes(data.readerId)
-            ? {
-                ...msg,
-                readBy: [...msg.readBy, data.readerId],
-                status: 'READ' as const,
-              }
-            : msg
-        )
+        prev.map((msg) => {
+          if (data.messageIds?.length) {
+            if (!data.messageIds.includes(msg.id) || msg.readBy.includes(readerId)) return msg;
+          } else if (data.conversationId === currentConversation?.id) {
+            if (msg.senderId === user?.id || msg.readBy.includes(readerId)) return msg;
+          } else return msg;
+          return {
+            ...msg,
+            readBy: [...msg.readBy, readerId],
+            status: 'READ' as const,
+          };
+        })
       );
     });
 

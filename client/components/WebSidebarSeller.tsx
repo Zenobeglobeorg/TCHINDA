@@ -22,6 +22,8 @@ const navItems: NavItem[] = [
   { name: 'chat', title: 'Chat', icon: 'message.fill', route: '/seller/chat' },
   { name: 'wallet', title: 'Portefeuille', icon: 'creditcard.fill', route: '/seller/wallet' },
   { name: 'sponsorship', title: 'Sponsorisation', icon: 'star.fill', route: '/seller/sponsorship' },
+  { name: 'profile', title: 'Profil', icon: 'person.fill', route: '/seller/profile' },
+  { name: 'settings', title: 'Paramètres', icon: 'gearshape.fill', route: '/seller/settings' },
 ];
 
 // Breakpoint pour déterminer mobile/desktop

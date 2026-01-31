@@ -167,10 +167,8 @@ export const initializeWebSocket = (httpServer) => {
           replyToId,
         });
 
-        // Émettre le message à tous les participants de la conversation
-        io.to(`conversation:${conversationId}`).emit('message:new', {
-          message,
-        });
+        // Émettre le message à tous les participants de la conversation (y compris l'expéditeur)
+        io.to(`conversation:${conversationId}`).emit('message:new', message);
 
         // Notifier les participants (pour les notifications push)
         const conversation = await prisma.conversation.findUnique({

@@ -135,7 +135,8 @@ class ChatService {
    * Envoyer un message (via REST, pour fallback si WebSocket échoue)
    */
   async sendMessage(params: SendMessageParams) {
-    return apiService.post<Message>('/api/chat/message', params);
+    const { conversationId, ...body } = params;
+    return apiService.post<Message>(`/api/chat/conversation/${conversationId}/message`, body);
   }
 
   /**

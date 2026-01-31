@@ -28,10 +28,10 @@ import {
 
 const router = express.Router();
 
-// Rate limiting pour le chat (plus permissif que l'auth)
+// Rate limiting pour le chat (permissif pour éviter 429 en usage normal)
 const chatLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 30, // 30 requêtes par minute
+  max: 120, // 120 requêtes par minute (conversations + messages + read)
   message: 'Trop de requêtes. Veuillez réessayer plus tard.',
   standardHeaders: true,
   legacyHeaders: false,

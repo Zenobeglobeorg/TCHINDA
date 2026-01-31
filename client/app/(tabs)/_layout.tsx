@@ -8,6 +8,7 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useChatUnread } from '@/contexts/ChatUnreadContext';
 import { WebSidebar } from '@/components/WebSidebar';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
@@ -16,6 +17,7 @@ import { HamburgerMenu } from '@/components/HamburgerMenu';
 function TabLayoutContent() {
   const colorScheme = useColorScheme();
   const { user, isLoading } = useAuth();
+  const { totalUnread } = useChatUnread();
   const router = useRouter();
   const segments = useSegments();
   const [windowWidth, setWindowWidth] = useState(
@@ -141,6 +143,7 @@ function TabLayoutContent() {
               options={{
                 title: 'Chat',
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+                tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
               }}
             />
             </Tabs>
@@ -207,6 +210,7 @@ function TabLayoutContent() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+          tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
         }}
       />
     </Tabs>
