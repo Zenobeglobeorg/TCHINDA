@@ -328,16 +328,17 @@ export default function CartScreen() {
               </View>
               <View style={styles.summaryRow}>
                 <ThemedText style={styles.summaryLabel}>Livraison</ThemedText>
-                <ThemedText style={styles.summaryValue}>
-                  {calculateShipping() === 0 ? (
-                    <ThemedText style={styles.freeShipping}>Gratuite</ThemedText>
-                  ) : (
-                    `${calculateShipping().toLocaleString('fr-FR', {
+                {calculateShipping() === 0 ? (
+                  <ThemedText style={[styles.summaryValue, styles.freeShipping]}>Gratuite</ThemedText>
+                ) : (
+                  <ThemedText style={styles.summaryValue}>
+                    {calculateShipping().toLocaleString('fr-FR', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
-                    })} ${cart?.currency || 'XOF'}`
-                  )}
-                </ThemedText>
+                    })}{' '}
+                    {cart?.currency || 'XOF'}
+                  </ThemedText>
+                )}
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <ThemedText style={styles.totalLabel}>Total</ThemedText>

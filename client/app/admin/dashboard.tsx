@@ -78,6 +78,7 @@ export default function AdminDashboardScreen() {
     { id: 8, title: 'Multi-pays', icon: 'globe' as const, route: '/admin/countries' as const },
     { id: 9, title: 'Rapports', icon: 'chart.bar.fill' as const, route: '/admin/reports' as const },
     { id: 10, title: 'Alertes', icon: 'bell.badge.fill' as const, route: '/admin/alerts' as const },
+    { id: 11, title: 'Chat', icon: 'message.fill' as const, route: '/chat' as const },
   ];
 
   return (

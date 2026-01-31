@@ -95,6 +95,12 @@ router.get('/subscription', buyerController.getSubscription);
 router.post('/subscription', buyerController.subscribe);
 router.put('/subscription/cancel', buyerController.cancelSubscription);
 
+// Mobile Money payment routes
+router.post('/payments/mobile-money/initiate', buyerController.initiateMobileMoneyPayment);
+router.get('/payments/mobile-money/:paymentId/status', buyerController.checkMobileMoneyPaymentStatus);
+router.post('/payments/mobile-money/:paymentId/confirm', buyerController.confirmMobileMoneyPayment);
+router.post('/payments/mobile-money/:paymentId/cancel', buyerController.cancelMobileMoneyPayment);
+
 export default router;
 
 

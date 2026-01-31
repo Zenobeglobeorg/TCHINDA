@@ -4,11 +4,13 @@ import { prisma } from '../utils/prisma.js';
  * Jobs de nettoyage automatique des tokens et codes expirés
  * À appeler périodiquement (via node-cron ou un scheduler externe)
  */
-export const startCleanupJobs = () => {
+export const startCleanupJobs = async () => {
   // Vérifier si node-cron est disponible
   let cron;
   try {
-    cron = require('node-cron');
+    // Utiliser import dynamique pour ES modules
+    const cronModule = await import('node-cron');
+    cron = cronModule.default || cronModule;
   } catch (error) {
     console.warn('⚠️  node-cron non installé. Les jobs de nettoyage automatique ne seront pas démarrés.');
     console.warn('   Pour activer les jobs de nettoyage, installez node-cron: npm install node-cron');

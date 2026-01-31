@@ -12,29 +12,29 @@ datasource db {
 
 // Enum pour les types de comptes
 enum AccountType {
-  BUYER           // Acheteur
-  SELLER          // Vendeur
-  ADMIN           // Administrateur Fondateur
-  MODERATOR       // Modérateur
-  ACCOUNTANT      // Factureur
-  DELIVERY        // Livreur
-  COMMERCIAL      // Commercial/Agent
+  BUYER // Acheteur
+  SELLER // Vendeur
+  ADMIN // Administrateur Fondateur
+  MODERATOR // Modérateur
+  ACCOUNTANT // Factureur
+  DELIVERY // Livreur
+  COMMERCIAL // Commercial/Agent
 }
 
 // Enum pour le statut de vérification
 enum VerificationStatus {
-  PENDING         // En attente
-  VERIFIED        // Vérifié
-  REJECTED        // Rejeté
-  EXPIRED         // Expiré
+  PENDING // En attente
+  VERIFIED // Vérifié
+  REJECTED // Rejeté
+  EXPIRED // Expiré
 }
 
 // Enum pour le statut du compte
 enum AccountStatus {
-  ACTIVE          // Actif
-  INACTIVE        // Inactif
-  SUSPENDED       // Suspendu
-  BANNED          // Banni
+  ACTIVE // Actif
+  INACTIVE // Inactif
+  SUSPENDED // Suspendu
+  BANNED // Banni
   PENDING_VERIFICATION // En attente de vérification
 }
 
@@ -42,81 +42,89 @@ enum AccountStatus {
 enum VerificationMethod {
   EMAIL
   PHONE
-  KYC_IDENTITY    // CNI, Passeport, Permis
-  KYC_ADDRESS     // Justificatif de domicile
-  KYC_BUSINESS    // Justificatif d'activité (pour vendeurs)
+  KYC_IDENTITY // CNI, Passeport, Permis
+  KYC_ADDRESS // Justificatif de domicile
+  KYC_BUSINESS // Justificatif d'activité (pour vendeurs)
 }
 
 // Enum pour les types d'abonnement
 enum SubscriptionType {
-  FREE            // Gratuit
-  GOLD            // OR (9.99€/mois)
-  DIAMOND         // DIAMANT (19.99€/mois)
+  FREE // Gratuit
+  GOLD // OR (9.99€/mois)
+  DIAMOND // DIAMANT (19.99€/mois)
 }
 
 // Table principale des utilisateurs
 model User {
-  id                String            @id @default(uuid())
-  email             String            @unique
-  phone             String?           @unique
-  password          String
-  accountType       AccountType
-  accountStatus     AccountStatus     @default(PENDING_VERIFICATION)
-  
+  id            String        @id @default(uuid())
+  email         String        @unique
+  phone         String?       @unique
+  password      String
+  accountType   AccountType
+  accountStatus AccountStatus @default(PENDING_VERIFICATION)
+
   // Informations personnelles
-  firstName         String?
-  lastName          String?
-  fullName          String?
-  photo             String?
-  dateOfBirth       DateTime?
-  country           String?           // Pays de résidence
-  city              String?
-  address           String?
-  postalCode        String?
-  
+  firstName   String?
+  lastName    String?
+  fullName    String?
+  photo       String?
+  dateOfBirth DateTime?
+  country     String? // Pays de résidence
+  city        String?
+  address     String?
+  postalCode  String?
+
   // Vérification
-  emailVerified     Boolean           @default(false)
-  phoneVerified     Boolean           @default(false)
-  kycVerified       Boolean           @default(false)
+  emailVerified      Boolean            @default(false)
+  phoneVerified      Boolean            @default(false)
+  kycVerified        Boolean            @default(false)
   verificationStatus VerificationStatus @default(PENDING)
-  
+
   // Sécurité
-  twoFactorEnabled  Boolean           @default(false)
+  twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
-  loginAttempts    Int                @default(0)
+  loginAttempts    Int       @default(0)
   lockedUntil      DateTime?
-  lastLogin         DateTime?
-  
+  lastLogin        DateTime?
+
   // Abonnement (pour acheteurs)
-  subscriptionType  SubscriptionType  @default(FREE)
+  subscriptionType  SubscriptionType @default(FREE)
   subscriptionStart DateTime?
   subscriptionEnd   DateTime?
-  
+
   // Relations
-  verifications     Verification[]
-  addresses         Address[]
-  wallet            Wallet?
-  buyerProfile      BuyerProfile?
-  sellerProfile     SellerProfile?
-  adminProfile      AdminProfile?
-  moderatorProfile  ModeratorProfile?
-  accountantProfile AccountantProfile?
-  deliveryProfile   DeliveryProfile?
-  commercialProfile CommercialProfile?
-  sessions          Session[]
-  refreshTokens     RefreshToken[]
-  verificationCodes VerificationCode[]
+  verifications       Verification[]
+  addresses           Address[]
+  wallet              Wallet?
+  buyerProfile        BuyerProfile?
+  sellerProfile       SellerProfile?
+  adminProfile        AdminProfile?
+  moderatorProfile    ModeratorProfile?
+  accountantProfile   AccountantProfile?
+  deliveryProfile     DeliveryProfile?
+  commercialProfile   CommercialProfile?
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
+  verificationCodes   VerificationCode[]
   passwordResetTokens PasswordResetToken[]
-  cart              Cart?
-  wishlist          WishlistItem[]
-  orders            Order[]
-  reviews           Review[]
-  products          Product[]         // Produits vendus (si vendeur)
-  
+  cart                Cart?
+  wishlist            WishlistItem[]
+  orders              Order[]
+  reviews             Review[]
+  products            Product[] // Produits vendus (si vendeur)
+
+  // Relations Chat
+  conversationsAsParticipant1 Conversation[]  @relation("ConversationParticipant1")
+  conversationsAsParticipant2 Conversation[]  @relation("ConversationParticipant2")
+  messages                    Message[]
+  messageReports              MessageReport[]
+  chatAuditLogsPerformedBy    ChatAuditLog[]  @relation("ChatAuditLogsPerformedBy")
+  chatAuditLogsTargetUser     ChatAuditLog[]  @relation("ChatAuditLogsTargetUser")
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([email])
   @@index([phone])
   @@index([accountType])
@@ -125,121 +133,121 @@ model User {
 
 // Table des vérifications (KYC)
 model Verification {
-  id                String            @id @default(uuid())
-  userId            String
-  method            VerificationMethod
-  status            VerificationStatus @default(PENDING)
-  
+  id     String             @id @default(uuid())
+  userId String
+  method VerificationMethod
+  status VerificationStatus @default(PENDING)
+
   // Documents
-  documentType      String?           // CNI, Passeport, Permis, etc.
-  documentNumber    String?
-  documentFront     String?           // URL du document recto
-  documentBack      String?           // URL du document verso
-  selfie            String?           // Photo selfie avec document
-  
+  documentType   String? // CNI, Passeport, Permis, etc.
+  documentNumber String?
+  documentFront  String? // URL du document recto
+  documentBack   String? // URL du document verso
+  selfie         String? // Photo selfie avec document
+
   // Informations additionnelles
-  verifiedBy        String?           // ID de l'admin/modérateur qui a vérifié
-  verifiedAt        DateTime?
-  rejectionReason   String?
-  notes             String?
-  
+  verifiedBy      String? // ID de l'admin/modérateur qui a vérifié
+  verifiedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([status])
 }
 
 // Table des adresses
 model Address {
-  id                String            @id @default(uuid())
-  userId            String
-  label             String            // Maison, Bureau, etc.
-  firstName         String
-  lastName          String
-  phone             String
-  addressLine1      String
-  addressLine2      String?
-  city              String
-  state             String?
-  postalCode        String
-  country           String
-  isDefault         Boolean           @default(false)
-  
+  id           String  @id @default(uuid())
+  userId       String
+  label        String // Maison, Bureau, etc.
+  firstName    String
+  lastName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String?
+  postalCode   String
+  country      String
+  isDefault    Boolean @default(false)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
 // Table des portefeuilles
 model Wallet {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  balance           Decimal           @default(0) @db.Decimal(15, 2)
-  currency          String            @default("XOF") // Devise principale
-  limit             Decimal?          @db.Decimal(15, 2) // Limite selon niveau
-  
+  id       String   @id @default(uuid())
+  userId   String   @unique
+  balance  Decimal  @default(0) @db.Decimal(15, 2)
+  currency String   @default("XOF") // Devise principale
+  limit    Decimal? @db.Decimal(15, 2) // Limite selon niveau
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions      Transaction[]
-  walletCurrencies  WalletCurrency[]
-  
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  walletCurrencies WalletCurrency[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
 // Table pour les devises multiples dans le portefeuille
 model WalletCurrency {
-  id                String            @id @default(uuid())
-  walletId          String
-  currency          String            // XOF, XAF, USD, EUR, etc.
-  balance           Decimal           @default(0) @db.Decimal(15, 2)
-  
+  id       String  @id @default(uuid())
+  walletId String
+  currency String // XOF, XAF, USD, EUR, etc.
+  balance  Decimal @default(0) @db.Decimal(15, 2)
+
   // Relations
-  wallet            Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([walletId, currency])
   @@index([walletId])
 }
 
 // Table des transactions
 model Transaction {
-  id                String            @id @default(uuid())
-  walletId          String
-  type              String            // DEPOSIT, WITHDRAWAL, PAYMENT, REFUND, COMMISSION
-  amount            Decimal           @db.Decimal(15, 2)
-  currency          String
-  status            String            // PENDING, COMPLETED, FAILED, CANCELLED
-  description       String?
-  reference         String?           @unique
-  
+  id          String  @id @default(uuid())
+  walletId    String
+  type        String // DEPOSIT, WITHDRAWAL, PAYMENT, REFUND, COMMISSION
+  amount      Decimal @db.Decimal(15, 2)
+  currency    String
+  status      String // PENDING, COMPLETED, FAILED, CANCELLED
+  description String?
+  reference   String? @unique
+
   // Métadonnées
-  paymentMethod     String?           // Orange Money, PayPal, etc.
-  metadata          Json?             // Données additionnelles
-  
+  paymentMethod String? // Orange Money, PayPal, etc.
+  metadata      Json? // Données additionnelles
+
   // Relations
-  wallet            Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([walletId])
   @@index([status])
   @@index([type])
@@ -248,213 +256,213 @@ model Transaction {
 
 // Profil Acheteur
 model BuyerProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Préférences
-  preferredLanguage String?           @default("fr")
-  preferredCurrency String?           @default("XOF")
-  notificationPreferences Json?      // Préférences de notification
-  
+  preferredLanguage       String? @default("fr")
+  preferredCurrency       String? @default("XOF")
+  notificationPreferences Json? // Préférences de notification
+
   // Statistiques
-  totalOrders       Int               @default(0)
-  totalSpent        Decimal           @default(0) @db.Decimal(15, 2)
-  
+  totalOrders Int     @default(0)
+  totalSpent  Decimal @default(0) @db.Decimal(15, 2)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Vendeur
 model SellerProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Informations boutique
-  shopName          String?
-  shopDescription   String?
-  shopLogo          String?
-  shopBanner        String?
-  shopAddress       String?
-  shopPhone         String?
-  shopEmail         String?
-  shopCountry       String?           // Pays de la boutique
-  businessRegistration String?        // Numéro d'enregistrement
-  
+  shopName             String?
+  shopDescription      String?
+  shopLogo             String?
+  shopBanner           String?
+  shopAddress          String?
+  shopPhone            String?
+  shopEmail            String?
+  shopCountry          String? // Pays de la boutique
+  businessRegistration String? // Numéro d'enregistrement
+
   // Configuration
-  defaultCurrency   String            @default("XOF")
-  commissionRate    Decimal?         @db.Decimal(5, 2) // Taux de commission
-  
+  defaultCurrency String   @default("XOF")
+  commissionRate  Decimal? @db.Decimal(5, 2) // Taux de commission
+
   // Statut
-  isVerified        Boolean           @default(false)
-  isActive          Boolean           @default(true)
-  
+  isVerified Boolean @default(false)
+  isActive   Boolean @default(true)
+
   // Statistiques
-  totalProducts     Int               @default(0)
-  totalSales        Int               @default(0)
-  totalRevenue      Decimal           @default(0) @db.Decimal(15, 2)
-  rating            Decimal?         @db.Decimal(3, 2) // Note moyenne
-  
+  totalProducts Int      @default(0)
+  totalSales    Int      @default(0)
+  totalRevenue  Decimal  @default(0) @db.Decimal(15, 2)
+  rating        Decimal? @db.Decimal(3, 2) // Note moyenne
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shopHours         ShopHours?
-  sponsorships      Sponsorship[]
-  sellerStats       SellerStats[]
-  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopHours    ShopHours?
+  sponsorships Sponsorship[]
+  sellerStats  SellerStats[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Horaires de la boutique
 model ShopHours {
-  id                String            @id @default(uuid())
-  sellerProfileId   String            @unique
-  monday            Json?             // {open: "09:00", close: "18:00", isOpen: true}
-  tuesday           Json?
-  wednesday         Json?
-  thursday          Json?
-  friday            Json?
-  saturday          Json?
-  sunday            Json?
-  timezone          String            @default("Africa/Dakar")
-  
+  id              String @id @default(uuid())
+  sellerProfileId String @unique
+  monday          Json? // {open: "09:00", close: "18:00", isOpen: true}
+  tuesday         Json?
+  wednesday       Json?
+  thursday        Json?
+  friday          Json?
+  saturday        Json?
+  sunday          Json?
+  timezone        String @default("Africa/Dakar")
+
   // Relations
-  sellerProfile     SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-  
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Administrateur Fondateur
 model AdminProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  level             Int               @default(1) // Niveau d'administration
-  permissions       Json?             // Permissions granulaires
-  
+  id          String @id @default(uuid())
+  userId      String @unique
+  level       Int    @default(1) // Niveau d'administration
+  permissions Json? // Permissions granulaires
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Modérateur
 model ModeratorProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  assignedCategories Json?            // Catégories assignées
-  permissions       Json?             // Permissions de modération
-  
+  id                 String @id @default(uuid())
+  userId             String @unique
+  assignedCategories Json? // Catégories assignées
+  permissions        Json? // Permissions de modération
+
   // Statistiques
-  itemsModerated    Int               @default(0)
-  itemsApproved     Int               @default(0)
-  itemsRejected     Int               @default(0)
-  
+  itemsModerated Int @default(0)
+  itemsApproved  Int @default(0)
+  itemsRejected  Int @default(0)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Factureur
 model AccountantProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  department        String?
-  permissions       Json?             // Permissions comptables
-  
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  department  String?
+  permissions Json? // Permissions comptables
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Livreur
 model DeliveryProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Informations professionnelles
-  vehicleType       String?           // Moto, Voiture, etc.
-  vehiclePlate      String?
-  licenseNumber     String?
-  licenseExpiry     DateTime?
-  
+  vehicleType   String? // Moto, Voiture, etc.
+  vehiclePlate  String?
+  licenseNumber String?
+  licenseExpiry DateTime?
+
   // Statut
-  isAvailable       Boolean           @default(true)
-  isVerified        Boolean           @default(false)
-  currentLocation   Json?             // Géolocalisation
-  
+  isAvailable     Boolean @default(true)
+  isVerified      Boolean @default(false)
+  currentLocation Json? // Géolocalisation
+
   // Statistiques
-  totalDeliveries   Int               @default(0)
-  completedDeliveries Int            @default(0)
-  rating            Decimal?         @db.Decimal(3, 2)
-  
+  totalDeliveries     Int      @default(0)
+  completedDeliveries Int      @default(0)
+  rating              Decimal? @db.Decimal(3, 2)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Profil Commercial/Agent
 model CommercialProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Informations professionnelles
-  agentCode         String?           @unique // Code unique de l'agent
-  region            String?           // Zone géographique d'opération
-  commissionRate    Decimal?         @db.Decimal(5, 2)
-  
+  agentCode      String?  @unique // Code unique de l'agent
+  region         String? // Zone géographique d'opération
+  commissionRate Decimal? @db.Decimal(5, 2)
+
   // Statut
-  isActive          Boolean           @default(true)
-  isVerified        Boolean           @default(false)
-  
+  isActive   Boolean @default(true)
+  isVerified Boolean @default(false)
+
   // Statistiques
-  totalTransactions Int               @default(0)
-  totalDeposits     Decimal           @default(0) @db.Decimal(15, 2)
-  totalWithdrawals  Decimal           @default(0) @db.Decimal(15, 2)
-  totalCommission   Decimal           @default(0) @db.Decimal(15, 2)
-  
+  totalTransactions Int     @default(0)
+  totalDeposits     Decimal @default(0) @db.Decimal(15, 2)
+  totalWithdrawals  Decimal @default(0) @db.Decimal(15, 2)
+  totalCommission   Decimal @default(0) @db.Decimal(15, 2)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([agentCode])
 }
 
 // Table des sessions (pour gestion des tokens)
 model Session {
-  id                String            @id @default(uuid())
-  userId            String
-  token             String            @unique
-  deviceInfo        Json?
-  ipAddress         String?
-  userAgent         String?
-  expiresAt         DateTime
-  
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  deviceInfo Json?
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
@@ -462,18 +470,18 @@ model Session {
 
 // Table des refresh tokens
 model RefreshToken {
-  id                String            @id @default(uuid())
-  userId            String
-  token             String            @unique
-  expiresAt         DateTime
-  isRevoked         Boolean           @default(false)
-  
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
@@ -481,21 +489,21 @@ model RefreshToken {
 
 // Table des codes de vérification
 model VerificationCode {
-  id                String            @id @default(uuid())
-  userId            String?
-  email             String?
-  phone             String?
-  code              String
-  type              String            // EMAIL, PHONE, PASSWORD_RESET
-  used              Boolean           @default(false)
-  expiresAt         DateTime
-  
+  id        String   @id @default(uuid())
+  userId    String?
+  email     String?
+  phone     String?
+  code      String
+  type      String // EMAIL, PHONE, PASSWORD_RESET
+  used      Boolean  @default(false)
+  expiresAt DateTime
+
   // Relations
-  user              User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([email, type])
   @@index([phone, type])
   @@index([userId])
@@ -504,18 +512,18 @@ model VerificationCode {
 
 // Table des tokens de réinitialisation de mot de passe
 model PasswordResetToken {
-  id                String            @id @default(uuid())
-  userId            String
-  token             String            @unique
-  expiresAt         DateTime
-  used              Boolean           @default(false)
-  
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
@@ -523,96 +531,96 @@ model PasswordResetToken {
 
 // Enum pour le statut des produits
 enum ProductStatus {
-  DRAFT            // Brouillon
-  PENDING          // En attente de validation
-  ACTIVE           // Actif
-  INACTIVE         // Inactif
-  OUT_OF_STOCK     // Rupture de stock
-  DISCONTINUED     // Discontinué
+  DRAFT // Brouillon
+  PENDING // En attente de validation
+  ACTIVE // Actif
+  INACTIVE // Inactif
+  OUT_OF_STOCK // Rupture de stock
+  DISCONTINUED // Discontinué
 }
 
 // Enum pour le statut des commandes
 enum OrderStatus {
-  PENDING          // En attente
-  CONFIRMED        // Confirmée
-  PROCESSING       // En traitement
-  SHIPPED          // Expédiée
-  DELIVERED        // Livrée
-  CANCELLED        // Annulée
-  REFUNDED         // Remboursée
+  PENDING // En attente
+  CONFIRMED // Confirmée
+  PROCESSING // En traitement
+  SHIPPED // Expédiée
+  DELIVERED // Livrée
+  CANCELLED // Annulée
+  REFUNDED // Remboursée
 }
 
 // Table des catégories
 model Category {
-  id                String            @id @default(uuid())
-  name              String
-  slug              String            @unique
-  description       String?
-  image             String?
-  parentId          String?
-  isActive          Boolean           @default(true)
-  
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String?
+  image       String?
+  parentId    String?
+  isActive    Boolean @default(true)
+
   // Relations
-  parent            Category?         @relation("CategoryTree", fields: [parentId], references: [id])
-  children          Category[]        @relation("CategoryTree")
-  products          Product[]
-  
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([slug])
   @@index([parentId])
 }
 
 // Table des produits
 model Product {
-  id                String            @id @default(uuid())
-  sellerId          String
-  categoryId        String?
-  name              String
-  slug              String            @unique
-  description       String?
-  shortDescription  String?
-  price             Decimal           @db.Decimal(15, 2)
-  compareAtPrice    Decimal?          @db.Decimal(15, 2) // Prix de comparaison (ancien prix)
-  currency          String            @default("XOF")
-  sku               String?           @unique
-  barcode           String?
-  stock             Int               @default(0)
-  minStock          Int               @default(0)
-  weight            Decimal?          @db.Decimal(10, 2)
-  dimensions        Json?             // {length, width, height}
-  images            Json?             // Array d'URLs d'images
-  status            ProductStatus     @default(PENDING)
-  isActive          Boolean           @default(true)
-  isFeatured        Boolean           @default(false)
-  rating            Decimal?          @db.Decimal(3, 2) // Note moyenne
-  reviewCount       Int               @default(0)
-  viewCount         Int               @default(0)
-  soldCount         Int               @default(0)
-  hasVariants       Boolean           @default(false) // Si le produit a des variantes
-  
+  id               String        @id @default(uuid())
+  sellerId         String
+  categoryId       String?
+  name             String
+  slug             String        @unique
+  description      String?
+  shortDescription String?
+  price            Decimal       @db.Decimal(15, 2)
+  compareAtPrice   Decimal?      @db.Decimal(15, 2) // Prix de comparaison (ancien prix)
+  currency         String        @default("XOF")
+  sku              String?       @unique
+  barcode          String?
+  stock            Int           @default(0)
+  minStock         Int           @default(0)
+  weight           Decimal?      @db.Decimal(10, 2)
+  dimensions       Json? // {length, width, height}
+  images           Json? // Array d'URLs d'images
+  status           ProductStatus @default(PENDING)
+  isActive         Boolean       @default(true)
+  isFeatured       Boolean       @default(false)
+  rating           Decimal?      @db.Decimal(3, 2) // Note moyenne
+  reviewCount      Int           @default(0)
+  viewCount        Int           @default(0)
+  soldCount        Int           @default(0)
+  hasVariants      Boolean       @default(false) // Si le produit a des variantes
+
   // Métadonnées
-  tags              String[]          @default([])
-  attributes        Json?             // Attributs personnalisés (couleur, taille, etc.)
-  seoTitle           String?
-  seoDescription     String?
-  
+  tags           String[] @default([])
+  attributes     Json? // Attributs personnalisés (couleur, taille, etc.)
+  seoTitle       String?
+  seoDescription String?
+
   // Relations
-  seller            User              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category          Category?         @relation(fields: [categoryId], references: [id])
-  cartItems         CartItem[]
-  wishlistItems     WishlistItem[]
-  orderItems         OrderItem[]
-  reviews            Review[]
-  variants          ProductVariant[]
-  promotions        Promotion[]
-  
+  seller        User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category      Category?        @relation(fields: [categoryId], references: [id])
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  variants      ProductVariant[]
+  promotions    Promotion[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([sellerId])
   @@index([categoryId])
   @@index([slug])
@@ -623,29 +631,29 @@ model Product {
 
 // Variantes de produit (couleur, taille, etc.)
 model ProductVariant {
-  id                String            @id @default(uuid())
-  productId         String
-  name              String            // Ex: "Rouge - Taille L"
-  sku               String?           @unique
-  barcode           String?
-  price             Decimal           @db.Decimal(15, 2)
-  compareAtPrice    Decimal?          @db.Decimal(15, 2)
-  stock             Int               @default(0)
-  minStock          Int               @default(0)
-  weight            Decimal?          @db.Decimal(10, 2)
-  images            Json?             // Images spécifiques à cette variante
-  attributes        Json?             // {color: "Rouge", size: "L"}
-  isActive          Boolean           @default(true)
-  
+  id             String   @id @default(uuid())
+  productId      String
+  name           String // Ex: "Rouge - Taille L"
+  sku            String?  @unique
+  barcode        String?
+  price          Decimal  @db.Decimal(15, 2)
+  compareAtPrice Decimal? @db.Decimal(15, 2)
+  stock          Int      @default(0)
+  minStock       Int      @default(0)
+  weight         Decimal? @db.Decimal(10, 2)
+  images         Json? // Images spécifiques à cette variante
+  attributes     Json? // {color: "Rouge", size: "L"}
+  isActive       Boolean  @default(true)
+
   // Relations
-  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems         CartItem[]
-  orderItems         OrderItem[]
-  
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([productId])
   @@index([sku])
   @@index([isActive])
@@ -653,29 +661,29 @@ model ProductVariant {
 
 // Promotions
 model Promotion {
-  id                String            @id @default(uuid())
+  id                String   @id @default(uuid())
   productId         String?
-  sellerId          String?           // Promotion globale du vendeur si productId est null
+  sellerId          String? // Promotion globale du vendeur si productId est null
   name              String
   description       String?
-  discountType      String            // PERCENTAGE, FIXED_AMOUNT
-  discountValue     Decimal           @db.Decimal(10, 2)
-  minPurchaseAmount Decimal?          @db.Decimal(15, 2)
-  maxDiscountAmount Decimal?          @db.Decimal(15, 2)
+  discountType      String // PERCENTAGE, FIXED_AMOUNT
+  discountValue     Decimal  @db.Decimal(10, 2)
+  minPurchaseAmount Decimal? @db.Decimal(15, 2)
+  maxDiscountAmount Decimal? @db.Decimal(15, 2)
   startDate         DateTime
   endDate           DateTime
-  isActive          Boolean           @default(true)
-  usageLimit        Int?              // Nombre maximum d'utilisations
-  usageCount        Int               @default(0)
-  code              String?           @unique // Code promo si applicable
-  
+  isActive          Boolean  @default(true)
+  usageLimit        Int? // Nombre maximum d'utilisations
+  usageCount        Int      @default(0)
+  code              String?  @unique // Code promo si applicable
+
   // Relations
-  product           Product?          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([productId])
   @@index([sellerId])
   @@index([code])
@@ -685,27 +693,27 @@ model Promotion {
 
 // Système de sponsorisation
 model Sponsorship {
-  id                String            @id @default(uuid())
-  sellerProfileId   String
-  productId         String?
-  type              String            // PRODUCT, SHOP, CATEGORY
-  level             String            // BASIC, PREMIUM, VIP
-  startDate         DateTime
-  endDate           DateTime
-  cost              Decimal           @db.Decimal(15, 2)
-  currency          String            @default("XOF")
-  isActive          Boolean           @default(true)
-  impressions       Int               @default(0) // Nombre d'impressions
-  clicks            Int               @default(0) // Nombre de clics
-  conversions       Int               @default(0) // Nombre de conversions
-  
+  id              String   @id @default(uuid())
+  sellerProfileId String
+  productId       String?
+  type            String // PRODUCT, SHOP, CATEGORY
+  level           String // BASIC, PREMIUM, VIP
+  startDate       DateTime
+  endDate         DateTime
+  cost            Decimal  @db.Decimal(15, 2)
+  currency        String   @default("XOF")
+  isActive        Boolean  @default(true)
+  impressions     Int      @default(0) // Nombre d'impressions
+  clicks          Int      @default(0) // Nombre de clics
+  conversions     Int      @default(0) // Nombre de conversions
+
   // Relations
-  sellerProfile     SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-  
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([sellerProfileId])
   @@index([productId])
   @@index([isActive])
@@ -714,85 +722,85 @@ model Sponsorship {
 
 // Statistiques avancées du vendeur
 model SellerStats {
-  id                String            @id @default(uuid())
-  sellerProfileId   String
-  date              DateTime          @default(now())
-  period            String            // DAILY, WEEKLY, MONTHLY
-  
+  id              String   @id @default(uuid())
+  sellerProfileId String
+  date            DateTime @default(now())
+  period          String // DAILY, WEEKLY, MONTHLY
+
   // Ventes
-  totalSales        Int               @default(0)
-  totalRevenue      Decimal           @default(0) @db.Decimal(15, 2)
-  averageOrderValue Decimal?          @db.Decimal(15, 2)
-  
+  totalSales        Int      @default(0)
+  totalRevenue      Decimal  @default(0) @db.Decimal(15, 2)
+  averageOrderValue Decimal? @db.Decimal(15, 2)
+
   // Trafic
-  views             Int               @default(0)
-  uniqueVisitors    Int               @default(0)
-  pageViews         Int               @default(0)
-  bounceRate        Decimal?          @db.Decimal(5, 2)
-  
+  views          Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  pageViews      Int      @default(0)
+  bounceRate     Decimal? @db.Decimal(5, 2)
+
   // Produits
-  productsViewed    Int               @default(0)
-  productsSold      Int               @default(0)
-  conversionRate    Decimal?          @db.Decimal(5, 2)
-  
+  productsViewed Int      @default(0)
+  productsSold   Int      @default(0)
+  conversionRate Decimal? @db.Decimal(5, 2)
+
   // Marketing
-  adSpend           Decimal           @default(0) @db.Decimal(15, 2)
-  adImpressions     Int               @default(0)
-  adClicks          Int               @default(0)
-  adConversions     Int               @default(0)
-  roi               Decimal?          @db.Decimal(10, 2) // Return on Investment
-  
+  adSpend       Decimal  @default(0) @db.Decimal(15, 2)
+  adImpressions Int      @default(0)
+  adClicks      Int      @default(0)
+  adConversions Int      @default(0)
+  roi           Decimal? @db.Decimal(10, 2) // Return on Investment
+
   // Métadonnées
-  metadata          Json?
-  
+  metadata Json?
+
   // Relations
-  sellerProfile     SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-  
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sellerProfileId, date, period])
   @@index([sellerProfileId])
   @@index([date])
   @@index([period])
-  @@unique([sellerProfileId, date, period])
 }
 
 // Table des paniers
 model Cart {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items             CartItem[]
-  
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
 // Table des éléments du panier
 model CartItem {
-  id                String            @id @default(uuid())
-  cartId            String
-  productId         String
-  variantId         String?           // Variante sélectionnée
-  quantity          Int               @default(1)
-  price             Decimal           @db.Decimal(15, 2) // Prix au moment de l'ajout
-  currency          String            @default("XOF")
-  
+  id        String  @id @default(uuid())
+  cartId    String
+  productId String
+  variantId String? // Variante sélectionnée
+  quantity  Int     @default(1)
+  price     Decimal @db.Decimal(15, 2) // Prix au moment de l'ajout
+  currency  String  @default("XOF")
+
   // Relations
-  cart              Cart              @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant           ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([cartId, productId, variantId])
   @@index([cartId])
   @@index([productId])
@@ -801,17 +809,17 @@ model CartItem {
 
 // Table des listes de souhaits
 model WishlistItem {
-  id                String            @id @default(uuid())
-  userId            String
-  productId         String
-  
+  id        String @id @default(uuid())
+  userId    String
+  productId String
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@unique([userId, productId])
   @@index([userId])
   @@index([productId])
@@ -819,50 +827,50 @@ model WishlistItem {
 
 // Table des commandes
 model Order {
-  id                String            @id @default(uuid())
-  orderNumber       String            @unique
-  userId            String
-  sellerId          String?           // Vendeur (pour les commandes multi-vendeurs)
-  status            OrderStatus       @default(PENDING)
-  
+  id          String      @id @default(uuid())
+  orderNumber String      @unique
+  userId      String
+  sellerId    String? // Vendeur (pour les commandes multi-vendeurs)
+  status      OrderStatus @default(PENDING)
+
   // Informations de livraison
   shippingAddressId String?
-  shippingAddress   Json?             // Adresse de livraison (snapshot)
+  shippingAddress   Json? // Adresse de livraison (snapshot)
   shippingMethod    String?
-  shippingCost      Decimal           @default(0) @db.Decimal(15, 2)
+  shippingCost      Decimal   @default(0) @db.Decimal(15, 2)
   trackingNumber    String?
   shippedAt         DateTime?
   deliveredAt       DateTime?
-  
+
   // Informations de facturation
-  billingAddressId  String?
-  billingAddress    Json?             // Adresse de facturation (snapshot)
-  
+  billingAddressId String?
+  billingAddress   Json? // Adresse de facturation (snapshot)
+
   // Totaux
-  subtotal          Decimal           @db.Decimal(15, 2)
-  tax               Decimal           @default(0) @db.Decimal(15, 2)
-  discount          Decimal           @default(0) @db.Decimal(15, 2)
-  total             Decimal           @db.Decimal(15, 2)
-  currency          String            @default("XOF")
-  
+  subtotal Decimal @db.Decimal(15, 2)
+  tax      Decimal @default(0) @db.Decimal(15, 2)
+  discount Decimal @default(0) @db.Decimal(15, 2)
+  total    Decimal @db.Decimal(15, 2)
+  currency String  @default("XOF")
+
   // Paiement
-  paymentMethod     String?           // WALLET, CARD, MOBILE_MONEY, etc.
-  paymentStatus     String            @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
-  paymentReference  String?
-  paidAt            DateTime?
-  
+  paymentMethod    String? // WALLET, CARD, MOBILE_MONEY, etc.
+  paymentStatus    String    @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paymentReference String?
+  paidAt           DateTime?
+
   // Métadonnées
-  notes             String?
-  metadata          Json?
-  
+  notes    String?
+  metadata Json?
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items             OrderItem[]
-  
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([sellerId])
   @@index([orderNumber])
@@ -873,27 +881,27 @@ model Order {
 
 // Table des éléments de commande
 model OrderItem {
-  id                String            @id @default(uuid())
-  orderId           String
-  productId         String
-  variantId         String?           // Variante commandée
-  quantity          Int
-  price             Decimal           @db.Decimal(15, 2) // Prix au moment de la commande
-  currency          String            @default("XOF")
-  total             Decimal           @db.Decimal(15, 2)
-  promotionId       String?           // Promotion appliquée
-  
+  id          String  @id @default(uuid())
+  orderId     String
+  productId   String
+  variantId   String? // Variante commandée
+  quantity    Int
+  price       Decimal @db.Decimal(15, 2) // Prix au moment de la commande
+  currency    String  @default("XOF")
+  total       Decimal @db.Decimal(15, 2)
+  promotionId String? // Promotion appliquée
+
   // Snapshot du produit (au cas où il serait modifié/supprimé)
-  productSnapshot   Json?             // {name, image, sku, etc.}
-  
+  productSnapshot Json? // {name, image, sku, etc.}
+
   // Relations
-  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product           Product           @relation(fields: [productId], references: [id])
-  variant           ProductVariant?   @relation(fields: [variantId], references: [id])
-  
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([orderId])
   @@index([productId])
   @@index([variantId])
@@ -901,26 +909,26 @@ model OrderItem {
 
 // Table des évaluations
 model Review {
-  id                String            @id @default(uuid())
-  userId            String
-  productId         String
-  orderId           String?           // Lien vers la commande si applicable
-  rating            Int               // 1-5
-  title             String?
-  comment           String?
-  images            String[]           @default([])
-  isVerified        Boolean           @default(false) // Achat vérifié
-  helpfulCount      Int               @default(0)
-  isVisible         Boolean           @default(true)
-  
+  id           String   @id @default(uuid())
+  userId       String
+  productId    String
+  orderId      String? // Lien vers la commande si applicable
+  rating       Int // 1-5
+  title        String?
+  comment      String?
+  images       String[] @default([])
+  isVerified   Boolean  @default(false) // Achat vérifié
+  helpfulCount Int      @default(0)
+  isVisible    Boolean  @default(true)
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   // Timestamps
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, productId, orderId])
   @@index([userId])
   @@index([productId])
@@ -928,4 +936,208 @@ model Review {
   @@index([isVisible])
 }
 
+// ============================================
+// MODULE CHAT - Entités pour le chat temps réel
+// ============================================
 
+// Enum pour le type de conversation
+enum ConversationType {
+  ORDER // Chat lié à une commande
+  DELIVERY // Chat lié à une livraison
+  SUPPORT // Chat avec le support
+}
+
+// Enum pour le statut de la conversation
+enum ConversationStatus {
+  ACTIVE // Conversation active
+  ARCHIVED // Conversation archivée
+  CLOSED // Conversation fermée
+}
+
+// Enum pour le statut du message
+enum MessageStatus {
+  SENT // Message envoyé
+  DELIVERED // Message livré
+  READ // Message lu
+  EDITED // Message modifié
+  DELETED // Message supprimé
+}
+
+// Enum pour le type de signalement
+enum ReportReason {
+  SPAM // Spam
+  HARASSMENT // Harcèlement
+  INAPPROPRIATE // Contenu inapproprié
+  SCAM // Arnaque
+  OTHER // Autre
+}
+
+// Table des conversations
+model Conversation {
+  id     String             @id @default(uuid())
+  type   ConversationType
+  status ConversationStatus @default(ACTIVE)
+
+  // Participants
+  participant1Id String // Premier participant
+  participant2Id String // Deuxième participant
+
+  // Contexte (optionnel selon le type)
+  orderId         String? // ID de la commande si type = ORDER
+  deliveryId      String? // ID de la livraison si type = DELIVERY
+  supportTicketId String? // ID du ticket support si type = SUPPORT
+
+  // Métadonnées
+  lastMessageAt DateTime? // Date du dernier message
+  lastMessageId String? // ID du dernier message
+  unreadCount1  Int       @default(0) // Messages non lus pour participant1
+  unreadCount2  Int       @default(0) // Messages non lus pour participant2
+
+  // Relations
+  participant1 User            @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2 User            @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  messages     Message[]
+  lastMessage  Message?        @relation("ConversationLastMessage", fields: [lastMessageId], references: [id])
+  attachments  Attachment[]
+  reports      MessageReport[]
+  auditLogs    ChatAuditLog[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([type])
+  @@index([status])
+  @@index([orderId])
+  @@index([deliveryId])
+  @@index([lastMessageAt])
+  // Index composite pour trouver rapidement les conversations d'un utilisateur
+  @@index([participant1Id, status])
+  @@index([participant2Id, status])
+}
+
+// Table des messages
+model Message {
+  id                String        @id @default(uuid())
+  conversationId    String
+  senderId          String
+  content           String // Contenu du message (peut être vide si pièce jointe uniquement)
+  translatedContent Json? // Contenu traduit par langue {fr: "...", en: "...", ...}
+  status            MessageStatus @default(SENT)
+  language          String        @default("fr") // Langue du message original
+
+  // Accusé de lecture
+  readAt DateTime?
+  readBy String[]  @default([]) // IDs des utilisateurs qui ont lu
+
+  // Métadonnées
+  editedAt  DateTime?
+  deletedAt DateTime?
+  replyToId String? // ID du message auquel on répond
+
+  // Relations
+  conversation              Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationAsLastMessage Conversation[]  @relation("ConversationLastMessage")
+  sender                    User            @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo                   Message?        @relation("MessageReply", fields: [replyToId], references: [id])
+  replies                   Message[]       @relation("MessageReply")
+  attachments               Attachment[]
+  reports                   MessageReport[]
+  auditLogs                 ChatAuditLog[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([replyToId])
+}
+
+// Table des pièces jointes
+model Attachment {
+  id             String  @id @default(uuid())
+  messageId      String?
+  conversationId String? // Pour les pièces jointes partagées directement dans la conversation
+  type           String // image, document, video, audio
+  fileName       String
+  fileUrl        String // URL du fichier
+  fileSize       Int // Taille en bytes
+  mimeType       String
+  thumbnailUrl   String? // URL de la miniature (pour images/vidéos)
+
+  // Relations
+  message      Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@index([conversationId])
+  @@index([type])
+}
+
+// Table des signalements de messages
+model MessageReport {
+  id             String       @id @default(uuid())
+  messageId      String
+  conversationId String
+  reportedById   String // Utilisateur qui signale
+  reason         ReportReason
+  description    String? // Description détaillée
+  status         String       @default("PENDING") // PENDING, REVIEWED, RESOLVED, DISMISSED
+  reviewedBy     String? // Admin/Moderator qui a examiné
+  reviewedAt     DateTime?
+  reviewNotes    String?
+
+  // Relations
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reportedBy   User         @relation(fields: [reportedById], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([messageId])
+  @@index([conversationId])
+  @@index([reportedById])
+  @@index([status])
+}
+
+// Table des logs d'audit pour le chat
+model ChatAuditLog {
+  id             String  @id @default(uuid())
+  conversationId String?
+  messageId      String?
+  action         String // CREATE_CONVERSATION, SEND_MESSAGE, DELETE_MESSAGE, REPORT_MESSAGE, etc.
+  performedBy    String // ID de l'utilisateur/admin qui a effectué l'action
+  targetUserId   String? // ID de l'utilisateur ciblé (si applicable)
+  details        Json? // Détails supplémentaires de l'action
+  ipAddress      String?
+  userAgent      String?
+
+  // Relations
+  conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message         Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  performedByUser User          @relation("ChatAuditLogsPerformedBy", fields: [performedBy], references: [id], onDelete: Cascade)
+  targetUser      User?         @relation("ChatAuditLogsTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([performedBy])
+  @@index([targetUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Ajouter les relations manquantes dans le modèle User
+// (Ces relations seront ajoutées dans le modèle User existant)

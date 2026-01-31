@@ -32,6 +32,13 @@ interface PaymentMethodModalProps {
 // Liste complète des méthodes de paiement
 export const PAYMENT_METHODS: PaymentMethod[] = [
   {
+    id: 'wallet',
+    name: 'Portefeuille',
+    icon: 'wallet.pass.fill',
+    description: 'Payer avec votre portefeuille',
+    available: true,
+  },
+  {
     id: 'orange_money',
     name: 'Orange Money',
     icon: 'creditcard.fill',

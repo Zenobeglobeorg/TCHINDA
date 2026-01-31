@@ -395,7 +395,8 @@ const styles = StyleSheet.create({
       // @ts-ignore - Web-specific styles
       minHeight: '100vh',
       alignItems: 'center',
-      padding: '40px 20px',
+      paddingVertical: 40,
+      paddingHorizontal: 20,
     }),
   },
   webWrapper: {
@@ -408,7 +409,8 @@ const styles = StyleSheet.create({
       padding: 40,
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
       border: '1px solid rgba(0, 0, 0, 0.05)',
-      margin: '20px 0',
+      marginVertical: 20,
+      marginHorizontal: 0,
     }),
   },
   header: {
@@ -454,11 +456,8 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' && {
       // @ts-ignore - Web-specific styles
       transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-      outline: 'none',
-      ':focus': {
-        borderColor: '#624cacff',
-        boxShadow: '0 0 0 3px rgba(98, 76, 172, 0.1)',
-      } as any,
+      outlineWidth: 0,
+      outlineStyle: 'none',
     }),
   },
   pickerContainer: {

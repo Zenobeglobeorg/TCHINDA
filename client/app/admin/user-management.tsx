@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   Switch,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -96,6 +97,8 @@ export default function UserManagementScreen() {
     country: '',
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedKycImage, setSelectedKycImage] = useState<string | null>(null);
+  const [showKycModal, setShowKycModal] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -618,6 +621,73 @@ export default function UserManagementScreen() {
                   </ThemedText>
                 </View>
               </View>
+
+              {/* KYC Documents Preview */}
+              {(verification.documentFront || verification.documentBack || verification.selfie) && (
+                <View style={styles.kycDocumentsContainer}>
+                  <ThemedText style={[styles.kycDocumentsTitle, { color: textColor }]}>
+                    Documents KYC
+                  </ThemedText>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kycDocumentsScroll}>
+                    {verification.documentFront && (
+                      <TouchableOpacity
+                        style={styles.kycDocumentItem}
+                        onPress={() => {
+                          // Ouvrir en plein écran
+                          setSelectedKycImage(verification.documentFront);
+                          setShowKycModal(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: verification.documentFront }}
+                          style={styles.kycDocumentImage}
+                          resizeMode="cover"
+                        />
+                        <ThemedText style={[styles.kycDocumentLabel, { color: textColor + '80' }]}>
+                          Document recto
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                    {verification.documentBack && (
+                      <TouchableOpacity
+                        style={styles.kycDocumentItem}
+                        onPress={() => {
+                          setSelectedKycImage(verification.documentBack);
+                          setShowKycModal(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: verification.documentBack }}
+                          style={styles.kycDocumentImage}
+                          resizeMode="cover"
+                        />
+                        <ThemedText style={[styles.kycDocumentLabel, { color: textColor + '80' }]}>
+                          Document verso
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                    {verification.selfie && (
+                      <TouchableOpacity
+                        style={styles.kycDocumentItem}
+                        onPress={() => {
+                          setSelectedKycImage(verification.selfie);
+                          setShowKycModal(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: verification.selfie }}
+                          style={styles.kycDocumentImage}
+                          resizeMode="cover"
+                        />
+                        <ThemedText style={[styles.kycDocumentLabel, { color: textColor + '80' }]}>
+                          Selfie
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+
               <View style={styles.verificationActions}>
                 <TouchableOpacity
                   style={[styles.verifyButton, { backgroundColor: '#4CAF5020' }]}
@@ -651,6 +721,30 @@ export default function UserManagementScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* KYC Image Modal */}
+      <Modal visible={showKycModal} animationType="fade" transparent>
+        <View style={styles.kycModalOverlay}>
+          <View style={styles.kycModalContent}>
+            <TouchableOpacity
+              style={styles.kycModalClose}
+              onPress={() => {
+                setShowKycModal(false);
+                setSelectedKycImage(null);
+              }}
+            >
+              <IconSymbol name="xmark.circle.fill" size={32} color="#FFF" />
+            </TouchableOpacity>
+            {selectedKycImage && (
+              <Image
+                source={{ uri: selectedKycImage }}
+                style={styles.kycModalImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* View User Modal */}
       <Modal visible={showViewModal} animationType="slide" transparent>
@@ -1522,6 +1616,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
+  },
+  kycDocumentsContainer: {
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  kycDocumentsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  kycDocumentsScroll: {
+    marginHorizontal: -4,
+  },
+  kycDocumentItem: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  kycDocumentImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    marginBottom: 8,
+  },
+  kycDocumentLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  kycModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  kycModalContent: {
+    width: '90%',
+    height: '80%',
+    position: 'relative',
+  },
+  kycModalClose: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  kycModalImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 

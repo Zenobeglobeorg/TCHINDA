@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { name: 'search', title: 'Recherche', icon: 'magnifyingglass', route: '/commercial/search' },
   { name: 'transactions', title: 'Transactions', icon: 'arrow.left.arrow.right', route: '/commercial/transactions' },
   { name: 'revenues', title: 'Revenus', icon: 'dollarsign.circle.fill', route: '/commercial/revenues' },
+  { name: 'chat', title: 'Chat', icon: 'message.fill', route: '/chat' },
   { name: 'support', title: 'Support', icon: 'info.circle.fill', route: '/commercial/support' },
   { name: 'training', title: 'Formation', icon: 'doc.text.fill', route: '/commercial/training' },
   { name: 'reports', title: 'Rapports', icon: 'chart.bar.fill', route: '/commercial/reports' },

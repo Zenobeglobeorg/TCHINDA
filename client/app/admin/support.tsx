@@ -13,6 +13,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { alert } from '@/utils/alert';
+import { ChatButton } from '@/components/chat/ChatButton';
 
 export default function SupportScreen() {
   const router = useRouter();
@@ -136,7 +137,9 @@ export default function SupportScreen() {
           <IconSymbol name="chevron.right" size={24} color={textColor} />
         </TouchableOpacity>
         <ThemedText style={[styles.headerTitle, { color: textColor }]}>Support</ThemedText>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerRight}>
+          <ChatButton variant="icon" contextType="SUPPORT" />
+        </View>
       </View>
 
       {/* Search */}
@@ -245,6 +248,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  headerRight: {
+    width: 40,
+    alignItems: 'flex-end',
   },
   searchContainer: {
     padding: 16,
