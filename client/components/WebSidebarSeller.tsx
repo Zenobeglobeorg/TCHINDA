@@ -4,6 +4,7 @@ import { useRouter, useSegments } from 'expo-router';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
+import { useChatUnread } from '@/contexts/ChatUnreadContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 
 interface NavItem {
@@ -33,6 +34,7 @@ export function WebSidebarSeller() {
   const router = useRouter();
   const segments = useSegments();
   const { user } = useAuth();
+  const { totalUnread } = useChatUnread();
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const [windowWidth, setWindowWidth] = useState(
     Platform.OS === 'web' && typeof window !== 'undefined' ? window.innerWidth : 1024
@@ -131,6 +133,13 @@ export function WebSidebarSeller() {
                 >
                   {item.title}
                 </Text>
+                {item.name === 'chat' && totalUnread > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -258,6 +267,21 @@ const styles = StyleSheet.create({
   navTextActive: {
     color: Colors.light.tint,
     fontWeight: '600' as any,
+  },
+  badge: {
+    marginLeft: 'auto',
+    backgroundColor: Colors.light.tint,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700' as any,
   },
   footer: {
     padding: 16,
