@@ -258,7 +258,7 @@ export default function LoginScreen() {
             {/* Logo TCHINDA */}
             <View style={styles.logoContainer}>
               <Image
-                source={require('@/assets/images/logo.png')}
+                source={require('@/assets/images/assets_images_logo.webp')}
                 style={styles.logo}
                 resizeMode="contain"
               />

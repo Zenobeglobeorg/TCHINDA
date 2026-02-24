@@ -110,7 +110,7 @@ export default function SplashScreen() {
       >
         {/* Logo avec Image native */}
         <Image
-          source={require('@/assets/images/logo.png')}
+          source={require('@/assets/images/assets_images_logo.webp')}
           style={styles.logo}
           resizeMode="contain"
         />

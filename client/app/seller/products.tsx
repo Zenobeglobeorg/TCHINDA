@@ -261,7 +261,7 @@ export default function ProductsManagement() {
               source={
                 item.images && item.images.length > 0
                   ? { uri: item.images[0] }
-                  : require('@/assets/images/logo.png')
+                  : require('@/assets/images/assets_images_logo.webp')
               }
               style={styles.productImage}
             />

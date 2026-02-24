@@ -7,12 +7,12 @@ interface PaymentMethodLogoProps {
   size?: number;
 }
 
-// Mapping des images de logos
+// Mapping des images de logos (WebP pour compatibilité build Android)
 const PAYMENT_LOGO_IMAGES: Record<string, any> = {
-  orange_money: require('@/assets/images/orange.png'),
-  mtn_money: require('@/assets/images/mobilMoney.png'),
-  paypal: require('@/assets/images/paypal.png'),
-  card: require('@/assets/images/visa.png'),
+  orange_money: require('@/assets/images/orange.webp'),
+  mtn_money: require('@/assets/images/mobilMoney.webp'),
+  paypal: require('@/assets/images/paypal.webp'),
+  card: require('@/assets/images/visa.webp'),
 };
 
 // Couleurs des marques pour les méthodes sans images

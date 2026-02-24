@@ -8,6 +8,7 @@
     "scheme": "tchindamarket",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+    "assetBundlePatterns": [],
     "ios": {
       "supportsTablet": true
     },
