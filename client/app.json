@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptative-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.franck_djoko.tchindamarket"
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +38,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ac9e839c-2d36-41c4-ae19-7580dce037e7"
+      }
     }
   }
 }

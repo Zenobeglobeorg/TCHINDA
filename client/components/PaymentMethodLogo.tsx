@@ -10,7 +10,7 @@ interface PaymentMethodLogoProps {
 // Mapping des images de logos
 const PAYMENT_LOGO_IMAGES: Record<string, any> = {
   orange_money: require('@/assets/images/orange.png'),
-  mtn_money: require('@/assets/images/mobilMoney.png'),
+  mtn_money: require('@/assets/images/mobil_money.png'),
   paypal: require('@/assets/images/paypal.png'),
   card: require('@/assets/images/visa.png'),
 };
