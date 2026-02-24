@@ -50,7 +50,8 @@ export function useChat(options: UseChatOptions = {}) {
     try {
       const response = await chatService.getMessages(convId, limit);
       if (response.success && response.data) {
-        setMessages(response.data.reverse()); // Inverser pour afficher du plus ancien au plus récent
+        // API renvoie déjà [ancien → récent] ; garder cet ordre (ancien en haut, récent en bas)
+        setMessages(response.data);
       } else {
         setError(response.error?.message || 'Erreur lors du chargement des messages');
       }
@@ -257,7 +258,9 @@ export function useChat(options: UseChatOptions = {}) {
             ? prev.filter((m) => !(m.id.startsWith('temp-') && m.senderId === user?.id && m.content === message.content))
             : prev;
           if (withoutOptimistic.some((m) => m.id === message.id)) return withoutOptimistic;
-          return [...withoutOptimistic, message];
+          const next = [...withoutOptimistic, message];
+          next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          return next;
         });
         if (user && message.senderId !== user.id) {
           markAsRead([message.id]);

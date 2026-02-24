@@ -46,10 +46,10 @@ export function ChatLayout({
     setLocalSelectedId(selectedConversationId);
   }, [selectedConversationId]);
 
-  // Sur mobile, afficher soit la liste soit la conversation
-  // Sur desktop/tablet, afficher les deux côte à côte
+  // Sur mobile : toujours uniquement la liste ici ; la conversation est sur l'écran [id] (navigation)
+  // Sur desktop/tablet : liste + conversation côte à côte, ou liste seule si aucune sélection
   const showList = !isTablet || !localSelectedId;
-  const showChat = localSelectedId && (isTablet || localSelectedId);
+  const showChat = isTablet && !!localSelectedId;
 
   const handleConversationPress = (conversation: Conversation) => {
     setLocalSelectedId(conversation.id);
