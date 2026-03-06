@@ -34,8 +34,9 @@ export const registerUser = async (userData) => {
     });
 
     if (existingUser) {
-      // Message générique pour ne pas révéler trop d'informations
-      throw new Error('Cet email est déjà utilisé');
+      const err = new Error('Cet email est déjà utilisé');
+      err.statusCode = 400;
+      throw err;
     }
 
     // Vérifier si le téléphone existe déjà (si fourni)
@@ -45,7 +46,9 @@ export const registerUser = async (userData) => {
       });
 
       if (existingPhone) {
-        throw new Error('Ce numéro de téléphone est déjà utilisé');
+        const err = new Error('Ce numéro de téléphone est déjà utilisé');
+        err.statusCode = 400;
+        throw err;
       }
     }
 

@@ -209,16 +209,15 @@ class ApiService {
         };
       }
 
-      // Si 401, essayer de rafraîchir le token (même si access token absent) (une seule fois)
-      if (response.status === 401 && !this.isRefreshing) {
+      // Si 401 : réessayer avec refresh token seulement si on avait déjà un token (session expirée)
+      // Sinon (ex: login) retourner directement le message du serveur (ex: "Email ou mot de passe incorrect")
+      if (response.status === 401 && !this.isRefreshing && this.token) {
         this.isRefreshing = true;
         try {
           const refreshed = await this.refreshToken();
           if (refreshed) {
-            // Réessayer UNE SEULE FOIS avec le nouveau token
             const retryController = new AbortController();
             const retryTimeoutId = setTimeout(() => retryController.abort(), API_CONFIG.TIMEOUT || 10000);
-            
             try {
               const retryOptions: RequestInit = {
                 ...options,
@@ -233,23 +232,16 @@ class ApiService {
               }
               const retryResponse = await fetch(url, retryOptions);
               clearTimeout(retryTimeoutId);
-              
               const retryData = await retryResponse.json();
-              
               if (retryResponse.ok) {
-                return {
-                  success: true,
-                  data: retryData.data || retryData,
-                };
+                return { success: true, data: retryData.data || retryData };
               }
             } catch (retryError: any) {
               clearTimeout(retryTimeoutId);
               if (retryError.name === 'AbortError') {
                 return {
                   success: false,
-                  error: {
-                    message: 'Requête expirée. Vérifiez votre connexion internet.',
-                  },
+                  error: { message: 'Requête expirée. Vérifiez votre connexion internet.' },
                 };
               }
             }
@@ -257,13 +249,20 @@ class ApiService {
         } finally {
           this.isRefreshing = false;
         }
-        
-        // Si le refresh échoue, nettoyer et retourner erreur
         await this.clearStorage();
         return {
           success: false,
+          error: { message: 'Session expirée. Veuillez vous reconnecter.' },
+        };
+      }
+
+      // 401 sans token (ex: login) ou après échec refresh : retourner le message du serveur
+      if (response.status === 401) {
+        return {
+          success: false,
           error: {
-            message: 'Session expirée. Veuillez vous reconnecter.',
+            message: data.error?.message || 'Identifiants incorrects',
+            details: data.error?.details,
           },
         };
       }

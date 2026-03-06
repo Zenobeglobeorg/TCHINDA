@@ -1,49 +1,33 @@
 // Configuration de l'API
-// Pour développement local, utilisez l'IP de votre machine au lieu de localhost
-// Exemple: 'http://192.168.1.100:5000' (remplacez par votre IP locale)
+// Sur appareil physique (Expo Go) : l'app doit joindre un serveur accessible (Railway ou l'IP de votre PC).
+// Définir EXPO_PUBLIC_API_URL dans .env pour forcer l'URL (ex: http://192.168.1.x:5000 pour backend local sur téléphone).
 
-// Pour Android Emulator, utilisez: 'http://10.0.2.2:5000'
-// Pour iOS Simulator, utilisez: 'http://localhost:5000'
-// Pour appareil physique, utilisez l'IP de votre machine: 'http://192.168.x.x:5000'
-// Pour Web (navigateur), utilisez: 'http://localhost:5000'
-
-// Détection de la plateforme
 import { Platform } from 'react-native';
 
-// Fonction pour obtenir l'URL de base selon l'environnement
-const getBaseURL = () => {
-  // URL de production (Railway) - utilisée en production sur Vercel
-  const PRODUCTION_API_URL = 'https://tchinda-production.up.railway.app';
-  
-  // Vérifier si on est en production (sur Vercel ou autre hébergeur)
-  const isProduction = process.env.NODE_ENV === 'production' || 
-                       typeof window !== 'undefined' && window.location.hostname !== 'localhost' && 
-                       !window.location.hostname.includes('192.168') &&
-                       !window.location.hostname.includes('127.0.0.1');
-  
-  // En production, toujours utiliser Railway
-  if (isProduction) {
-    return PRODUCTION_API_URL;
-  }
-  
-  // En développement local
-  if (Platform.OS === 'web') {
-    // Pour web en dev, utiliser localhost ou Railway selon préférence
-    // Changez cette ligne si vous voulez utiliser votre backend local
-    return PRODUCTION_API_URL; // Ou 'http://localhost:5000' pour backend local
-  } else if (Platform.OS === 'android') {
-    // Android Emulator
-    return 'http://10.0.2.2:5000';
-    // Pour appareil physique : return `http://${LOCAL_IP}:5000`;
-  } else if (Platform.OS === 'ios') {
-    // iOS Simulator
-    return 'http://localhost:5000';
-    // Pour appareil physique : return `http://${LOCAL_IP}:5000`;
-  }
+const PRODUCTION_API_URL = 'https://tchinda-production.up.railway.app';
 
-  // Par défaut
+function getBaseURL(): string {
+  // Override explicite (emulator: 10.0.2.2:5000, device + backend local: 192.168.x.x:5000)
+  const envUrl = typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    (typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      !window.location.hostname.includes('192.168') &&
+      !window.location.hostname.includes('127.0.0.1'));
+
+  if (isProduction) return PRODUCTION_API_URL;
+
+  // Développement local
+  if (Platform.OS === 'web') {
+    return PRODUCTION_API_URL; // ou 'http://localhost:5000' si backend local
+  }
+  // Native (Android/iOS) : utiliser Railway par défaut pour que l'app sur téléphone (Expo Go) puisse se connecter.
+  // 10.0.2.2 / localhost ne fonctionnent que sur émulateur/simulateur.
   return PRODUCTION_API_URL;
-};
+}
 
 export const API_CONFIG = {
   // URL de base automatiquement détectée selon la plateforme
