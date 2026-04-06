@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { alert } from '@/utils/alert';
 
@@ -29,6 +30,16 @@ export default function SignUpScreen() {
   const [country, setCountry] = useState('SN');
   const [isLoading, setIsLoading] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  
+  const countryCodes: Record<string, string> = {
+    'SN': '+221',
+    'CI': '+225',
+    'CM': '+237',
+    'GA': '+241',
+    'MA': '+212',
+    '': '',
+  };
   
   // Type de compte fixé à BUYER pour l'inscription
   const accountType: 'BUYER' = 'BUYER';
@@ -58,6 +69,11 @@ export default function SignUpScreen() {
 
     if (!email.trim()) {
       alert('Erreur', 'Veuillez entrer votre email');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      alert('Erreur', 'Veuillez accepter les conditions du commerce international');
       return;
     }
 
@@ -246,6 +262,7 @@ export default function SignUpScreen() {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 editable={!loading}
+                accessible={true} accessibilityLabel="Numéro de téléphone"
               />
             </View>
 
@@ -286,6 +303,12 @@ export default function SignUpScreen() {
                         ]}
                         onPress={() => {
                           setCountry(item.value);
+                          if (item.value) {
+                             const code = countryCodes[item.value] || '';
+                             if (!phone.startsWith(code)) {
+                               setPhone(code + ' ');
+                             }
+                          }
                           setShowCountryModal(false);
                         }}
                       >
@@ -328,6 +351,21 @@ export default function SignUpScreen() {
                 secureTextEntry
                 editable={!loading}
               />
+            </View>
+
+            <View style={styles.termsContainer}>
+              <TouchableOpacity 
+                style={styles.checkboxContainer} 
+                onPress={() => setAcceptedTerms(!acceptedTerms)}
+                accessible={true} accessibilityLabel="Accepter les conditions du commerce international" accessibilityRole="checkbox"
+              >
+                <View style={[styles.checkbox, acceptedTerms && styles.checkboxActive]}>
+                  {acceptedTerms && <IconSymbol name="checkmark.circle.fill" size={16} color="#FFF" />}
+                </View>
+                <ThemedText style={styles.termsText}>
+                  J'accepte les conditions du commerce international et la politique de transactions sécurisées.
+                </ThemedText>
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -581,6 +619,34 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#A1CEDC',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as any,
+  },
+  termsContainer: {
+    marginBottom: 20,
+    marginTop: 5,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#624cacff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: '#624cacff',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
 });

@@ -92,8 +92,16 @@ function TabLayoutContent() {
             <Tabs.Screen
               name="index"
               options={{
-                title: 'Home',
+                title: 'Marché',
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+              }}
+            />
+            <Tabs.Screen
+              name="chat"
+              options={{
+                title: 'Messages',
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+                tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
               }}
             />
             <Tabs.Screen
@@ -104,31 +112,10 @@ function TabLayoutContent() {
               }}
             />
             <Tabs.Screen
-              name="wishlist"
-              options={{
-                title: 'Favoris',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
-              }}
-            />
-            <Tabs.Screen
-              name="orders"
-              options={{
-                title: 'Commandes',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
-              }}
-            />
-            <Tabs.Screen
               name="wallet"
               options={{
                 title: 'Portefeuille',
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
-              }}
-            />
-            <Tabs.Screen
-              name="profile"
-              options={{
-                title: 'Profil',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
               }}
             />
             <Tabs.Screen
@@ -139,11 +126,43 @@ function TabLayoutContent() {
               }}
             />
             <Tabs.Screen
-              name="chat"
+              name="menu"
               options={{
-                title: 'Chat',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
-                tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
+                title: 'Menu',
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
+              }}
+            />
+            <Tabs.Screen
+              name="boutique"
+              options={{
+                title: 'Boutique',
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
+              }}
+            />
+            
+            {/* Hidden tabs */}
+            <Tabs.Screen
+              name="wishlist"
+              options={{
+                title: 'Favoris',
+                href: null,
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
+              }}
+            />
+            <Tabs.Screen
+              name="orders"
+              options={{
+                title: 'Commandes',
+                href: null,
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
+              }}
+            />
+            <Tabs.Screen
+              name="profile"
+              options={{
+                title: 'Profil',
+                href: null,
+                tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
               }}
             />
             </Tabs>
@@ -159,8 +178,16 @@ function TabLayoutContent() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Marché',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+          tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
         }}
       />
       <Tabs.Screen
@@ -171,31 +198,10 @@ function TabLayoutContent() {
         }}
       />
       <Tabs.Screen
-        name="wishlist"
-        options={{
-          title: 'Favoris',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Commandes',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="wallet"
         options={{
           title: 'Portefeuille',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profil',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -206,11 +212,43 @@ function TabLayoutContent() {
         }}
       />
       <Tabs.Screen
-        name="chat"
+        name="menu"
         options={{
-          title: 'Chat',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
-          tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
+          title: 'Menu',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="boutique"
+        options={{
+          title: 'Boutique',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
+        }}
+      />
+      
+      {/* Hidden tabs that still need to be accessible within the tabs layout */}
+      <Tabs.Screen
+        name="wishlist"
+        options={{
+          title: 'Favoris',
+          href: null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: 'Commandes',
+          href: null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+          href: null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
     </Tabs>

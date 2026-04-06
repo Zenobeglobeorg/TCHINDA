@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -23,6 +24,10 @@ export default function WalletScreen() {
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [selectedCurrency, setSelectedCurrency] = useState('XOF');
+  const [activeTab, setActiveTab] = useState('transactions'); // 'transactions' | 'entities' | 'converter'
+  const [convertAmount, setConvertAmount] = useState('');
+  const [fromCurrency, setFromCurrency] = useState('XAF');
+  const [toCurrency, setToCurrency] = useState('EUR');
 
   useEffect(() => {
     loadWalletData();
@@ -231,8 +236,34 @@ export default function WalletScreen() {
             )}
           </View>
         )}
+        
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'transactions' && styles.activeTab]} 
+            onPress={() => setActiveTab('transactions')}
+            accessible={true} accessibilityLabel="Onglet Historique des transactions" accessibilityRole="tab"
+          >
+            <ThemedText style={[styles.tabText, activeTab === 'transactions' && styles.activeTabText]}>Historique</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'entities' && styles.activeTab]} 
+            onPress={() => setActiveTab('entities')}
+            accessible={true} accessibilityLabel="Onglet Comptes liés et Entités" accessibilityRole="tab"
+          >
+            <ThemedText style={[styles.tabText, activeTab === 'entities' && styles.activeTabText]}>Comptes</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'converter' && styles.activeTab]} 
+            onPress={() => setActiveTab('converter')}
+            accessible={true} accessibilityLabel="Onglet Convertisseur de devises" accessibilityRole="tab"
+          >
+            <ThemedText style={[styles.tabText, activeTab === 'converter' && styles.activeTabText]}>Convertir</ThemedText>
+          </TouchableOpacity>
+        </View>
 
-        {/* Transactions */}
+        {/* Transactions Tab */}
+        {activeTab === 'transactions' && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Historique des transactions</ThemedText>
@@ -313,6 +344,79 @@ export default function WalletScreen() {
             ))
           )}
         </View>
+        )}
+
+        {/* Entities Tab */}
+        {activeTab === 'entities' && (
+           <View style={styles.section}>
+             <View style={styles.entityCard}>
+                <View style={[styles.entityIcon, {backgroundColor: '#FF6600'}]}>
+                  <ThemedText style={{color:'#FFF', fontWeight:'bold' as any}}>O</ThemedText>
+                </View>
+                <View style={styles.entityInfo}>
+                  <ThemedText style={{fontWeight:'bold' as any}}>Orange Money</ThemedText>
+                  <ThemedText style={{color:'#666'}}>+237 65X XXX XXX</ThemedText>
+                </View>
+                <ThemedText style={{color:'#28A745', fontWeight: 'bold' as any}}>Lié</ThemedText>
+             </View>
+             
+             <View style={styles.entityCard}>
+                <View style={[styles.entityIcon, {backgroundColor: '#FFCC00'}]}>
+                  <ThemedText style={{color:'#333', fontWeight:'bold' as any}}>M</ThemedText>
+                </View>
+                <View style={styles.entityInfo}>
+                  <ThemedText style={{fontWeight:'bold' as any}}>MTN Mobile Money</ThemedText>
+                  <ThemedText style={{color:'#666'}}>Non lié</ThemedText>
+                </View>
+                <TouchableOpacity style={styles.associerButton}>
+                  <ThemedText style={{color:'#FFF'}}>Associer</ThemedText>
+                </TouchableOpacity>
+             </View>
+             
+             <View style={styles.entityCard}>
+                <View style={[styles.entityIcon, {backgroundColor: '#1E90FF'}]}>
+                  <IconSymbol name="creditcard.fill" size={20} color="#FFF" />
+                </View>
+                <View style={styles.entityInfo}>
+                  <ThemedText style={{fontWeight:'bold' as any}}>Carte Bancaire</ThemedText>
+                  <ThemedText style={{color:'#666'}}>**** **** **** 4242</ThemedText>
+                </View>
+                <ThemedText style={{color:'#28A745', fontWeight: 'bold' as any}}>Lié</ThemedText>
+             </View>
+           </View>
+        )}
+
+        {/* Converter Tab */}
+        {activeTab === 'converter' && (
+           <View style={styles.section}>
+             <View style={styles.converterCard}>
+               <ThemedText style={styles.converterTitle}>Convertisseur de devises</ThemedText>
+               <View style={styles.converterInputRow}>
+                 <TextInput 
+                   style={styles.converterInput} 
+                   placeholder="0.00" 
+                   keyboardType="numeric" 
+                   value={convertAmount} 
+                   onChangeText={setConvertAmount} 
+                 />
+                 <TouchableOpacity style={styles.currencyBadge} onPress={() => setFromCurrency(fromCurrency === 'XAF' ? 'EUR' : 'XAF')}>
+                   <ThemedText style={styles.currencyBadgeText}>{fromCurrency}</ThemedText>
+                 </TouchableOpacity>
+               </View>
+               <IconSymbol name="arrow.up.arrow.down" size={24} color="#624cacff" style={{alignSelf: 'center', marginVertical: 10}} />
+               <View style={styles.converterInputRow}>
+                 <View style={[styles.converterInput, {justifyContent: 'center', backgroundColor: '#F0F0F0'}]}>
+                    <ThemedText>
+                      {convertAmount ? (parseFloat(convertAmount) * (fromCurrency === 'XAF' ? 0.0015 : 655.957)).toFixed(2) : '0.00'}
+                    </ThemedText>
+                 </View>
+                 <TouchableOpacity style={styles.currencyBadge} onPress={() => setToCurrency(toCurrency === 'EUR' ? 'XAF' : 'EUR')}>
+                   <ThemedText style={styles.currencyBadgeText}>{toCurrency}</ThemedText>
+                 </TouchableOpacity>
+               </View>
+             </View>
+           </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -565,8 +669,105 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '600' as any,
     color: '#333',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500' as any,
+  },
+  activeTabText: {
+    color: '#624cacff',
+    fontWeight: 'bold' as any,
+  },
+  entityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+  },
+  entityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  entityInfo: {
+    flex: 1,
+  },
+  associerButton: {
+    backgroundColor: '#624cacff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  converterCard: {
+    backgroundColor: '#FFF',
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+  },
+  converterTitle: {
+    fontSize: 16,
+    fontWeight: 'bold' as any,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  converterInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  converterInput: {
+    flex: 1,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  currencyBadge: {
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 16,
+    height: 50,
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#624cacff',
+  },
+  currencyBadgeText: {
+    color: '#624cacff',
+    fontWeight: 'bold' as any,
   },
 });
 

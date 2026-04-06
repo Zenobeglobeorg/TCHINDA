@@ -83,6 +83,7 @@ const MAPPING = {
   'megaphone.fill': 'campaign',
   'power': 'power-settings-new',
   'lock.fill': 'lock',
+  'line.3.horizontal': 'menu',
 } as IconMapping;
 
 /**
