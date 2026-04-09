@@ -329,6 +329,22 @@ export default function ProductScreen() {
                   <ThemedText style={styles.transparencyLabel}>Garantie :</ThemedText>
                   <ThemedText style={styles.transparencyValue}><IconSymbol name="checkmark.shield.fill" size={14} color="#28A745"/> {product?.attributes?.warranty || 'Protégé par le système Séquestre TCHINDA'}</ThemedText>
                 </View>
+                {(product?.weight || product?.attributes?.dimensions) && (
+                  <View style={{marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEE'}}>
+                    {(product?.weight != null) && (
+                      <View style={styles.transparencyRow}>
+                        <ThemedText style={styles.transparencyLabel}>Poids :</ThemedText>
+                        <ThemedText style={styles.transparencyValue}>{product.weight} kg</ThemedText>
+                      </View>
+                    )}
+                    {product?.attributes?.dimensions && (
+                      <View style={styles.transparencyRow}>
+                        <ThemedText style={styles.transparencyLabel}>Dimensions :</ThemedText>
+                        <ThemedText style={styles.transparencyValue}>{product.attributes.dimensions}</ThemedText>
+                      </View>
+                    )}
+                  </View>
+                )}
              </View>
           </View>
           <View style={styles.priceContainer}>

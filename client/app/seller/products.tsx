@@ -832,6 +832,28 @@ function ProductFormModal({
             />
           </View>
 
+          <View style={styles.formRow}>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={[styles.label, { color: textColor }]}>Poids (kg)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor }]}
+                value={formData.weight ? formData.weight.toString() : ''}
+                onChangeText={(text) => setFormData({ ...formData, weight: parseFloat(text) || undefined })}
+                keyboardType="numeric"
+                placeholder="Ex: 1.5"
+              />
+            </View>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={[styles.label, { color: textColor }]}>Dimensions</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor }]}
+                value={(formData.attributes as any)?.dimensions || ''}
+                onChangeText={(text) => setFormData({ ...formData, attributes: { ...(formData.attributes as any), dimensions: text } })}
+                placeholder="L x l x H (cm)"
+              />
+            </View>
+          </View>
+
           <TouchableOpacity
             style={[styles.toggleButton, { backgroundColor: tintColor + '20' }]}
             onPress={() => setShowVariants(!showVariants)}

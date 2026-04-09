@@ -408,7 +408,7 @@ class ApiService {
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT || 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       let response: Response;
       try {
