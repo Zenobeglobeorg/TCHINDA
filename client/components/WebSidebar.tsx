@@ -15,14 +15,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'index', title: 'Accueil', icon: 'house.fill', route: '' }, // Route vide = /(tabs) pour index
+  { name: 'index', title: 'Marché', icon: 'house.fill', route: '' },
+  { name: 'chat', title: 'Messages', icon: 'message.fill', route: '/chat' },
   { name: 'cart', title: 'Panier', icon: 'cart.fill', route: '/cart' },
-  { name: 'wishlist', title: 'Favoris', icon: 'heart.fill', route: '/wishlist' },
-  { name: 'orders', title: 'Commandes', icon: 'bag.fill', route: '/orders' },
   { name: 'wallet', title: 'Portefeuille', icon: 'creditcard.fill', route: '/wallet' },
-  { name: 'chat', title: 'Chat', icon: 'message.fill', route: '/chat' }, // /(tabs)/chat
-  { name: 'profile', title: 'Profil', icon: 'person.fill', route: '/profile' },
   { name: 'settings', title: 'Paramètres', icon: 'gearshape.fill', route: '/settings' },
+  { name: 'menu', title: 'Menu', icon: 'line.3.horizontal', route: '/menu' },
 ];
 
 // Breakpoint pour déterminer mobile/desktop

@@ -132,13 +132,7 @@ function TabLayoutContent() {
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
               }}
             />
-            <Tabs.Screen
-              name="boutique"
-              options={{
-                title: 'Boutique',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
-              }}
-            />
+
             
             {/* Hidden tabs */}
             <Tabs.Screen
@@ -218,13 +212,7 @@ function TabLayoutContent() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="boutique"
-        options={{
-          title: 'Boutique',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
-        }}
-      />
+
       
       {/* Hidden tabs that still need to be accessible within the tabs layout */}
       <Tabs.Screen

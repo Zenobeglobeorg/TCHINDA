@@ -301,11 +301,11 @@ export default function ProductScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statBadge}>
               <IconSymbol name="cube.box.fill" size={14} color="#624cacff" />
-              <ThemedText style={styles.statText}>{(product.reviewCount ? product.reviewCount * 3 : 150)} Ventes effectives</ThemedText>
+              <ThemedText style={styles.statText}>{product.soldCount || 0} Ventes effectives</ThemedText>
             </View>
             <View style={styles.statBadge}>
               <IconSymbol name="eye.fill" size={14} color="#624cacff" />
-              <ThemedText style={styles.statText}>1.2k Vues vs Achats élevés</ThemedText>
+              <ThemedText style={styles.statText}>{product.viewCount || 0} Vues vs {product.soldCount || 0} Achats</ThemedText>
             </View>
           </View>
 
@@ -315,19 +315,19 @@ export default function ProductScreen() {
              <View style={styles.transparencyCard}>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>Vendeur :</ThemedText>
-                  <ThemedText style={styles.transparencyValue}>{product?.seller?.storeName || 'Boutique TCHINDA'}</ThemedText>
+                  <ThemedText style={styles.transparencyValue}>{product?.seller?.storeName || product?.seller?.shopName || 'Boutique Partenaire'}</ThemedText>
                 </View>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>Type :</ThemedText>
-                  <ThemedText style={styles.transparencyValue}>Entreprise Vérifiée</ThemedText>
+                  <ThemedText style={styles.transparencyValue}>{product?.attributes?.sellerType || 'Vendeur Vérifié'}</ThemedText>
                 </View>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>État :</ThemedText>
-                  <ThemedText style={styles.transparencyValue}>{product?.condition || 'Neuf (Sous emballage)'}</ThemedText>
+                  <ThemedText style={styles.transparencyValue}>{product?.attributes?.condition || 'Neuf (Sous emballage)'}</ThemedText>
                 </View>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>Garantie :</ThemedText>
-                  <ThemedText style={styles.transparencyValue}><IconSymbol name="checkmark.shield.fill" size={14} color="#28A745"/>  Protégé par le système Séquestre TCHINDA</ThemedText>
+                  <ThemedText style={styles.transparencyValue}><IconSymbol name="checkmark.shield.fill" size={14} color="#28A745"/> {product?.attributes?.warranty || 'Protégé par le système Séquestre TCHINDA'}</ThemedText>
                 </View>
              </View>
           </View>

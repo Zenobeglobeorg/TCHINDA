@@ -358,6 +358,15 @@ export default function SettingsScreen() {
             <ThemedText style={styles.infoLabel}>Type de compte:</ThemedText>
             <ThemedText style={styles.infoValue}>{getAccountTypeLabel(user.accountType)}</ThemedText>
           </View>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton, { marginTop: 24 }]}
+            onPress={() => router.push('/(tabs)/profile')}
+          >
+            <ThemedText style={[styles.buttonText, styles.secondaryButtonText]}>
+              Voir et modifier mon profil complet
+            </ThemedText>
+          </TouchableOpacity>
         </View>
 
         {/* Changement de type de compte */}

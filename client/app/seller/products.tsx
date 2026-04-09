@@ -386,6 +386,7 @@ function ProductFormModal({
       setFormData({
         ...product,
         variants: product.variants || [],
+        attributes: product.attributes || { condition: 'Neuf', sellerType: 'Entreprise', warranty: '' },
       });
       setShowVariants((product.variants?.length || 0) > 0);
     } else {
@@ -402,6 +403,7 @@ function ProductFormModal({
         images: [],
         tags: [],
         variants: [],
+        attributes: { condition: 'Neuf', sellerType: 'Entreprise', warranty: '' },
       });
       setShowVariants(false);
     }
@@ -783,6 +785,50 @@ function ProductFormModal({
               value={formData.sku}
               onChangeText={(text) => setFormData({ ...formData, sku: text })}
               placeholder="Code SKU"
+            />
+          </View>
+
+          <View style={styles.variantsHeader}>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>Transparence & Garantie</Text>
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={[styles.label, { color: textColor }]}>État</Text>
+              <View style={[styles.pickerContainer, { borderColor: tintColor, backgroundColor }]}>
+                <Picker
+                  selectedValue={(formData.attributes as any)?.condition || 'Neuf'}
+                  onValueChange={(val) => setFormData({ ...formData, attributes: { ...(formData.attributes as any), condition: val } })}
+                  style={{ color: textColor }}
+                >
+                  <Picker.Item label="Neuf" value="Neuf" />
+                  <Picker.Item label="Occasion" value="Occasion" />
+                </Picker>
+              </View>
+            </View>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={[styles.label, { color: textColor }]}>Type Vendeur</Text>
+              <View style={[styles.pickerContainer, { borderColor: tintColor, backgroundColor }]}>
+                <Picker
+                  selectedValue={(formData.attributes as any)?.sellerType || 'Entreprise'}
+                  onValueChange={(val) => setFormData({ ...formData, attributes: { ...(formData.attributes as any), sellerType: val } })}
+                  style={{ color: textColor }}
+                >
+                  <Picker.Item label="Entreprise" value="Entreprise" />
+                  <Picker.Item label="Boutique" value="Boutique" />
+                  <Picker.Item label="Particulier" value="Particulier" />
+                </Picker>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Garantie (ex: 6 mois, sans garantie intl.)</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor }]}
+              value={(formData.attributes as any)?.warranty || ''}
+              onChangeText={(text) => setFormData({ ...formData, attributes: { ...(formData.attributes as any), warranty: text } })}
+              placeholder="Détails de la garantie"
             />
           </View>
 
