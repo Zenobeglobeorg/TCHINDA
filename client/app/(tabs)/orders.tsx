@@ -14,6 +14,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>('ALL');
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     if (!user) {
@@ -258,11 +260,7 @@ export default function OrdersScreen() {
 
               <View style={styles.orderFooter}>
                 <ThemedText style={styles.orderTotal}>
-                  Total: {parseFloat(order.total).toLocaleString('fr-FR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  {order.currency || 'XOF'}
+                  Total: {formatPrice(parseFloat(order.total), order.currency || 'XOF')}
                 </ThemedText>
                 {order.trackingNumber && (
                   <View style={styles.tracking}>

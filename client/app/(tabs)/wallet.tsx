@@ -15,10 +15,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function WalletScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { formatPrice } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [wallet, setWallet] = useState<any>(null);
@@ -75,7 +77,7 @@ export default function WalletScreen() {
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${getCurrencySymbol(currency)}`;
+    return formatPrice(amount, currency);
   };
 
   const getTransactionIcon = (type: string) => {

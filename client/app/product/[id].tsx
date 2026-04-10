@@ -17,6 +17,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { Picker } from '@react-native-picker/picker';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +25,7 @@ export default function ProductScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [product, setProduct] = useState<any>(null);
@@ -210,6 +212,29 @@ export default function ProductScreen() {
     ? Math.round(((parseFloat(product.compareAtPrice) - parseFloat(product.price)) / parseFloat(product.compareAtPrice)) * 100)
     : 0;
 
+  const startChat = async () => {
+    if (!product?.seller?.id) {
+      Alert.alert('Erreur', 'Vendeur introuvable.');
+      return;
+    }
+    try {
+      const res = await apiService.post<{ id: string }>('/api/chat/conversation', {
+        participant2Id: product.seller.id,
+        type: 'ORDER'
+      });
+      if (res.success && res.data?.id) {
+        router.push(`/chat/${res.data.id}`);
+      } else {
+        Alert.alert('Erreur', res.error?.message || 'Impossible de démarrer la conversation');
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Une erreur est survenue');
+    }
+  };
+
+  const sellerFullName = product?.seller?.storeName || product?.seller?.shopName ||
+    ([product?.seller?.firstName, product?.seller?.lastName].filter(Boolean).join(' ') || 'Boutique Partenaire');
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -315,7 +340,7 @@ export default function ProductScreen() {
              <View style={styles.transparencyCard}>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>Vendeur :</ThemedText>
-                  <ThemedText style={styles.transparencyValue}>{product?.seller?.storeName || product?.seller?.shopName || 'Boutique Partenaire'}</ThemedText>
+                  <ThemedText style={styles.transparencyValue}>{sellerFullName}</ThemedText>
                 </View>
                 <View style={styles.transparencyRow}>
                   <ThemedText style={styles.transparencyLabel}>Type :</ThemedText>
@@ -349,19 +374,11 @@ export default function ProductScreen() {
           </View>
           <View style={styles.priceContainer}>
             <ThemedText style={styles.price}>
-              {parseFloat(product.price).toLocaleString('fr-FR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{' '}
-              {product.currency || 'XOF'}
+              {formatPrice(parseFloat(product.price), product.currency || 'XOF')}
             </ThemedText>
             {hasDiscount && (
               <ThemedText style={styles.oldPrice}>
-                {parseFloat(product.compareAtPrice).toLocaleString('fr-FR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                {product.currency || 'XOF'}
+                {formatPrice(parseFloat(product.compareAtPrice), product.currency || 'XOF')}
               </ThemedText>
             )}
           </View>
@@ -476,7 +493,7 @@ export default function ProductScreen() {
         <View style={styles.actionRowTop}>
           <TouchableOpacity 
             style={styles.actionIconButton} 
-            onPress={() => router.push(`/chat/${product?.seller?.id || 'default_seller'}`)}
+            onPress={startChat}
             accessible={true} accessibilityLabel="Discuter avec le vendeur" accessibilityRole="button">
             <IconSymbol name="message.fill" size={20} color="#624cacff" />
             <ThemedText style={styles.actionIconText}>Discuter</ThemedText>
@@ -534,9 +551,9 @@ export default function ProductScreen() {
                   
                   <View style={{backgroundColor: '#F5F5F5', padding: 15, borderRadius: 8, marginBottom: 20}}>
                     <ThemedText style={{fontWeight: 'bold' as any, marginBottom: 10}}>Échéancier de paiement estimé</ThemedText>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Apport initial (40%)</ThemedText><ThemedText>{(product.price * 0.4).toLocaleString()} XAF</ThemedText></View>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 1 (30%)</ThemedText><ThemedText>{(product.price * 0.3).toLocaleString()} XAF</ThemedText></View>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 2 (30%)</ThemedText><ThemedText>{(product.price * 0.3).toLocaleString()} XAF</ThemedText></View>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Apport initial (40%)</ThemedText><ThemedText>{formatPrice(product.price * 0.4, product.currency || 'XOF')}</ThemedText></View>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 1 (30%)</ThemedText><ThemedText>{formatPrice(product.price * 0.3, product.currency || 'XOF')}</ThemedText></View>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 2 (30%)</ThemedText><ThemedText>{formatPrice(product.price * 0.3, product.currency || 'XOF')}</ThemedText></View>
                   </View>
                   <TouchableOpacity style={styles.buyDirectButton} onPress={() => { setShowSubventionModal(false); Alert.alert("Succès", "Demande de subvention envoyée à l'étude."); }}>
                     <ThemedText style={styles.buyDirectText}>Soumettre la demande</ThemedText>
@@ -554,7 +571,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 250,
   },
   header: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ChatUnreadProvider } from '@/contexts/ChatUnreadContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { WebThemeProvider } from '@/components/WebThemeProvider';
 
 // Composant interne qui utilise le thème
@@ -87,6 +88,9 @@ function AppContent() {
         />
         {/* Écrans tabs (si vous les utilisez après l'authentification) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Écrans produits sans double header */}
+        <Stack.Screen name="products" options={{ headerShown: false }} />
+        <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
         {/* Dashboard Admin */}
         <Stack.Screen 
           name="admin/dashboard" 
@@ -124,7 +128,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <AuthProvider>
         <ChatUnreadProvider>
-          <AppContent />
+          <CurrencyProvider>
+            <AppContent />
+          </CurrencyProvider>
         </ChatUnreadProvider>
       </AuthProvider>
     </ThemeProvider>

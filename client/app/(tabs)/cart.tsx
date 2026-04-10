@@ -13,9 +13,9 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function CartScreen() {
   const { user } = useAuth();
@@ -24,6 +24,7 @@ export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [cart, setCart] = useState<any>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const { formatPrice } = useCurrency();
 
   // Charger à l'ouverture ET à chaque retour sur l'écran (évite un panier obsolète après checkout)
   useEffect(() => {
@@ -254,11 +255,7 @@ export default function CartScreen() {
                     </ThemedText>
                   </TouchableOpacity>
                   <ThemedText style={styles.productPrice}>
-                    {parseFloat(item.price).toLocaleString('fr-FR', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    {item.currency || 'XOF'}
+                    {formatPrice(parseFloat(item.price), item.currency || 'XOF')}
                   </ThemedText>
 
                   <View style={styles.quantityControls}>
@@ -288,11 +285,7 @@ export default function CartScreen() {
 
                 <View style={styles.itemActions}>
                   <ThemedText style={styles.itemTotal}>
-                    {(parseFloat(item.price) * item.quantity).toLocaleString('fr-FR', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    {item.currency || 'XOF'}
+                    {formatPrice(parseFloat(item.price) * item.quantity, item.currency || 'XOF')}
                   </ThemedText>
                   <TouchableOpacity
                     style={styles.removeButton}
@@ -319,11 +312,7 @@ export default function CartScreen() {
               <View style={styles.summaryRow}>
                 <ThemedText style={styles.summaryLabel}>Sous-total</ThemedText>
                 <ThemedText style={styles.summaryValue}>
-                  {calculateTotal().toLocaleString('fr-FR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  {cart?.currency || 'XOF'}
+                  {formatPrice(calculateTotal(), cart?.currency || 'XOF')}
                 </ThemedText>
               </View>
               <View style={styles.summaryRow}>
@@ -332,22 +321,14 @@ export default function CartScreen() {
                   <ThemedText style={[styles.summaryValue, styles.freeShipping]}>Gratuite</ThemedText>
                 ) : (
                   <ThemedText style={styles.summaryValue}>
-                    {calculateShipping().toLocaleString('fr-FR', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    {cart?.currency || 'XOF'}
+                    {formatPrice(calculateShipping(), cart?.currency || 'XOF')}
                   </ThemedText>
                 )}
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <ThemedText style={styles.totalLabel}>Total</ThemedText>
                 <ThemedText style={styles.totalValue}>
-                  {calculateGrandTotal().toLocaleString('fr-FR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  {cart?.currency || 'XOF'}
+                  {formatPrice(calculateGrandTotal(), cart?.currency || 'XOF')}
                 </ThemedText>
               </View>
             </View>

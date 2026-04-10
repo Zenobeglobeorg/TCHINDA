@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function WishlistScreen() {
   const [wishlist, setWishlist] = useState<any[]>([]);
 
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     if (!user) {
@@ -171,11 +173,7 @@ export default function WishlistScreen() {
 
                   <View style={styles.productFooter}>
                     <ThemedText style={styles.productPrice}>
-                      {parseFloat(item.product?.price || 0).toLocaleString('fr-FR', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{' '}
-                      {item.product?.currency || 'XOF'}
+                      {formatPrice(parseFloat(item.product?.price || 0), item.product?.currency || 'XOF')}
                     </ThemedText>
 
                     {item.product?.rating && (

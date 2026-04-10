@@ -10,17 +10,19 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 const { width } = Dimensions.get('window');
 
 export default function ProductsScreen() {
   const router = useRouter();
+  const { formatPrice } = useCurrency();
   const params = useLocalSearchParams<{ search?: string; categoryId?: string; sortBy?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,6 +140,7 @@ export default function ProductsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -367,20 +370,12 @@ export default function ProductsScreen() {
                   <View style={styles.productFooter}>
                     <View style={styles.priceContainer}>
                       <ThemedText style={styles.productPrice}>
-                        {parseFloat(product.price).toLocaleString('fr-FR', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{' '}
-                        {product.currency || 'XOF'}
+                        {formatPrice(parseFloat(product.price), product.currency || 'XOF')}
                       </ThemedText>
                       {product.compareAtPrice &&
                         parseFloat(product.compareAtPrice) > parseFloat(product.price) && (
                           <ThemedText style={styles.oldPrice}>
-                            {parseFloat(product.compareAtPrice).toLocaleString('fr-FR', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}{' '}
-                            {product.currency || 'XOF'}
+                            {formatPrice(parseFloat(product.compareAtPrice), product.currency || 'XOF')}
                           </ThemedText>
                         )}
                     </View>

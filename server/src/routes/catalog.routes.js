@@ -7,8 +7,12 @@ import {
   getProductById,
   getProductReviews,
 } from '../controllers/catalog.controller.js';
+import { getCurrencyRates } from '../controllers/config.controller.js';
 
 const router = express.Router();
+
+// Configuration globale & devises (public)
+router.get('/config/currency-rates', getCurrencyRates);
 
 // Categories (public)
 router.get('/categories', listCategories);

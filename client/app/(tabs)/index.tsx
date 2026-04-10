@@ -18,6 +18,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { apiService } from '@/services/api.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Colors } from '@/constants/Colors';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { Picker } from '@react-native-picker/picker';
 
 export default function BuyerHomeScreen() {
   const router = useRouter();
@@ -34,6 +36,8 @@ export default function BuyerHomeScreen() {
   const [deals, setDeals] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [homeSearch, setHomeSearch] = useState('');
+  
+  const { currency, setCurrency, formatPrice: formatCurrencyPrice } = useCurrency();
 
   // Rediriger les vendeurs vers l'espace vendeur
   useEffect(() => {
@@ -149,9 +153,8 @@ export default function BuyerHomeScreen() {
 
   const formatPrice = (p: any) => {
     const price = Number(p?.price);
-    const currency = p?.currency || 'XOF';
-    if (!Number.isFinite(price)) return `${p?.price || ''} ${currency}`.trim();
-    return `${price.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
+    const productCurrency = p?.currency || 'XOF';
+    return formatCurrencyPrice(price, productCurrency);
   };
 
   // Styles dynamiques basés sur le thème
@@ -234,6 +237,21 @@ export default function BuyerHomeScreen() {
       color: '#FFFFFF',
       fontSize: 12,
       fontWeight: 'bold',
+    },
+    currencyPickerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 20,
+      paddingHorizontal: 8,
+      backgroundColor: colors.card,
+      marginRight: 10,
+    },
+    currencyPicker: {
+      width: 100,
+      height: 40,
+      color: colors.text,
     },
     searchBar: {
       flexDirection: 'row',
@@ -599,17 +617,33 @@ export default function BuyerHomeScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity
-            style={styles.cartButton}
-            onPress={() => router.push('/(tabs)/cart')}
-          >
-            <IconSymbol name="cart.fill" size={24} color="#FFFFFF" />
-            {cartCount > 0 && (
-              <View style={styles.cartBadge}>
-                <ThemedText style={styles.cartBadgeText}>{cartCount}</ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={styles.currencyPickerContainer}>
+              <Picker
+                selectedValue={currency}
+                onValueChange={(itemValue) => setCurrency(String(itemValue))}
+                style={styles.currencyPicker}
+                dropdownIconColor={colors.text}
+              >
+                <Picker.Item label="XOF" value="XOF" />
+                <Picker.Item label="XAF" value="XAF" />
+                <Picker.Item label="EUR" value="EUR" />
+                <Picker.Item label="USD" value="USD" />
+                <Picker.Item label="GBP" value="GBP" />
+              </Picker>
+            </View>
+            <TouchableOpacity
+              style={styles.cartButton}
+              onPress={() => router.push('/(tabs)/cart')}
+            >
+              <IconSymbol name="cart.fill" size={24} color="#FFFFFF" />
+              {cartCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <ThemedText style={styles.cartBadgeText}>{cartCount}</ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.contentMaxWidth}>
@@ -716,10 +750,10 @@ export default function BuyerHomeScreen() {
                     {renderProductCard(d.product, { badgeText: d?.pricing?.discountLabel || 'Promo' })}
                     <View style={styles.dealPriceRow}>
                       <ThemedText style={styles.dealNewPrice}>
-                        {Number(d?.pricing?.dealPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                        {formatCurrencyPrice(Number(d?.pricing?.dealPrice || 0), d?.pricing?.currency || 'XOF')}
                       </ThemedText>
                       <ThemedText style={styles.dealOldPrice}>
-                        {Number(d?.pricing?.originalPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                        {formatCurrencyPrice(Number(d?.pricing?.originalPrice || 0), d?.pricing?.currency || 'XOF')}
                       </ThemedText>
                     </View>
                   </TouchableOpacity>
@@ -736,10 +770,10 @@ export default function BuyerHomeScreen() {
                     {renderProductCard(d.product, { badgeText: d?.pricing?.discountLabel || 'Promo' })}
                     <View style={styles.dealPriceRow}>
                       <ThemedText style={styles.dealNewPrice}>
-                        {Number(d?.pricing?.dealPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                        {formatCurrencyPrice(Number(d?.pricing?.dealPrice || 0), d?.pricing?.currency || 'XOF')}
                       </ThemedText>
                       <ThemedText style={styles.dealOldPrice}>
-                        {Number(d?.pricing?.originalPrice || 0).toLocaleString('fr-FR')} {d?.pricing?.currency || 'XOF'}
+                        {formatCurrencyPrice(Number(d?.pricing?.originalPrice || 0), d?.pricing?.currency || 'XOF')}
                       </ThemedText>
                     </View>
                   </TouchableOpacity>
