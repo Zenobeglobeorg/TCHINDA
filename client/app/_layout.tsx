@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } fro
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+//import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -91,6 +91,7 @@ function AppContent() {
         {/* Écrans produits sans double header */}
         <Stack.Screen name="products" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/checkout" options={{ headerShown: false }} />
         {/* Dashboard Admin */}
         <Stack.Screen 
           name="admin/dashboard" 

@@ -1,7 +1,12 @@
 import { prisma } from '../utils/prisma.js';
 import * as buyerService from '../services/buyer.service.js';
 import { uploadService } from '../services/upload.service.js';
-import * as mobileMoneyService from '../services/mobile-money.service.js';
+import {
+  initiateMomoPayment,
+  getMomoPaymentStatus,
+  cancelMomoPayment,
+  handleMomoCallback,
+} from '../services/mobile-money.service.js';
 
 /**
  * Get buyer profile
@@ -517,35 +522,54 @@ export const cancelSubscription = async (req, res, next) => {
 };
 
 /**
- * Initiate mobile money payment (for wallet deposit or order payment)
+ * Initiate Mobile Money payment (MTN MoMo)
+ * POST /api/buyer/payments/mobile-money/initiate
  */
 export const initiateMobileMoneyPayment = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { amount, currency, provider, phoneNumber, type, orderId } = req.body;
-    
-    const result = await mobileMoneyService.initiateMobileMoneyPayment(userId, {
-      amount: parseFloat(amount),
-      currency: currency || 'XOF',
-      provider, // 'MTN' or 'ORANGE'
-      phoneNumber,
-      type, // 'DEPOSIT' or 'ORDER'
+    const { orderId, amount, currency, phoneNumber, provider = 'MTN', message } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'orderId est obligatoire' },
+      });
+    }
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Numéro de téléphone obligatoire' },
+      });
+    }
+
+    const result = await initiateMomoPayment(userId, {
       orderId,
+      amount: parseFloat(amount),
+      currency: currency || process.env.MOMO_CURRENCY || 'EUR',
+      phoneNumber,
+      provider,
+      message,
     });
-    
-    res.status(201).json({ success: true, data: result, message: 'Paiement initié' });
+
+    res.status(202).json({
+      success: true,
+      data: result,
+      message: result.message,
+    });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Check mobile money payment status
+ * Check Mobile Money payment status (polling)
+ * GET /api/buyer/payments/mobile-money/{referenceId}/status
  */
 export const checkMobileMoneyPaymentStatus = async (req, res, next) => {
   try {
-    const paymentId = req.params.paymentId;
-    const status = await mobileMoneyService.checkPaymentStatus(paymentId);
+    const { referenceId } = req.params;
+    const status = await getMomoPaymentStatus(referenceId);
     res.json({ success: true, data: status });
   } catch (error) {
     next(error);
@@ -553,31 +577,33 @@ export const checkMobileMoneyPaymentStatus = async (req, res, next) => {
 };
 
 /**
- * Confirm mobile money payment
- */
-export const confirmMobileMoneyPayment = async (req, res, next) => {
-  try {
-    const paymentId = req.params.paymentId;
-    const { confirmationCode } = req.body;
-    
-    const result = await mobileMoneyService.confirmMobileMoneyPayment(paymentId, confirmationCode);
-    res.json({ success: true, data: result, message: 'Paiement confirmé' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Cancel mobile money payment
+ * Cancel a pending Mobile Money payment
+ * POST /api/buyer/payments/mobile-money/{referenceId}/cancel
  */
 export const cancelMobileMoneyPayment = async (req, res, next) => {
   try {
-    const paymentId = req.params.paymentId;
-    const result = await mobileMoneyService.cancelMobileMoneyPayment(paymentId);
+    const userId = req.user.id;
+    const { referenceId } = req.params;
+    const result = await cancelMomoPayment(referenceId, userId);
     res.json({ success: true, data: result, message: 'Paiement annulé' });
   } catch (error) {
     next(error);
   }
 };
 
-
+/**
+ * MoMo Callback (webhook MTN → backend)
+ * POST /api/payments/callback  (route publique sans auth)
+ */
+export const momoCallback = async (req, res, next) => {
+  try {
+    console.log('📞 [MoMo Callback] Corps reçu:', JSON.stringify(req.body, null, 2));
+    await handleMomoCallback(req.body);
+    // MTN attend un 200 immédiat, sinon il réessaie
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('❌ [MoMo Callback] Erreur:', error.message);
+    // Toujours répondre 200 à MTN pour éviter les réessais infinis
+    res.status(200).json({ success: false, error: error.message });
+  }
+};

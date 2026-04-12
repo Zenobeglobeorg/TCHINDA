@@ -16,6 +16,9 @@ import commercialRoutes from './routes/commercial.routes.js';
 import catalogRoutes from './routes/catalog.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 
+// Import controllers (pour les routes publiques)
+import { momoCallback } from './controllers/buyer.controller.js';
+
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
 import { notFound } from './middleware/notFound.middleware.js';
@@ -278,6 +281,9 @@ app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/commercial', commercialRoutes);
 app.use('/api/chat', chatRoutes);
+
+// Route publique MoMo callback (sans JWT - MTN appelle directement ce endpoint)
+app.post('/api/payments/callback', momoCallback);
 
 // Error handling middleware (must be last)
 app.use(notFound);

@@ -550,6 +550,15 @@ enum OrderStatus {
   REFUNDED // Remboursée
 }
 
+// Enum pour le statut des paiements MoMo
+enum PaymentStatus {
+  PENDING // En attente de confirmation sur téléphone
+  SUCCESSFUL // Paiement réussi
+  FAILED // Paiement échoué
+  CANCELLED // Annulé par l'utilisateur
+  EXPIRED // Délai expiré (MTN: 1 min en sandbox)
+}
+
 // Table des catégories
 model Category {
   id          String  @id @default(uuid())
@@ -864,8 +873,9 @@ model Order {
   metadata Json?
 
   // Relations
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items OrderItem[]
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  payments Payment[]
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -905,6 +915,33 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@index([variantId])
+}
+
+// Table des paiements Mobile Money
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  referenceId       String        @unique // UUID envoyé à MTN comme X-Reference-Id
+  amount            Decimal       @db.Decimal(15, 2)
+  currency          String        @default("EUR") // EUR en sandbox, XOF en production
+  payerPhone        String // Numéro de téléphone du payeur
+  provider          String        @default("MTN") // MTN, ORANGE
+  status            PaymentStatus @default(PENDING)
+  momoTransactionId String? // financialTransactionId retourné par MTN après succès
+  failureReason     String? // Raison de l'échec (ex: PAYER_NOT_FOUND, NOT_ENOUGH_FUNDS)
+  metadata          Json? // Réponse complète de l'API MoMo
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([referenceId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // Table des évaluations

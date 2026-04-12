@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
   Modal,
-  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -19,6 +18,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
 import PaymentInfoForm from '@/components/PaymentInfoForm';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export default function CheckoutScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
+  const { formatPrice } = useCurrency();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,9 +39,13 @@ export default function CheckoutScreen() {
   const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [wallet, setWallet] = useState<any>(null);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [confirmationCode, setConfirmationCode] = useState('');
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+
+  // MoMo payment flow state
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'SUCCESSFUL' | 'FAILED' | 'CANCELLED' | 'EXPIRED' | null>(null);
+  const [showPaymentStatusModal, setShowPaymentStatusModal] = useState(false);
+  const pollingIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isBuyNow = !!params?.productId;
 
@@ -156,12 +161,78 @@ export default function CheckoutScreen() {
     }
   };
 
+  /**
+   * Démarrer le polling du statut MoMo (toutes les 5s, timeout 5 minutes)
+   */
+  const startPolling = (refId: string) => {
+    // Nettoyer tout polling précédent
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+
+    console.log(`🔄 [Checkout] Démarrage polling pour referenceId: ${refId}`);
+
+    const poll = async () => {
+      try {
+        const res = await apiService.get(`/api/buyer/payments/mobile-money/${refId}/status`);
+        if (!res.success) return;
+
+        const status = res.data?.status;
+        console.log(`📲 [Checkout] Statut reçu: ${status}`);
+        setPaymentStatus(status);
+
+        if (status === 'SUCCESSFUL') {
+          stopPolling();
+          // Laisser 1.5s pour que l'utilisateur voit le succès
+          setTimeout(() => {
+            setShowPaymentStatusModal(false);
+            Alert.alert('✅ Paiement réussi !', 'Votre commande a été confirmée.', [
+              {
+                text: 'Voir mes commandes',
+                onPress: () => router.replace('/(tabs)/orders'),
+              },
+            ]);
+          }, 1500);
+        } else if (['FAILED', 'CANCELLED', 'EXPIRED'].includes(status)) {
+          stopPolling();
+        }
+      } catch (e) {
+        console.error('❌ [Checkout] Erreur polling:', e);
+      }
+    };
+
+    // Lancer immédiatement puis toutes les 5s
+    poll();
+    pollingIntervalRef.current = setInterval(poll, 5000);
+
+    // Timeout de sécurité : 5 minutes
+    pollingTimeoutRef.current = setTimeout(() => {
+      stopPolling();
+      setPaymentStatus('EXPIRED');
+    }, 5 * 60 * 1000);
+  };
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+  };
+
+  // Nettoyer le polling quand le composant est démonté
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
   const handlePaymentInfoSubmit = async (paymentInfo: any) => {
     if (!paymentMethod || !selectedPaymentMethod) return;
 
     setCreating(true);
     try {
-      // D'abord créer la commande en PENDING
+      // Étape 1 : Créer la commande en PENDING
       const orderRes = isBuyNow
         ? await apiService.post('/api/buyer/orders/buy-now', {
             productId: buyNowItem?.productId,
@@ -184,24 +255,28 @@ export default function CheckoutScreen() {
 
       const orderId = orderRes.data?.id;
 
-      // Initier le paiement mobile money
+      // Étape 2 : Initier le paiement MoMo
       const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
+        orderId,
         amount: total,
         currency: isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF',
-        provider: paymentMethod,
+        provider: paymentMethod, // 'MTN'
         phoneNumber: paymentInfo.phoneNumber,
-        type: 'ORDER',
-        orderId,
       });
 
       if (!paymentRes.success) {
-        Alert.alert('Erreur', paymentRes.error?.message || 'Impossible d\'initier le paiement');
+        Alert.alert('Erreur', paymentRes.error?.message || "Impossible d'initier le paiement MoMo");
         return;
       }
 
-      setPaymentId(paymentRes.data?.paymentId);
+      const refId = paymentRes.data?.referenceId;
+      setReferenceId(refId);
+      setPaymentStatus('PENDING');
       setShowPaymentInfoForm(false);
-      setShowConfirmationModal(true);
+      setShowPaymentStatusModal(true);
+
+      // Démarrer le polling automatique
+      startPolling(refId);
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Erreur lors du paiement');
     } finally {
@@ -209,31 +284,20 @@ export default function CheckoutScreen() {
     }
   };
 
-  const handleConfirmPayment = async () => {
-    if (!paymentId) return;
-
-    setCreating(true);
-    try {
-      const res = await apiService.post(`/api/buyer/payments/mobile-money/${paymentId}/confirm`, {
-        confirmationCode: confirmationCode || '123456', // Code de test
-      });
-
-      if (res.success) {
-        setShowConfirmationModal(false);
-        Alert.alert('Succès', 'Paiement confirmé ! Commande créée.', [
-          {
-            text: 'Voir mes commandes',
-            onPress: () => router.replace('/(tabs)/orders'),
-          },
-        ]);
-      } else {
-        Alert.alert('Erreur', res.error?.message || 'Code de confirmation invalide');
-      }
-    } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Erreur lors de la confirmation');
-    } finally {
-      setCreating(false);
+  const handleCancelPayment = async () => {
+    if (!referenceId) {
+      setShowPaymentStatusModal(false);
+      return;
     }
+    stopPolling();
+    try {
+      await apiService.post(`/api/buyer/payments/mobile-money/${referenceId}/cancel`, {});
+    } catch (e) {
+      // Ignorer l'erreur d'annulation
+    }
+    setShowPaymentStatusModal(false);
+    setReferenceId(null);
+    setPaymentStatus(null);
   };
 
   const createOrder = async () => {
@@ -356,19 +420,19 @@ export default function CheckoutScreen() {
               <View style={styles.row}>
                 <ThemedText style={[styles.label, { color: textColor + '80' }]}>Sous-total</ThemedText>
                 <ThemedText style={[styles.value, { color: textColor }]}>
-                  {subtotal.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {buyNowItem.currency || 'XOF'}
+                  {formatPrice(subtotal, buyNowItem?.currency || 'XOF')}
                 </ThemedText>
               </View>
               <View style={styles.row}>
                 <ThemedText style={[styles.label, { color: textColor + '80' }]}>Livraison</ThemedText>
                 <ThemedText style={[styles.value, { color: textColor }]}>
-                  {shipping.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {buyNowItem.currency || 'XOF'}
+                  {formatPrice(shipping, buyNowItem?.currency || 'XOF')}
                 </ThemedText>
               </View>
               <View style={[styles.row, { marginTop: 8 }]}>
                 <ThemedText style={[styles.totalLabel, { color: textColor }]}>Total</ThemedText>
                 <ThemedText style={[styles.totalValue, { color: tintColor }]}>
-                  {total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {buyNowItem.currency || 'XOF'}
+                  {formatPrice(total, buyNowItem?.currency || 'XOF')}
                 </ThemedText>
               </View>
 
@@ -446,19 +510,19 @@ export default function CheckoutScreen() {
             <View style={styles.row}>
               <ThemedText style={[styles.label, { color: textColor + '80' }]}>Sous-total</ThemedText>
               <ThemedText style={[styles.value, { color: textColor }]}>
-                {subtotal.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {cart.currency || 'XOF'}
+                {formatPrice(subtotal, cart?.currency || 'XOF')}
               </ThemedText>
             </View>
             <View style={styles.row}>
               <ThemedText style={[styles.label, { color: textColor + '80' }]}>Livraison</ThemedText>
               <ThemedText style={[styles.value, { color: textColor }]}>
-                {shipping.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {cart.currency || 'XOF'}
+                {formatPrice(shipping, cart?.currency || 'XOF')}
               </ThemedText>
             </View>
             <View style={[styles.row, { marginTop: 8 }]}>
               <ThemedText style={[styles.totalLabel, { color: textColor }]}>Total</ThemedText>
               <ThemedText style={[styles.totalValue, { color: tintColor }]}>
-                {total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {cart.currency || 'XOF'}
+                {formatPrice(total, cart?.currency || 'XOF')}
               </ThemedText>
             </View>
 
@@ -554,50 +618,96 @@ export default function CheckoutScreen() {
         />
       )}
 
-      {/* Confirmation Code Modal */}
-      <Modal visible={showConfirmationModal} animationType="slide" transparent>
+      {/* Payment Status Modal (polling) */}
+      <Modal visible={showPaymentStatusModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor }]}>
             <View style={styles.modalHeader}>
               <ThemedText style={[styles.modalTitle, { color: textColor }]}>
-                Confirmer le paiement
+                Paiement MTN MoMo
               </ThemedText>
-              <TouchableOpacity onPress={() => setShowConfirmationModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={textColor} />
-              </TouchableOpacity>
             </View>
-            <ThemedText style={[styles.modalText, { color: textColor + '80' }]}>
-              Un SMS de confirmation a été envoyé. Entrez le code reçu :
-            </ThemedText>
-            <TextInput
-              style={[styles.confirmationInput, { backgroundColor, color: textColor, borderColor: tintColor + '40' }]}
-              placeholder="Code de confirmation"
-              placeholderTextColor={textColor + '60'}
-              value={confirmationCode}
-              onChangeText={setConfirmationCode}
-              keyboardType="numeric"
-              maxLength={6}
-            />
+
+            {/* PENDING */}
+            {paymentStatus === 'PENDING' && (
+              <View style={styles.statusContainer}>
+                <ActivityIndicator size="large" color={tintColor} style={{ marginBottom: 16 }} />
+                <ThemedText style={[styles.statusTitle, { color: textColor }]}>
+                  En attente de confirmation
+                </ThemedText>
+                <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
+                  Une notification MTN MoMo a été envoyée sur votre téléphone.{"\n"}Entrez votre code PIN pour confirmer.
+                </ThemedText>
+                <ThemedText style={[styles.statusHint, { color: textColor + '50' }]}>
+                  Cette fenêtre se fermera automatiquement…
+                </ThemedText>
+              </View>
+            )}
+
+            {/* SUCCESSFUL */}
+            {paymentStatus === 'SUCCESSFUL' && (
+              <View style={styles.statusContainer}>
+                <ThemedText style={styles.statusIcon}>✅</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#4CAF50' }]}>
+                  Paiement réussi !
+                </ThemedText>
+                <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
+                  Votre commande a été confirmée.
+                </ThemedText>
+              </View>
+            )}
+
+            {/* FAILED */}
+            {(paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED') && (
+              <View style={styles.statusContainer}>
+                <ThemedText style={styles.statusIcon}>❌</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#F44336' }]}>
+                  Paiement échoué
+                </ThemedText>
+                <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
+                  Le paiement a été refusé ou annulé. Veuillez réessayer.
+                </ThemedText>
+              </View>
+            )}
+
+            {/* EXPIRED */}
+            {paymentStatus === 'EXPIRED' && (
+              <View style={styles.statusContainer}>
+                <ThemedText style={styles.statusIcon}>⏰</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#FF9800' }]}>
+                  Délai expiré
+                </ThemedText>
+                <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
+                  Vous n\'avez pas confirmé à temps. Veuillez relancer un paiement.
+                </ThemedText>
+              </View>
+            )}
+
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#F5F5F5' }]}
-                onPress={() => setShowConfirmationModal(false)}
-              >
-                <ThemedText style={styles.modalButtonText}>Annuler</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleConfirmPayment}
-                disabled={creating || !confirmationCode}
-              >
-                {creating ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
+              {paymentStatus === 'PENDING' ? (
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#F44336' }]}
+                  onPress={handleCancelPayment}
+                >
+                  <ThemedText style={[styles.modalButtonText, { color: '#FFF' }]}>Annuler</ThemedText>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: tintColor }]}
+                  onPress={() => {
+                    setShowPaymentStatusModal(false);
+                    setReferenceId(null);
+                    setPaymentStatus(null);
+                    if (paymentStatus === 'SUCCESSFUL') {
+                      router.replace('/(tabs)/orders');
+                    }
+                  }}
+                >
                   <ThemedText style={[styles.modalButtonText, { color: '#FFF' }]}>
-                    Confirmer
+                    {paymentStatus === 'SUCCESSFUL' ? 'Voir mes commandes' : 'Fermer'}
                   </ThemedText>
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -695,14 +805,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 16,
   },
-  confirmationInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 18,
+  // Styles for the MoMo payment status modal
+  statusContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 12,
+  },
+  statusIcon: {
+    fontSize: 48,
+    marginBottom: 4,
+  },
+  statusTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     textAlign: 'center',
-    letterSpacing: 8,
-    marginBottom: 20,
+  },
+  statusText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  statusHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
   },
   modalActions: {
     flexDirection: 'row',

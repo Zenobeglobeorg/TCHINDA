@@ -95,11 +95,13 @@ router.get('/subscription', buyerController.getSubscription);
 router.post('/subscription', buyerController.subscribe);
 router.put('/subscription/cancel', buyerController.cancelSubscription);
 
-// Mobile Money payment routes
+// Mobile Money payment routes (MTN MoMo)
+// POST initiate → crée la commande puis initie le paiement
 router.post('/payments/mobile-money/initiate', buyerController.initiateMobileMoneyPayment);
-router.get('/payments/mobile-money/:paymentId/status', buyerController.checkMobileMoneyPaymentStatus);
-router.post('/payments/mobile-money/:paymentId/confirm', buyerController.confirmMobileMoneyPayment);
-router.post('/payments/mobile-money/:paymentId/cancel', buyerController.cancelMobileMoneyPayment);
+// GET status → polling du statut (appelé toutes les 5s par le frontend)
+router.get('/payments/mobile-money/:referenceId/status', buyerController.checkMobileMoneyPaymentStatus);
+// POST cancel → annuler un paiement PENDING
+router.post('/payments/mobile-money/:referenceId/cancel', buyerController.cancelMobileMoneyPayment);
 
 export default router;
 
