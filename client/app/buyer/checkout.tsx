@@ -27,7 +27,7 @@ export default function CheckoutScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const { formatPrice } = useCurrency();
+  const { formatPrice, convertPrice, currency: selectedCurrency } = useCurrency();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -256,10 +256,18 @@ export default function CheckoutScreen() {
       const orderId = orderRes.data?.id;
 
       // Étape 2 : Initier le paiement MoMo
+      // Convertir le montant vers la devise affichée (celle que l'utilisateur voit à l'écran)
+      const rawCurrency = isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF';
+      const convertedAmount = convertPrice(total, rawCurrency);
+      // Arrondir : XOF/XAF → entier, EUR/USD → 2 décimales
+      const paymentAmount = ['EUR', 'USD', 'GBP'].includes(selectedCurrency)
+        ? Math.round(convertedAmount * 100) / 100
+        : Math.round(convertedAmount);
+
       const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
         orderId,
-        amount: total,
-        currency: isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF',
+        amount: paymentAmount,
+        currency: selectedCurrency, // ← devise affichée à l'utilisateur (ex: EUR)
         provider: paymentMethod, // 'MTN'
         phoneNumber: paymentInfo.phoneNumber,
       });

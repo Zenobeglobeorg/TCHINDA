@@ -34,6 +34,7 @@ const buildCommonHeaders = (extraHeaders = {}) => ({
   'Ocp-Apim-Subscription-Key': MOMO_SUBSCRIPTION_KEY,
   'X-Target-Environment': MOMO_ENVIRONMENT,
   'Content-Type': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (compatible; TCHINDA-App/1.0)',
   ...extraHeaders,
 });
 
@@ -142,7 +143,9 @@ export const initiateMomoPayment = async (userId, paymentData) => {
   // ── Obtenir l'access token ─────────────────────────────────────────────────
   const accessToken = await getMomoAccessToken();
 
-  const paymentCurrency = currency || MOMO_CURRENCY;
+  // En sandbox MTN, la devise DOIT être EUR (XOF n'est pas accepté en sandbox)
+  // En production, utiliser la devise du produit si MOMO_ENVIRONMENT !== 'sandbox'
+  const paymentCurrency = MOMO_ENVIRONMENT === 'sandbox' ? MOMO_CURRENCY : (currency || MOMO_CURRENCY);
   const paymentAmount = Math.round(parseFloat(amount)); // MoMo accepte des entiers
 
   const requestBody = {
