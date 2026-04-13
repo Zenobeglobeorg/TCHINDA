@@ -256,21 +256,25 @@ export default function CheckoutScreen() {
       const orderId = orderRes.data?.id;
 
       // Étape 2 : Initier le paiement MoMo
-      // Convertir le montant vers la devise affichée (celle que l'utilisateur voit à l'écran)
+      // MTN sandbox n'accepte que EUR — on convertit toujours le montant vers EUR
       const rawCurrency = isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF';
-      const convertedAmount = convertPrice(total, rawCurrency);
-      // Arrondir : XOF/XAF → entier, EUR/USD → 2 décimales
-      const paymentAmount = ['EUR', 'USD', 'GBP'].includes(selectedCurrency)
-        ? Math.round(convertedAmount * 100) / 100
-        : Math.round(convertedAmount);
+      const momoTargetCurrency = 'EUR'; // sandbox MTN impose EUR
+      // Convertir rawCurrency → EUR via le CurrencyContext
+      // convertPrice(amount, from) → vers selectedCurrency
+      // Taux de secours si les rates ne sont pas chargés
+      const EUR_RATE = 0.00152; // 1 XOF ≈ 0.00152 EUR
+      const amountInEUR = rawCurrency === momoTargetCurrency
+        ? total
+        : Math.round(total * EUR_RATE * 100) / 100;
 
       const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
         orderId,
-        amount: paymentAmount,
-        currency: selectedCurrency, // ← devise affichée à l'utilisateur (ex: EUR)
+        amount: amountInEUR,
+        currency: momoTargetCurrency, // ← toujours EUR pour sandbox MTN
         provider: paymentMethod, // 'MTN'
         phoneNumber: paymentInfo.phoneNumber,
       });
+
 
       if (!paymentRes.success) {
         Alert.alert('Erreur', paymentRes.error?.message || "Impossible d'initier le paiement MoMo");
@@ -613,8 +617,14 @@ export default function CheckoutScreen() {
         <PaymentInfoForm
           visible={showPaymentInfoForm}
           paymentMethod={selectedPaymentMethod}
-          amount={total}
-          currency={isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF'}
+          amount={(() => {
+            const rawCurrency = isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF';
+            const converted = convertPrice(total, rawCurrency);
+            return ['EUR', 'USD', 'GBP'].includes(selectedCurrency)
+              ? Math.round(converted * 100) / 100
+              : Math.round(converted);
+          })()}
+          currency={selectedCurrency}
           onClose={() => {
             setShowPaymentInfoForm(false);
             setSelectedPaymentMethod(null);

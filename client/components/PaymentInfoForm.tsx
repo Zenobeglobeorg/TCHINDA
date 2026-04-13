@@ -27,7 +27,7 @@ interface PaymentInfoFormProps {
 }
 
 // Champs nécessaires pour chaque méthode de paiement
-const PAYMENT_FIELDS: Record<string, Array<{ key: string; label: string; placeholder: string; keyboardType?: any }>> = {
+const PAYMENT_FIELDS: Record<string, { key: string; label: string; placeholder: string; keyboardType?: any }[]> = {
   orange_money: [
     { key: 'phoneNumber', label: 'Numéro Orange Money', placeholder: 'Ex: +225 07 XX XX XX XX', keyboardType: 'phone-pad' },
   ],
@@ -131,7 +131,10 @@ export default function PaymentInfoForm({
               Montant {transactionType === 'deposit' ? 'du dépôt' : 'du retrait'}
             </ThemedText>
             <ThemedText style={[styles.amountValue, { color: tintColor }]}>
-              {amount.toLocaleString('fr-FR')} {currency}
+              {['EUR', 'USD', 'GBP'].includes(currency)
+                ? amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : Math.round(amount).toLocaleString('fr-FR')
+              } {currency}
             </ThemedText>
           </View>
 

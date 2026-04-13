@@ -13,13 +13,13 @@ import { prisma } from '../utils/prisma.js';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const MOMO_BASE_URL = process.env.MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com';
-const MOMO_SUBSCRIPTION_KEY = process.env.MOMO_SUBSCRIPTION_KEY || '';
-const MOMO_API_USER_ID = process.env.MOMO_API_USER_ID || '';
-const MOMO_API_KEY = process.env.MOMO_API_KEY || '';
-const MOMO_ENVIRONMENT = process.env.MOMO_ENVIRONMENT || 'sandbox';
-const MOMO_CURRENCY = process.env.MOMO_CURRENCY || 'EUR'; // EUR en sandbox, XOF en prod
-const MOMO_CALLBACK_URL = process.env.MOMO_CALLBACK_URL || '';
+const MOMO_BASE_URL = (process.env.MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com').replace(/\/$/, '');
+const MOMO_SUBSCRIPTION_KEY = (process.env.MOMO_SUBSCRIPTION_KEY || '').trim();
+const MOMO_API_USER_ID = (process.env.MOMO_API_USER_ID || '').trim();
+const MOMO_API_KEY = (process.env.MOMO_API_KEY || '').trim();
+const MOMO_ENVIRONMENT = (process.env.MOMO_ENVIRONMENT || 'sandbox').trim();
+const MOMO_CURRENCY = (process.env.MOMO_CURRENCY || 'EUR').trim(); // EUR en sandbox, XOF en prod
+const MOMO_CALLBACK_URL = (process.env.MOMO_CALLBACK_URL || '').trim();
 
 // Cache du token en mémoire (évite de re-générer à chaque requête)
 let cachedToken = null;
@@ -34,7 +34,8 @@ const buildCommonHeaders = (extraHeaders = {}) => ({
   'Ocp-Apim-Subscription-Key': MOMO_SUBSCRIPTION_KEY,
   'X-Target-Environment': MOMO_ENVIRONMENT,
   'Content-Type': 'application/json',
-  'User-Agent': 'Mozilla/5.0 (compatible; TCHINDA-App/1.0)',
+  'Accept': '*/*',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   ...extraHeaders,
 });
 
@@ -143,21 +144,23 @@ export const initiateMomoPayment = async (userId, paymentData) => {
   // ── Obtenir l'access token ─────────────────────────────────────────────────
   const accessToken = await getMomoAccessToken();
 
-  // En sandbox MTN, la devise DOIT être EUR (XOF n'est pas accepté en sandbox)
-  // En production, utiliser la devise du produit si MOMO_ENVIRONMENT !== 'sandbox'
   const paymentCurrency = MOMO_ENVIRONMENT === 'sandbox' ? MOMO_CURRENCY : (currency || MOMO_CURRENCY);
-  const paymentAmount = Math.round(parseFloat(amount)); // MoMo accepte des entiers
+  // Pour EUR/USD: 2 décimales. Pour XOF/XAF: entier.
+  const isDecimalCurrency = ['EUR', 'USD', 'GBP'].includes(paymentCurrency);
+  const paymentAmount = isDecimalCurrency 
+    ? Math.round(parseFloat(amount) * 100) / 100 
+    : Math.round(parseFloat(amount));
 
   const requestBody = {
-    amount: String(paymentAmount), // MTN attend une string
+    amount: paymentAmount.toString(), // MTN attend une string numérique
     currency: paymentCurrency,
     externalId: orderId, // Référence interne (commande)
     payer: {
       partyIdType: 'MSISDN',
       partyId: rawPhone,
     },
-    payerMessage: message || `Paiement commande #${order.orderNumber || orderId.substring(0, 8)}`,
-    payeeNote: `TCHINDA - Commande ${order.orderNumber || orderId.substring(0, 8)}`,
+    payerMessage: (message || `Paiement commande ${order.orderNumber || orderId.substring(0, 8)}`).substring(0, 75),
+    payeeNote: `TCHINDA Commande ${order.orderNumber || orderId.substring(0, 8)}`.substring(0, 75),
   };
 
   console.log(`🚀 [MoMo] Envoi RequestToPay - referenceId: ${referenceId}, montant: ${paymentAmount} ${paymentCurrency}, tel: ${rawPhone}`);
