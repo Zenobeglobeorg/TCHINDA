@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
+import { alert } from '@/utils/alert';
 
 export default function ProfileScreen() {
   const { user, refreshUser } = useAuth();
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
       );
     } else {
       // For Android/Web, show a simple alert with instructions
-      Alert.alert(
+      alert(
         'Photo de profil',
         'Pour ajouter une photo, entrez l\'URL de l\'image dans le champ photo ci-dessous.',
         [{ text: 'OK' }]
@@ -126,19 +127,19 @@ export default function ProfileScreen() {
       
       if (response.success) {
         await refreshUser();
-        Alert.alert('Succès', 'Profil mis à jour avec succès');
+        alert('Succès', 'Profil mis à jour avec succès');
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    Alert.alert(
+    alert(
       'Supprimer l\'adresse',
       'Êtes-vous sûr de vouloir supprimer cette adresse ?',
       [
@@ -151,10 +152,10 @@ export default function ProfileScreen() {
               const response = await apiService.delete(`/api/buyer/addresses/${addressId}`);
               if (response.success) {
                 await loadAddresses();
-                Alert.alert('Succès', 'Adresse supprimée');
+                alert('Succès', 'Adresse supprimée');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message);
+              alert('Erreur', error.message);
             }
           },
         },
@@ -187,7 +188,13 @@ export default function ProfileScreen() {
 
         {/* Photo Section */}
         <View style={styles.photoSection}>
-          <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
+          <TouchableOpacity
+            onPress={pickImage}
+            style={styles.photoContainer}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Ajouter ou modifier la photo de profil"
+          >
             {formData.photo ? (
               <Image source={{ uri: formData.photo }} style={styles.photo} />
             ) : (
@@ -213,6 +220,8 @@ export default function ProfileScreen() {
                 value={formData.firstName}
                 onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                 placeholder="Prénom"
+                accessible={true}
+                accessibilityLabel="Prénom"
               />
             </View>
             <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
@@ -222,6 +231,8 @@ export default function ProfileScreen() {
                 value={formData.lastName}
                 onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                 placeholder="Nom"
+                accessible={true}
+                accessibilityLabel="Nom"
               />
             </View>
           </View>
@@ -232,6 +243,8 @@ export default function ProfileScreen() {
               style={[styles.input, styles.disabledInput]}
               value={user?.email || ''}
               editable={false}
+              accessible={true}
+              accessibilityLabel="Adresse email"
             />
           </View>
 
@@ -243,6 +256,8 @@ export default function ProfileScreen() {
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
               placeholder="+33 6 12 34 56 78"
               keyboardType="phone-pad"
+              accessible={true}
+              accessibilityLabel="Téléphone"
             />
           </View>
 
@@ -253,6 +268,8 @@ export default function ProfileScreen() {
               value={formData.dateOfBirth}
               onChangeText={(text) => setFormData({ ...formData, dateOfBirth: text })}
               placeholder="YYYY-MM-DD"
+              accessible={true}
+              accessibilityLabel="Date de naissance"
             />
           </View>
         </View>
@@ -270,6 +287,8 @@ export default function ProfileScreen() {
               value={formData.country}
               onChangeText={(text) => setFormData({ ...formData, country: text })}
               placeholder="France"
+              accessible={true}
+              accessibilityLabel="Pays de résidence"
             />
           </View>
 
@@ -281,6 +300,8 @@ export default function ProfileScreen() {
                 value={formData.city}
                 onChangeText={(text) => setFormData({ ...formData, city: text })}
                 placeholder="Paris"
+                accessible={true}
+                accessibilityLabel="Ville"
               />
             </View>
             <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
@@ -291,6 +312,8 @@ export default function ProfileScreen() {
                 onChangeText={(text) => setFormData({ ...formData, postalCode: text })}
                 placeholder="75001"
                 keyboardType="numeric"
+                accessible={true}
+                accessibilityLabel="Code postal"
               />
             </View>
           </View>
@@ -303,6 +326,8 @@ export default function ProfileScreen() {
               onChangeText={(text) => setFormData({ ...formData, address: text })}
               placeholder="123 Rue Example"
               multiline
+              accessible={true}
+              accessibilityLabel="Adresse"
             />
           </View>
         </View>
@@ -314,6 +339,9 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => router.push('/buyer/addresses/new')}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter une adresse supplémentaire"
             >
               <IconSymbol name="plus.circle.fill" size={24} color="#624cacff" />
             </TouchableOpacity>
@@ -339,10 +367,18 @@ export default function ProfileScreen() {
               <View style={styles.addressActions}>
                 <TouchableOpacity
                   onPress={() => router.push(`/buyer/addresses/${address.id}`)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Modifier l'adresse ${address.label}`}
                 >
                   <ThemedText style={styles.editLink}>Modifier</ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteAddress(address.id)}>
+                <TouchableOpacity
+                  onPress={() => handleDeleteAddress(address.id)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Supprimer l'adresse ${address.label}`}
+                >
                   <ThemedText style={styles.deleteLink}>Supprimer</ThemedText>
                 </TouchableOpacity>
               </View>
@@ -361,6 +397,9 @@ export default function ProfileScreen() {
           style={styles.saveButton}
           onPress={handleSave}
           disabled={saving}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Enregistrer le profil"
         >
           {saving ? (
             <ActivityIndicator color="#FFF" />

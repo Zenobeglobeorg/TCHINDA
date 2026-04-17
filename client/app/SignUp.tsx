@@ -221,6 +221,8 @@ export default function SignUpScreen() {
                 onChangeText={setFirstName}
                 autoCapitalize="words"
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Prénom"
               />
             </View>
 
@@ -234,6 +236,8 @@ export default function SignUpScreen() {
                 onChangeText={setLastName}
                 autoCapitalize="words"
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Nom"
               />
             </View>
 
@@ -249,6 +253,8 @@ export default function SignUpScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Adresse email"
               />
             </View>
 
@@ -272,6 +278,9 @@ export default function SignUpScreen() {
                 style={styles.pickerContainer}
                 onPress={() => !loading && setShowCountryModal(true)}
                 disabled={loading}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Sélectionner le pays"
               >
                 <ThemedText style={styles.pickerText}>{selectedCountryLabel}</ThemedText>
               </TouchableOpacity>
@@ -288,7 +297,12 @@ export default function SignUpScreen() {
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
                     <ThemedText style={styles.modalTitle}>Sélectionner un pays</ThemedText>
-                    <TouchableOpacity onPress={() => setShowCountryModal(false)}>
+                    <TouchableOpacity
+                      onPress={() => setShowCountryModal(false)}
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel="Fermer la sélection du pays"
+                    >
                       <ThemedText style={styles.modalCloseButton}>✕</ThemedText>
                     </TouchableOpacity>
                   </View>
@@ -311,6 +325,9 @@ export default function SignUpScreen() {
                           }
                           setShowCountryModal(false);
                         }}
+                        accessible={true}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Sélectionner le pays ${item.label}`}
                       >
                         <ThemedText
                           style={[
@@ -337,6 +354,8 @@ export default function SignUpScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Mot de passe"
               />
             </View>
 
@@ -350,6 +369,8 @@ export default function SignUpScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Confirmer le mot de passe"
               />
             </View>
 
@@ -357,7 +378,10 @@ export default function SignUpScreen() {
               <TouchableOpacity 
                 style={styles.checkboxContainer} 
                 onPress={() => setAcceptedTerms(!acceptedTerms)}
-                accessible={true} accessibilityLabel="Accepter les conditions du commerce international" accessibilityRole="checkbox"
+                accessible={true}
+                accessibilityLabel="Accepter les conditions du commerce international"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
               >
                 <View style={[styles.checkbox, acceptedTerms && styles.checkboxActive]}>
                   {acceptedTerms && <IconSymbol name="checkmark.circle.fill" size={16} color="#FFF" />}
@@ -375,6 +399,9 @@ export default function SignUpScreen() {
               ]}
               onPress={handleSignUp}
               disabled={loading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="S'inscrire"
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -398,7 +425,13 @@ export default function SignUpScreen() {
             <ThemedText style={styles.loginText}>
               Vous avez déjà un compte ?{' '}
             </ThemedText>
-            <TouchableOpacity onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={loading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Aller à la page de connexion"
+            >
               <ThemedText style={styles.loginLink}>
                 Se connecter
               </ThemedText>

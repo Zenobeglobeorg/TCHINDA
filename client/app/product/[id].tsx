@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { alert } from '@/utils/alert';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
@@ -433,6 +433,9 @@ export default function ProductScreen() {
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Diminuer la quantité"
               >
                 <IconSymbol name="minus" size={20} color="#624cacff" />
               </TouchableOpacity>
@@ -440,6 +443,9 @@ export default function ProductScreen() {
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => setQuantity(Math.min(product.stock || 1, quantity + 1))}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Augmenter la quantité"
               >
                 <IconSymbol name="plus" size={20} color="#624cacff" />
               </TouchableOpacity>
@@ -542,7 +548,12 @@ export default function ProductScreen() {
             <View style={styles.subventionModal}>
                <View style={styles.modalHeader}>
                  <ThemedText style={styles.modalTitle}>Plan de Subvention</ThemedText>
-                 <TouchableOpacity onPress={() => setShowSubventionModal(false)}><IconSymbol name="xmark" size={24} color="#333" /></TouchableOpacity>
+                 <TouchableOpacity
+                   onPress={() => setShowSubventionModal(false)}
+                   accessible={true}
+                   accessibilityRole="button"
+                   accessibilityLabel="Fermer le plan de subvention"
+                 ><IconSymbol name="xmark" size={24} color="#333" /></TouchableOpacity>
                </View>
                <ScrollView style={{padding: 20}}>
                   <ThemedText style={{marginBottom: 10, fontWeight: 'bold' as any}}>Critères d'éligibilité :</ThemedText>
@@ -555,7 +566,16 @@ export default function ProductScreen() {
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 1 (30%)</ThemedText><ThemedText>{formatPrice(product.price * 0.3, product.currency || 'XOF')}</ThemedText></View>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><ThemedText>Mois 2 (30%)</ThemedText><ThemedText>{formatPrice(product.price * 0.3, product.currency || 'XOF')}</ThemedText></View>
                   </View>
-                  <TouchableOpacity style={styles.buyDirectButton} onPress={() => { setShowSubventionModal(false); Alert.alert("Succès", "Demande de subvention envoyée à l'étude."); }}>
+                  <TouchableOpacity
+                    style={styles.buyDirectButton}
+                    onPress={() => {
+                      setShowSubventionModal(false);
+                      alert('Succès', 'Demande de subvention envoyée à l\'étude.');
+                    }}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel="Soumettre la demande de subvention"
+                  >
                     <ThemedText style={styles.buyDirectText}>Soumettre la demande</ThemedText>
                   </TouchableOpacity>
                </ScrollView>

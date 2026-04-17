@@ -1,4 +1,21 @@
-import { Platform, Alert as RNAlert } from 'react-native';
+import { Platform, Alert as RNAlert, AccessibilityInfo } from 'react-native';
+
+const nativeAlert = RNAlert.alert;
+
+const announceForAccessibility = (text?: string) => {
+  if (!text || Platform.OS === 'web') {
+    return;
+  }
+
+  AccessibilityInfo.announceForAccessibility(text);
+};
+
+if (Platform.OS !== 'web' && typeof nativeAlert === 'function') {
+  RNAlert.alert = (title: string, message?: string, buttons?: any, options?: any) => {
+    announceForAccessibility(`${title}${message ? `. ${message}` : ''}`);
+    return nativeAlert(title, message, buttons, options);
+  };
+}
 
 /**
  * Utilitaire d'alerte compatible avec toutes les plateformes (Web, iOS, Android)
@@ -14,6 +31,12 @@ export const alert = (
   }>,
   options?: any
 ) => {
+  const announcement = `${title}${message ? `. ${message}` : ''}`;
+
+  if (Platform.OS !== 'web') {
+    announceForAccessibility(announcement);
+  }
+
   if (Platform.OS === 'web') {
     // Sur le web, utiliser window.alert ou window.confirm
     if (buttons && buttons.length > 1) {

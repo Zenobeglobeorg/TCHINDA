@@ -8,10 +8,10 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { alert } from '@/utils/alert';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { authService } from '@/services/auth.service';
@@ -34,7 +34,7 @@ export default function ResetPasswordScreen() {
     if (resetToken) {
       setToken(resetToken);
     } else {
-      Alert.alert('Erreur', 'Token de réinitialisation invalide', [
+      alert('Erreur', 'Token de réinitialisation invalide', [
         { text: 'OK', onPress: () => router.replace('/Login') }
       ]);
     }
@@ -56,28 +56,28 @@ export default function ResetPasswordScreen() {
   const handleSubmit = async () => {
     // Validation
     if (!password.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un mot de passe');
+      alert('Erreur', 'Veuillez entrer un mot de passe');
       return;
     }
 
     if (!confirmPassword.trim()) {
-      Alert.alert('Erreur', 'Veuillez confirmer votre mot de passe');
+      alert('Erreur', 'Veuillez confirmer votre mot de passe');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      alert('Erreur', 'Les mots de passe ne correspondent pas');
       return;
     }
 
     const validationError = validatePassword(password);
     if (validationError) {
-      Alert.alert('Erreur', validationError);
+      alert('Erreur', validationError);
       return;
     }
 
     if (!token) {
-      Alert.alert('Erreur', 'Token de réinitialisation invalide');
+      alert('Erreur', 'Token de réinitialisation invalide');
       return;
     }
 
@@ -86,7 +86,7 @@ export default function ResetPasswordScreen() {
       const result = await authService.resetPassword(token, password);
       
       if (result.success) {
-        Alert.alert(
+        alert(
           'Succès',
           'Votre mot de passe a été réinitialisé avec succès',
           [
@@ -97,10 +97,10 @@ export default function ResetPasswordScreen() {
           ]
         );
       } else {
-        Alert.alert('Erreur', result.error?.message || 'Une erreur est survenue');
+        alert('Erreur', result.error?.message || 'Une erreur est survenue');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }
@@ -145,6 +145,8 @@ export default function ResetPasswordScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!isLoading}
+                accessible={true}
+                accessibilityLabel="Nouveau mot de passe"
               />
               <ThemedText style={styles.hint}>
                 Min. 8 caractères, majuscule, minuscule, chiffre et caractère spécial
@@ -161,6 +163,8 @@ export default function ResetPasswordScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 editable={!isLoading}
+                accessible={true}
+                accessibilityLabel="Confirmer le mot de passe"
               />
             </View>
 
@@ -168,6 +172,9 @@ export default function ResetPasswordScreen() {
               style={[styles.submitButton, { backgroundColor: tintColor }, isLoading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={isLoading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Réinitialiser le mot de passe"
             >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -181,7 +188,13 @@ export default function ResetPasswordScreen() {
 
           {/* Lien vers la connexion */}
           <View style={styles.backContainer}>
-            <TouchableOpacity onPress={() => router.replace('/Login')} disabled={isLoading}>
+            <TouchableOpacity
+              onPress={() => router.replace('/Login')}
+              disabled={isLoading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Retour à la page de connexion"
+            >
               <ThemedText style={styles.backLink}>
                 Retour à la connexion
               </ThemedText>

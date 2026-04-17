@@ -8,9 +8,9 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { alert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -30,14 +30,14 @@ export default function ForgotPasswordScreen() {
   const handleSubmit = async () => {
     // Validation
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      alert('Erreur', 'Veuillez entrer votre email');
       return;
     }
 
     // Validation email basique
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Erreur', 'Veuillez entrer un email valide');
+      alert('Erreur', 'Veuillez entrer un email valide');
       return;
     }
 
@@ -47,15 +47,15 @@ export default function ForgotPasswordScreen() {
       
       if (result.success) {
         setEmailSent(true);
-        Alert.alert(
+        alert(
           'Email envoyé',
           'Si cet email est enregistré dans notre système, vous recevrez un lien de réinitialisation de mot de passe.'
         );
       } else {
-        Alert.alert('Erreur', result.error?.message || 'Une erreur est survenue');
+        alert('Erreur', result.error?.message || 'Une erreur est survenue');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +103,8 @@ export default function ForgotPasswordScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
+                  accessible={true}
+                  accessibilityLabel="Adresse email"
                 />
               </View>
 
@@ -110,6 +112,9 @@ export default function ForgotPasswordScreen() {
                 style={[styles.submitButton, { backgroundColor: tintColor }, isLoading && styles.submitButtonDisabled]}
                 onPress={handleSubmit}
                 disabled={isLoading}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Envoyer le lien de réinitialisation"
               >
                 {isLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -133,7 +138,13 @@ export default function ForgotPasswordScreen() {
 
           {/* Lien vers la connexion */}
           <View style={styles.backContainer}>
-            <TouchableOpacity onPress={() => router.back()} disabled={isLoading}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              disabled={isLoading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Retour à la page de connexion"
+            >
               <ThemedText style={styles.backLink}>
                 Retour à la connexion
               </ThemedText>

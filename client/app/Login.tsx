@@ -145,8 +145,7 @@ export default function LoginScreen() {
       const oauthResult = await signInWithGoogle();
       
       if (!oauthResult.success) {
-        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Google');
-        return;
+        alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Google');
       }
 
       const result = await authService.loginWithGoogle(
@@ -159,7 +158,7 @@ export default function LoginScreen() {
         await refreshUser();
         // La redirection se fera automatiquement via useEffect quand user sera mis à jour
       } else {
-        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Google');
+        alert('Erreur', result.error?.message || 'Erreur lors de la connexion Google');
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');
@@ -174,8 +173,7 @@ export default function LoginScreen() {
       const oauthResult = await signInWithFacebook();
       
       if (!oauthResult.success) {
-        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Facebook');
-        return;
+        alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Facebook');
       }
 
       const result = await authService.loginWithFacebook(
@@ -199,7 +197,7 @@ export default function LoginScreen() {
           }
         }, 100);
       } else {
-        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Facebook');
+        alert('Erreur', result.error?.message || 'Erreur lors de la connexion Facebook');
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');
@@ -214,8 +212,7 @@ export default function LoginScreen() {
       const oauthResult = await signInWithApple();
       
       if (!oauthResult.success) {
-        Alert.alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Apple');
-        return;
+        alert('Erreur', oauthResult.error || 'Erreur lors de la connexion Apple');
       }
 
       const result = await authService.loginWithApple(
@@ -228,7 +225,7 @@ export default function LoginScreen() {
         await refreshUser();
         // La redirection se fera automatiquement via useEffect quand user sera mis à jour
       } else {
-        Alert.alert('Erreur', result.error?.message || 'Erreur lors de la connexion Apple');
+        alert('Erreur', result.error?.message || 'Erreur lors de la connexion Apple');
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');
@@ -289,6 +286,8 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading}
+                accessible={true}
+                accessibilityLabel="Adresse email"
               />
             </View>
 
@@ -302,6 +301,9 @@ export default function LoginScreen() {
                   setOtpSent(false);
                   setOtpCode('');
                 }}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Mode de connexion par mot de passe"
               >
                 <ThemedText style={[styles.modeText, authMode === 'password' && styles.modeTextActive]}>
                   Mot de passe
@@ -314,6 +316,9 @@ export default function LoginScreen() {
                   setAuthMode('otp');
                   setPassword('');
                 }}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Mode de connexion par code email"
               >
                 <ThemedText style={[styles.modeText, authMode === 'otp' && styles.modeTextActive]}>
                   Code email
@@ -333,6 +338,8 @@ export default function LoginScreen() {
                     onChangeText={setPassword}
                     secureTextEntry
                     editable={!loading}
+                    accessible={true}
+                    accessibilityLabel="Mot de passe"
                   />
                 </View>
 
@@ -340,6 +347,9 @@ export default function LoginScreen() {
               style={styles.forgotPassword} 
               disabled={loading}
               onPress={() => router.push('/ForgotPassword')}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Mot de passe oublié"
             >
               <ThemedText style={styles.forgotPasswordText}>
                 Mot de passe oublié ?
@@ -377,6 +387,9 @@ export default function LoginScreen() {
                       ]}
                       onPress={handleRequestOtp}
                       disabled={loading}
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel="Envoyer le code de connexion"
                     >
                       {loading ? (
                         <ActivityIndicator color="#FFFFFF" />
@@ -400,6 +413,8 @@ export default function LoginScreen() {
                         keyboardType="numeric"
                         maxLength={6}
                         editable={!loading}
+                        accessible={true}
+                        accessibilityLabel="Code de connexion par email"
                       />
                     </View>
 
@@ -424,6 +439,9 @@ export default function LoginScreen() {
                       style={styles.forgotPassword}
                       disabled={loading}
                       onPress={handleRequestOtp}
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel="Renvoyer le code email"
                     >
                       <ThemedText style={styles.forgotPasswordText}>
                         Renvoyer le code
@@ -498,7 +516,13 @@ export default function LoginScreen() {
             <ThemedText style={styles.signUpText}>
               Vous n'avez pas de compte ?{' '}
             </ThemedText>
-            <TouchableOpacity onPress={handleSignUp} disabled={loading}>
+            <TouchableOpacity
+              onPress={handleSignUp}
+              disabled={loading}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Aller à l'inscription"
+            >
               <ThemedText style={styles.signUpLink}>
                 S'inscrire
               </ThemedText>
