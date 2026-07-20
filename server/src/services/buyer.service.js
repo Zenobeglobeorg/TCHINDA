@@ -630,9 +630,8 @@ export const addToCart = async (userId, productId, quantity = 1, variantId = nul
     throw err;
   }
 
-  // Autoriser l'ajout si le produit est visible dans le catalogue
-  // (dans ce projet, le catalogue peut exposer ACTIVE + PENDING).
-  const allowedStatuses = new Set(['ACTIVE', 'PENDING']);
+  // Autoriser l'ajout uniquement si le produit est visible et approuvé.
+  const allowedStatuses = new Set(['ACTIVE']);
   if (!product.isActive || !allowedStatuses.has(product.status)) {
     const err = new Error('Produit non disponible');
     err.statusCode = 400;
@@ -1086,7 +1085,7 @@ export const createBuyNowOrder = async (userId, orderData) => {
     throw err;
   }
 
-  const allowedStatuses = new Set(['ACTIVE', 'PENDING']);
+  const allowedStatuses = new Set(['ACTIVE']);
   if (!product.isActive || !allowedStatuses.has(product.status)) {
     const err = new Error('Produit non disponible');
     err.statusCode = 400;

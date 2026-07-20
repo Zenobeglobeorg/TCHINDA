@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 
-const VISIBLE_PRODUCT_STATUSES = ['ACTIVE', 'PENDING'];
+const VISIBLE_PRODUCT_STATUSES = ['ACTIVE'];
 
 function safeNumber(value) {
   if (value === undefined || value === null || value === '') return undefined;

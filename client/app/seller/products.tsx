@@ -17,9 +17,11 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { sellerService, Product, ProductVariant } from '@/services/seller.service';
+import { inventoryService } from '@/services/inventory.service';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/hooks/useAuth';
@@ -124,6 +126,33 @@ export default function ProductsManagement() {
         },
       ]
     );
+  };
+
+  const handleImportCSV = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        setLoading(true);
+        const file = result.assets[0];
+        const res = await inventoryService.importProducts(file.uri, file.name, file.mimeType || 'text/csv');
+        
+        if (res.success) {
+          Alert.alert('Succès', `${res.data.successCount} produits importés sur ${res.data.total}.`);
+          loadProducts();
+        } else {
+          Alert.alert('Erreur', res.message || 'Erreur lors de l\'importation');
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Erreur', 'Impossible de lire le fichier: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = (productId: string) => {
@@ -239,15 +268,23 @@ export default function ProductsManagement() {
             <Text style={styles.filterButtonText}>Filtrer</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: tintColor }]}
-          onPress={() => {
-            setEditingProduct(null);
-            setShowModal(true);
-          }}
-        >
-          <Text style={styles.addButtonText}>+ Ajouter un produit</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: tintColor, flex: 1, marginRight: 5 }]}
+            onPress={() => {
+              setEditingProduct(null);
+              setShowModal(true);
+            }}
+          >
+            <Text style={styles.addButtonText}>+ Ajouter un produit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: '#4CAF50', flex: 1, marginLeft: 5 }]}
+            onPress={handleImportCSV}
+          >
+            <Text style={styles.addButtonText}>Importer CSV/Excel</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Liste des produits */}

@@ -19,6 +19,11 @@ import {
   deleteAdminCategory,
   toggleAdminCategoryActive,
 } from '../controllers/admin.category.controller.js';
+import {
+  listPendingProducts,
+  approveProduct,
+  rejectProduct,
+} from '../controllers/admin.product.controller.js';
 
 const router = express.Router();
 
@@ -116,6 +121,27 @@ router.patch('/categories/:id/toggle-active', toggleAdminCategoryActive);
  * @access  Private (ADMIN)
  */
 router.delete('/categories/:id', deleteAdminCategory);
+
+/**
+ * @route   GET /api/admin/products/pending
+ * @desc    Lister les produits en attente de validation
+ * @access  Private (ADMIN)
+ */
+router.get('/products/pending', listPendingProducts);
+
+/**
+ * @route   POST /api/admin/products/:id/approve
+ * @desc    Approuver un produit et le rendre visible
+ * @access  Private (ADMIN)
+ */
+router.post('/products/:id/approve', approveProduct);
+
+/**
+ * @route   POST /api/admin/products/:id/reject
+ * @desc    Rejeter un produit en attente de validation
+ * @access  Private (ADMIN)
+ */
+router.post('/products/:id/reject', rejectProduct);
 
 export default router;
 

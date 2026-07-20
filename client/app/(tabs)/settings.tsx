@@ -38,6 +38,23 @@ export default function SettingsScreen() {
       return;
     }
 
+    // Si l'utilisateur souhaite devenir vendeur, vérifier que son compte est déjà validé
+    const canBecomeSeller = user.kycVerified && user.verificationStatus === 'VERIFIED';
+    if (newType === 'SELLER' && !canBecomeSeller) {
+      alert(
+        'Vérification requise',
+        'Votre compte doit être vérifié et approuvé avant de pouvoir accéder à la partie vendeur. Veuillez compléter la vérification.',
+        [
+          {
+            text: 'Voir la vérification',
+            onPress: () => router.push('/buyer/verification'),
+          },
+          { text: 'Annuler', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
     // Confirmation
     const action = newType === 'SELLER' ? 'devenir vendeur' : 'revenir à acheteur';
     alert(

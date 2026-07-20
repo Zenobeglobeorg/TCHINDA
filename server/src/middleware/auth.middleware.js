@@ -128,6 +128,36 @@ export const requireKYC = async (req, res, next) => {
 };
 
 /**
+ * Middleware pour vérifier qu'un vendeur est pleinement vérifié avant d'accéder à l'espace vendeur
+ */
+export const requireSellerVerified = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: { message: 'Authentification requise' },
+    });
+  }
+
+  if (req.user.accountType !== 'SELLER') {
+    return res.status(403).json({
+      success: false,
+      error: { message: 'Accès réservé aux vendeurs vérifiés' },
+    });
+  }
+
+  if (!req.user.kycVerified || req.user.verificationStatus !== 'VERIFIED') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        message: 'Votre compte vendeur doit être vérifié et approuvé avant d\'accéder à cette section',
+      },
+    });
+  }
+
+  next();
+};
+
+/**
  * Middleware pour vérifier l'abonnement premium (pour acheteurs)
  */
 export const requireSubscription = (subscriptionType = 'GOLD') => {

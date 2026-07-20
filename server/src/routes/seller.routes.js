@@ -1,14 +1,15 @@
 import express from 'express';
 import { sellerController } from '../controllers/seller.controller.js';
 import { sellerUploadController } from '../controllers/seller.upload.controller.js';
-import { authenticate, requireAccountType } from '../middleware/auth.middleware.js';
+import { authenticate, requireAccountType, requireSellerVerified } from '../middleware/auth.middleware.js';
 import multer from 'multer';
 
 const router = express.Router();
 
-// Toutes les routes nécessitent une authentification et un compte SELLER
+// Toutes les routes nécessitent une authentification et un compte SELLER vérifié
 router.use(authenticate);
 router.use(requireAccountType('SELLER'));
+router.use(requireSellerVerified);
 
 // ========== GESTION DE BOUTIQUE ==========
 router.get('/profile', sellerController.getProfile);

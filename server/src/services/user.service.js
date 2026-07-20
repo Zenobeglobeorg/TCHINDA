@@ -32,6 +32,11 @@ export const changeAccountType = async (userId, newAccountType) => {
       throw new Error('Vous ne pouvez devenir que vendeur. Les autres types de compte nécessitent une validation administrative.');
     }
 
+    // Vérifier que l'utilisateur est entièrement vérifié avant de passer vendeur
+    if (!user.kycVerified || user.verificationStatus !== 'VERIFIED') {
+      throw new Error('Votre compte doit être vérifié avant de pouvoir accéder à la partie boutique. Veuillez compléter la vérification.');
+    }
+
     // Vérifier si l'utilisateur a déjà un profil vendeur (cas où il serait déjà passé vendeur puis revenu acheteur)
     // Dans ce cas, on ne fait que changer le type de compte
     if (user.sellerProfile) {

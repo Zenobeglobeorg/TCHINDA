@@ -37,10 +37,13 @@ function SellerLayoutContent() {
     }
   }, []);
 
-  // Rediriger les non-vendeurs
+  // Rediriger les non-vendeurs ou vendeurs non vérifiés
   useEffect(() => {
-    if (!isLoading && user && user.accountType !== 'SELLER' && user.accountType !== 'ADMIN') {
-      if (segments[0] === 'seller') {
+    if (!isLoading && user && segments[0] === 'seller') {
+      const isVerifiedSeller = user.accountType === 'SELLER' && user.kycVerified && user.verificationStatus === 'VERIFIED';
+      const isAdmin = user.accountType === 'ADMIN';
+
+      if (!isVerifiedSeller && !isAdmin) {
         router.replace('/(tabs)');
       }
     }

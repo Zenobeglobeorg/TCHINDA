@@ -133,6 +133,12 @@ export const sellerService = {
       counter++;
     }
 
+    // Auto-génération du SKU si non fourni
+    let finalSku = sku;
+    if (!finalSku) {
+      finalSku = `SKU-${userId.substring(0, 4).toUpperCase()}-${Math.floor(Math.random() * 1000000)}`;
+    }
+
     const hasVariants = variants && variants.length > 0;
 
     // Créer le produit
@@ -146,7 +152,7 @@ export const sellerService = {
         price,
         compareAtPrice,
         currency: currency || 'XOF',
-        sku,
+        sku: finalSku,
         barcode,
         stock: hasVariants ? 0 : (stock || 0),
         minStock: minStock || 0,
@@ -159,8 +165,7 @@ export const sellerService = {
         seoTitle,
         seoDescription,
         hasVariants,
-        // Pour que les produits "publiés" soient achetables immédiatement côté acheteur
-        status: 'ACTIVE',
+        status: 'PENDING',
       },
       include: {
         category: true,
@@ -171,11 +176,15 @@ export const sellerService = {
     // Créer les variantes si fournies
     if (hasVariants) {
       for (const variant of variants) {
+        let variantSku = variant.sku;
+        if (!variantSku) {
+          variantSku = `VAR-${userId.substring(0, 4).toUpperCase()}-${Math.floor(Math.random() * 1000000)}`;
+        }
         await prisma.productVariant.create({
           data: {
             productId: product.id,
             name: variant.name,
-            sku: variant.sku,
+            sku: variantSku,
             barcode: variant.barcode,
             price: variant.price,
             compareAtPrice: variant.compareAtPrice,
@@ -268,6 +277,7 @@ export const sellerService = {
         attributes: attributes ? JSON.parse(JSON.stringify(attributes)) : undefined,
         seoTitle,
         seoDescription,
+        status: product.status === 'ACTIVE' ? 'PENDING' : product.status,
       },
       include: {
         category: true,
