@@ -465,8 +465,14 @@ function ProductFormModal({
   }, [visible]);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.price) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+    if (!formData.name || !formData.name.trim()) {
+      Alert.alert('Champs obligatoires', 'Veuillez renseigner le nom du produit.');
+      return;
+    }
+
+    const priceNum = Number(formData.price);
+    if (formData.price === undefined || formData.price === null || isNaN(priceNum) || priceNum < 0) {
+      Alert.alert('Champs obligatoires', 'Veuillez indiquer un prix valide (nombre supérieur ou égal à 0).');
       return;
     }
 
@@ -500,27 +506,52 @@ function ProductFormModal({
 
         const uploadRes = await apiService.upload<{ urls: string[] }>('/api/seller/uploads/images', fd);
         if (!uploadRes.success) {
-          throw new Error(uploadRes.error?.message || "Impossible d'uploader les images");
+          const uploadMotif = uploadRes.error?.message || "Impossible d'uploader les images du produit";
+          Alert.alert('Échec de l\'envoi des images', `Motif : ${uploadMotif}`);
+          setSaving(false);
+          return;
         }
         const data: any = uploadRes.data as any;
         uploadedUrls = data?.urls || data || [];
       }
 
+      const cleanCategoryId = formData.categoryId && String(formData.categoryId).trim() !== '' 
+        ? String(formData.categoryId).trim() 
+        : null;
+
       const payload: any = {
         ...formData,
+        name: formData.name.trim(),
+        price: priceNum,
+        compareAtPrice: formData.compareAtPrice ? Number(formData.compareAtPrice) : null,
+        stock: formData.stock ? Number(formData.stock) : 0,
+        minStock: formData.minStock ? Number(formData.minStock) : 0,
+        categoryId: cleanCategoryId,
         images: [...remoteImages, ...uploadedUrls],
       };
 
       if (product) {
-        await sellerService.updateProduct(product.id, payload);
-        Alert.alert('Succès', 'Produit mis à jour');
+        const response = await sellerService.updateProduct(product.id, payload);
+        if (response.success) {
+          Alert.alert('Succès', 'Le produit a été mis à jour avec succès dans la base de données.');
+          onSave();
+        } else {
+          const motif = response.error?.message || 'Motif inconnu';
+          Alert.alert('Échec de la modification', `Le produit n'a pas pu être mis à jour.\n\nMotif : ${motif}`);
+        }
       } else {
-        await sellerService.createProduct(payload as Product);
-        Alert.alert('Succès', 'Produit créé');
+        const response = await sellerService.createProduct(payload as Product);
+        if (response.success) {
+          Alert.alert('Succès', 'Le produit a été créé et enregistré dans la base de données avec succès.');
+          onSave();
+        } else {
+          const motif = response.error?.message || 'Motif inconnu';
+          Alert.alert('Échec de la création', `Le produit n'a pas pu être créé.\n\nMotif : ${motif}`);
+        }
       }
-      onSave();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder le produit');
+      const motif = error.message || 'Une erreur inattendue est survenue lors de la communication avec le serveur.';
+      Alert.alert('Erreur', `Erreur lors de la sauvegarde du produit.\n\nMotif : ${motif}`);
     } finally {
       setSaving(false);
     }

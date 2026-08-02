@@ -123,8 +123,36 @@ export const sellerService = {
       variants,
     } = productData;
 
-    // Générer un slug unique
-    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    // 1. Validation du nom
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      const err = new Error('Le nom du produit est obligatoire.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // 2. Validation du prix
+    const numericPrice = Number(price);
+    if (price === undefined || price === null || isNaN(numericPrice) || numericPrice < 0) {
+      const err = new Error('Le prix du produit doit être un nombre valide supérieur ou égal à 0.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // 3. Traitement de la catégorie (clean de la chaîne vide)
+    let validCategoryId = null;
+    if (categoryId && typeof categoryId === 'string' && categoryId.trim() !== '') {
+      const cat = await prisma.category.findUnique({ where: { id: categoryId.trim() } });
+      if (!cat) {
+        const err = new Error("La catégorie sélectionnée n'existe pas.");
+        err.statusCode = 400;
+        throw err;
+      }
+      validCategoryId = categoryId.trim();
+    }
+
+    // 4. Générer un slug unique
+    const cleanName = name.trim();
+    const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'produit';
     let slug = baseSlug;
     let counter = 1;
 
@@ -133,88 +161,111 @@ export const sellerService = {
       counter++;
     }
 
-    // Auto-génération du SKU si non fourni
-    let finalSku = sku;
-    if (!finalSku) {
+    // 5. SKU unique ou généré
+    let finalSku = sku && typeof sku === 'string' && sku.trim() !== '' ? sku.trim() : null;
+    if (finalSku) {
+      const existingSku = await prisma.product.findUnique({ where: { sku: finalSku } });
+      if (existingSku) {
+        const err = new Error(`Le code SKU "${finalSku}" est déjà utilisé par un autre produit.`);
+        err.statusCode = 400;
+        throw err;
+      }
+    } else {
       finalSku = `SKU-${userId.substring(0, 4).toUpperCase()}-${Math.floor(Math.random() * 1000000)}`;
     }
 
-    const hasVariants = variants && variants.length > 0;
+    const hasVariants = Array.isArray(variants) && variants.length > 0;
 
-    // Créer le produit
-    const product = await prisma.product.create({
-      data: {
-        sellerId: userId,
-        name,
-        slug,
-        description,
-        shortDescription,
-        price,
-        compareAtPrice,
-        currency: currency || 'XOF',
-        sku: finalSku,
-        barcode,
-        stock: hasVariants ? 0 : (stock || 0),
-        minStock: minStock || 0,
-        weight,
-        dimensions,
-        images: images ? JSON.parse(JSON.stringify(images)) : null,
-        categoryId,
-        tags: tags || [],
-        attributes: attributes ? JSON.parse(JSON.stringify(attributes)) : null,
-        seoTitle,
-        seoDescription,
-        hasVariants,
-        status: 'PENDING',
-      },
-      include: {
-        category: true,
-        variants: true,
-      },
-    });
-
-    // Créer les variantes si fournies
-    if (hasVariants) {
-      for (const variant of variants) {
-        let variantSku = variant.sku;
-        if (!variantSku) {
-          variantSku = `VAR-${userId.substring(0, 4).toUpperCase()}-${Math.floor(Math.random() * 1000000)}`;
-        }
-        await prisma.productVariant.create({
-          data: {
-            productId: product.id,
-            name: variant.name,
-            sku: variantSku,
-            barcode: variant.barcode,
-            price: variant.price,
-            compareAtPrice: variant.compareAtPrice,
-            stock: variant.stock || 0,
-            minStock: variant.minStock || 0,
-            weight: variant.weight,
-            images: variant.images ? JSON.parse(JSON.stringify(variant.images)) : null,
-            attributes: variant.attributes ? JSON.parse(JSON.stringify(variant.attributes)) : null,
-          },
-        });
-      }
-    }
-
-    // Mettre à jour le compteur de produits du vendeur
-    await prisma.sellerProfile.update({
-      where: { userId },
-      data: {
-        totalProducts: {
-          increment: 1,
+    try {
+      // 6. Créer le produit dans la BD
+      const product = await prisma.product.create({
+        data: {
+          sellerId: userId,
+          name: cleanName,
+          slug,
+          description: description || null,
+          shortDescription: shortDescription || null,
+          price: numericPrice,
+          compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
+          currency: currency || 'XOF',
+          sku: finalSku,
+          barcode: barcode || null,
+          stock: hasVariants ? 0 : Number(stock || 0),
+          minStock: Number(minStock || 0),
+          weight: weight ? Number(weight) : null,
+          dimensions,
+          images: images ? JSON.parse(JSON.stringify(images)) : null,
+          categoryId: validCategoryId,
+          tags: Array.isArray(tags) ? tags : [],
+          attributes: attributes ? JSON.parse(JSON.stringify(attributes)) : null,
+          seoTitle: seoTitle || null,
+          seoDescription: seoDescription || null,
+          hasVariants,
+          status: 'PENDING',
         },
-      },
-    });
+        include: {
+          category: true,
+          variants: true,
+        },
+      });
 
-    return await prisma.product.findUnique({
-      where: { id: product.id },
-      include: {
-        category: true,
-        variants: true,
-      },
-    });
+      // 7. Créer les variantes si fournies
+      if (hasVariants) {
+        for (const variant of variants) {
+          let variantSku = variant.sku;
+          if (!variantSku) {
+            variantSku = `VAR-${userId.substring(0, 4).toUpperCase()}-${Math.floor(Math.random() * 1000000)}`;
+          }
+          await prisma.productVariant.create({
+            data: {
+              productId: product.id,
+              name: variant.name || 'Variante',
+              sku: variantSku,
+              barcode: variant.barcode || null,
+              price: Number(variant.price || numericPrice),
+              compareAtPrice: variant.compareAtPrice ? Number(variant.compareAtPrice) : null,
+              stock: Number(variant.stock || 0),
+              minStock: Number(variant.minStock || 0),
+              weight: variant.weight ? Number(variant.weight) : null,
+              images: variant.images ? JSON.parse(JSON.stringify(variant.images)) : null,
+              attributes: variant.attributes ? JSON.parse(JSON.stringify(variant.attributes)) : null,
+            },
+          });
+        }
+      }
+
+      // 8. Mettre à jour le compteur de produits du vendeur (sécurisé via updateMany)
+      await prisma.sellerProfile.updateMany({
+        where: { userId },
+        data: {
+          totalProducts: {
+            increment: 1,
+          },
+        },
+      });
+
+      return await prisma.product.findUnique({
+        where: { id: product.id },
+        include: {
+          category: true,
+          variants: true,
+        },
+      });
+    } catch (dbError) {
+      if (dbError.statusCode) throw dbError;
+      if (dbError.code === 'P2002') {
+        const target = dbError.meta?.target ? ` (${dbError.meta.target.join(', ')})` : '';
+        const customErr = new Error(`Un produit avec ces caractéristiques existe déjà${target}.`);
+        customErr.statusCode = 400;
+        throw customErr;
+      }
+      if (dbError.code === 'P2003') {
+        const customErr = new Error("Erreur de référence de données (catégorie ou utilisateur invalide).");
+        customErr.statusCode = 400;
+        throw customErr;
+      }
+      throw dbError;
+    }
   },
 
   /**

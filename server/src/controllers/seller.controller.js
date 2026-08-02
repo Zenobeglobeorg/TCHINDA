@@ -61,7 +61,8 @@ export const sellerController = {
       const userId = req.user.id;
       const product = await sellerService.createProduct(userId, req.body);
       res.status(201).json({
-        message: 'Produit créé avec succès',
+        success: true,
+        message: 'Produit créé et enregistré dans la base de données avec succès',
         product,
       });
     } catch (error) {
