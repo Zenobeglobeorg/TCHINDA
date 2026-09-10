@@ -169,10 +169,21 @@ export default function BuyerHomeScreen() {
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       padding: 20,
       paddingTop: 60,
       backgroundColor: colors.card,
+      gap: 10,
+    },
+    headerLeft: {
+      flex: 1,
+      minWidth: 0,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 0,
+      gap: 8,
     },
     contentMaxWidth: {
       width: '100%',
@@ -244,13 +255,12 @@ export default function BuyerHomeScreen() {
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 20,
-      paddingHorizontal: 8,
+      paddingHorizontal: 6,
       backgroundColor: colors.card,
-      marginRight: 10,
     },
     currencyPicker: {
-      width: 100,
-      height: 40,
+      width: 105,
+      height: 50,
       color: colors.text,
     },
     searchBar: {
@@ -384,6 +394,8 @@ export default function BuyerHomeScreen() {
     },
     productsContainer: {
       paddingRight: 20,
+      gap: 16,
+      paddingBottom: 10,
     },
     productsGrid: {
       flexDirection: 'row',
@@ -395,7 +407,6 @@ export default function BuyerHomeScreen() {
       backgroundColor: colors.card,
       borderRadius: 12,
       padding: 12,
-      marginRight: 15,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: colors === Colors.dark ? 0.3 : 0.1,
@@ -586,11 +597,11 @@ export default function BuyerHomeScreen() {
       >
         {/* En-tête avec salutation */}
         <View style={styles.header}>
-          <View>
-            <ThemedText style={styles.greeting}>
-              Bonjour {user?.firstName || 'Acheteur'} 👋
+          <View style={styles.headerLeft}>
+            <ThemedText style={styles.greeting} numberOfLines={2}>
+              Hey {user?.firstName || 'Acheteur'} 👋
             </ThemedText>
-            <ThemedText style={styles.subtitle}>
+            <ThemedText style={styles.subtitle} numberOfLines={1}>
               Découvrez nos meilleures offres
             </ThemedText>
             {!!user && user.accountType === 'BUYER' && (
@@ -617,7 +628,7 @@ export default function BuyerHomeScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.headerRight}>
             <View style={styles.currencyPickerContainer}>
               <Picker
                 selectedValue={currency}

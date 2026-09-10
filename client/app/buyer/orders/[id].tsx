@@ -7,6 +7,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function OrderDetailsScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement de la commande..." />
       </ThemedView>
     );
   }

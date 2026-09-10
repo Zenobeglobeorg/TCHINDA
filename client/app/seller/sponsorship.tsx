@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Modal,
   FlatList,
@@ -18,6 +17,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { sellerService, Sponsorship } from '@/services/seller.service';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function SponsorshipManagement() {
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
@@ -43,7 +44,7 @@ export default function SponsorshipManagement() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des sponsorisations:', error);
-      Alert.alert('Erreur', 'Impossible de charger les sponsorisations');
+      alert('Erreur', 'Impossible de charger les sponsorisations');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,7 +105,7 @@ export default function SponsorshipManagement() {
   if (loading && sponsorships.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement des sponsorisations..." />
       </ThemedView>
     );
   }
@@ -320,17 +321,17 @@ function SponsorshipFormModal({
 
   const handleSave = async () => {
     if (!formData.cost || !formData.startDate || !formData.endDate) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
 
     try {
       setSaving(true);
       await sellerService.createSponsorship(formData as Sponsorship);
-      Alert.alert('Succès', 'Sponsorisation créée');
+      alert('Succès', 'Sponsorisation créée');
       onSave();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de créer la sponsorisation');
+      alert('Erreur', error.message || 'Impossible de créer la sponsorisation');
     } finally {
       setSaving(false);
     }

@@ -78,6 +78,7 @@ function SellerLayoutContent() {
               <Stack.Screen name="wallet" />
               <Stack.Screen name="sponsorship" />
               <Stack.Screen name="profile" />
+              <Stack.Screen name="inventory" />
               <Stack.Screen name="settings" />
             </Stack>
           </View>
@@ -125,46 +126,10 @@ function SellerLayoutContent() {
           }}
         />
         <Tabs.Screen
-          name="marketing"
-          options={{
-            title: 'Marketing',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="megaphone.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="shop"
-          options={{
-            title: 'Boutique',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="chat"
-          options={{
-            title: 'Chat',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
-            tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
-          }}
-        />
-        <Tabs.Screen
           name="wallet"
           options={{
             title: 'Portefeuille',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="sponsorship"
-          options={{
-            title: 'Sponsorisation',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="star.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profil',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
           }}
         />
         <Tabs.Screen
@@ -174,6 +139,20 @@ function SellerLayoutContent() {
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
           }}
         />
+
+        {/* Écrans accessibles depuis Paramètres, masqués de la barre du bas */}
+        <Tabs.Screen name="marketing" options={{ href: null }} />
+        <Tabs.Screen name="shop" options={{ href: null }} />
+        <Tabs.Screen
+          name="chat"
+          options={{
+            href: null,
+            tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined,
+          }}
+        />
+        <Tabs.Screen name="sponsorship" options={{ href: null }} />
+        <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="inventory" options={{ href: null }} />
       </Tabs>
     );
   }

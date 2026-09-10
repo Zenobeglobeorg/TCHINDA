@@ -11,6 +11,7 @@ import { ChatUnreadProvider } from '@/contexts/ChatUnreadContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { WebThemeProvider } from '@/components/WebThemeProvider';
+import { AlertHost } from '@/components/ui/AlertHost';
 
 // Composant interne qui utilise le thème
 function AppContent() {
@@ -93,14 +94,39 @@ function AppContent() {
         <Stack.Screen name="products" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="buyer/checkout" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/verification" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/orders/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/wallet/deposit" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/wallet/withdraw" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/wallet/transfer" options={{ headerShown: false }} />
+        <Stack.Screen name="buyer/wallet/transactions" options={{ headerShown: false }} />
         {/* Dashboard Admin */}
-        <Stack.Screen 
-          name="admin/dashboard" 
-          options={{ 
+        <Stack.Screen
+          name="admin/dashboard"
+          options={{
             headerShown: false,
             title: 'Dashboard Admin'
-          }} 
+          }}
         />
+        {/* Autres écrans admin : chacun a déjà son propre en-tête (bouton retour + titre) */}
+        <Stack.Screen name="admin/advertising" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/alerts" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/categories" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/countries" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/finance" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/global" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/maintenance" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/moderators" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/orders" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/payments" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/products" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/rates" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/reports" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/settings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/support" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/user-management" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/users" options={{ headerShown: false }} />
         {/* Seller Dashboard */}
         <Stack.Screen 
           name="seller" 
@@ -120,6 +146,7 @@ function AppContent() {
         <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style={effectiveColorScheme === 'dark' ? 'light' : 'dark'} />
+        <AlertHost />
       </NavigationThemeProvider>
     </WebThemeProvider>
   );

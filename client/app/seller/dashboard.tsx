@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -20,6 +19,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { ChatButton } from '@/components/chat/ChatButton';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function SellerDashboard() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function SellerDashboard() {
   };
 
   const handleSwitchToBuyer = async () => {
-    Alert.alert(
+    alert(
       'Revenir en mode acheteur',
       'Voulez-vous revenir en mode acheteur ? Vous pourrez toujours revenir en mode vendeur plus tard.',
       [
@@ -79,7 +80,7 @@ export default function SellerDashboard() {
                 await refreshUser();
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
-                Alert.alert(
+                alert(
                   'Succès',
                   'Vous êtes maintenant en mode acheteur',
                   [
@@ -92,10 +93,10 @@ export default function SellerDashboard() {
                   ]
                 );
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Une erreur est survenue');
+                alert('Erreur', response.error?.message || 'Une erreur est survenue');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+              alert('Erreur', error.message || 'Une erreur est survenue');
             } finally {
               setIsChanging(false);
             }
@@ -116,7 +117,7 @@ export default function SellerDashboard() {
   if (loading && !stats) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement du tableau de bord..." />
       </ThemedView>
     );
   }
@@ -132,7 +133,7 @@ export default function SellerDashboard() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <ThemedText type="title">Tableau de bord</ThemedText>
+            <ThemedText type="title" style={styles.headerTitle} numberOfLines={2}>Tableau de bord</ThemedText>
             <View style={styles.headerActions}>
               <ChatButton variant="icon" contextType="ORDER" />
               <TouchableOpacity
@@ -144,8 +145,8 @@ export default function SellerDashboard() {
                   <ActivityIndicator size="small" color={tintColor} />
                 ) : (
                   <>
-                    <IconSymbol name="arrow.left.circle.fill" size={16} color={tintColor} />
-                    <Text style={[styles.switchButtonText, { color: tintColor }]}>Mode Acheteur</Text>
+                    <IconSymbol name="arrow.left.circle.fill" size={14} color={tintColor} />
+                    <Text style={[styles.switchButtonText, { color: tintColor }]} numberOfLines={1}>Acheteur</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -339,15 +340,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
   },
   switchButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 6,
+    gap: 5,
   },
   switchButtonText: {
     fontSize: 12,

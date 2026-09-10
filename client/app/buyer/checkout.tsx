@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
 import PaymentInfoForm from '@/components/PaymentInfoForm';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -157,7 +158,7 @@ export default function CheckoutScreen() {
       setShowPaymentInfoForm(true);
     } else {
       setShowPaymentModal(false);
-      Alert.alert('Info', 'Cette méthode de paiement sera disponible prochainement');
+      alert('Info', 'Cette méthode de paiement sera disponible prochainement');
     }
   };
 
@@ -185,7 +186,7 @@ export default function CheckoutScreen() {
           // Laisser 1.5s pour que l'utilisateur voit le succès
           setTimeout(() => {
             setShowPaymentStatusModal(false);
-            Alert.alert('✅ Paiement réussi !', 'Votre commande a été confirmée.', [
+            alert('✅ Paiement réussi !', 'Votre commande a été confirmée.', [
               {
                 text: 'Voir mes commandes',
                 onPress: () => router.replace('/(tabs)/orders'),
@@ -249,7 +250,7 @@ export default function CheckoutScreen() {
           });
 
       if (!orderRes.success) {
-        Alert.alert('Erreur', orderRes.error?.message || 'Impossible de créer la commande');
+        alert('Erreur', orderRes.error?.message || 'Impossible de créer la commande');
         return;
       }
 
@@ -277,7 +278,7 @@ export default function CheckoutScreen() {
 
 
       if (!paymentRes.success) {
-        Alert.alert('Erreur', paymentRes.error?.message || "Impossible d'initier le paiement MoMo");
+        alert('Erreur', paymentRes.error?.message || "Impossible d'initier le paiement MoMo");
         return;
       }
 
@@ -290,7 +291,7 @@ export default function CheckoutScreen() {
       // Démarrer le polling automatique
       startPolling(refId);
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Erreur lors du paiement');
+      alert('Erreur', e.message || 'Erreur lors du paiement');
     } finally {
       setCreating(false);
     }
@@ -322,7 +323,7 @@ export default function CheckoutScreen() {
       setCreating(true);
       
       if (isBuyNow && !buyNowItem?.productId) {
-        Alert.alert('Erreur', 'Informations produit manquantes');
+        alert('Erreur', 'Informations produit manquantes');
         return;
       }
 
@@ -344,10 +345,10 @@ export default function CheckoutScreen() {
             });
 
         if (!res.success) {
-          Alert.alert('Erreur', res.error?.message || 'Impossible de créer la commande');
+          alert('Erreur', res.error?.message || 'Impossible de créer la commande');
           return;
         }
-        Alert.alert('Succès', 'Commande créée !', [
+        alert('Succès', 'Commande créée !', [
           {
             text: 'Voir mes commandes',
             onPress: () => router.replace('/(tabs)/orders'),
@@ -355,7 +356,7 @@ export default function CheckoutScreen() {
         ]);
       }
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Erreur lors du paiement');
+      alert('Erreur', e.message || 'Erreur lors du paiement');
     } finally {
       setCreating(false);
     }
@@ -364,7 +365,7 @@ export default function CheckoutScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Préparation du paiement..." />
       </ThemedView>
     );
   }

@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,6 +13,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
+import { alert } from '@/utils/alert';
 
 export default function TransferScreen() {
   const router = useRouter();
@@ -79,23 +79,23 @@ export default function TransferScreen() {
     const availableBalance = getAvailableBalance(fromCurrency);
 
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+      alert('Erreur', 'Veuillez entrer un montant valide');
       return;
     }
 
     if (parseFloat(amount) > availableBalance) {
-      Alert.alert('Erreur', 'Solde insuffisant');
+      alert('Erreur', 'Solde insuffisant');
       return;
     }
 
     if (fromCurrency === toCurrency) {
-      Alert.alert('Erreur', 'Veuillez sélectionner des devises différentes');
+      alert('Erreur', 'Veuillez sélectionner des devises différentes');
       return;
     }
 
     const convertedAmount = calculateConvertedAmount();
 
-    Alert.alert(
+    alert(
       'Confirmer le transfert',
       `Voulez-vous transférer ${parseFloat(amount).toLocaleString('fr-FR')} ${fromCurrency} vers ${convertedAmount.toLocaleString('fr-FR', {
         minimumFractionDigits: 2,
@@ -115,7 +115,7 @@ export default function TransferScreen() {
               });
 
               if (response.success) {
-                Alert.alert(
+                alert(
                   'Succès',
                   'Transfert effectué avec succès',
                   [
@@ -126,10 +126,10 @@ export default function TransferScreen() {
                   ]
                 );
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Erreur lors du transfert');
+                alert('Erreur', response.error?.message || 'Erreur lors du transfert');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+              alert('Erreur', error.message || 'Une erreur est survenue');
             } finally {
               setLoading(false);
             }

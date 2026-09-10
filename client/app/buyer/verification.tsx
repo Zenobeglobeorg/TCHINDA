@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/auth.service';
 import * as ImagePicker from 'expo-image-picker';
+import { alert } from '@/utils/alert';
 
 export default function VerificationScreen() {
   const router = useRouter();
@@ -79,12 +79,12 @@ export default function VerificationScreen() {
       const response = await apiService.post('/api/buyer/verification/email');
       if (response.success) {
         setEmailCodeSent(true);
-        Alert.alert('Succès', 'Code de vérification envoyé par email');
+        alert('Succès', 'Code de vérification envoyé par email');
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de l\'envoi');
+        alert('Erreur', response.error?.message || 'Erreur lors de l\'envoi');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export default function VerificationScreen() {
 
   const verifyEmailCode = async () => {
     if (!emailCode || emailCode.length !== 6) {
-      Alert.alert('Erreur', 'Veuillez entrer un code valide (6 chiffres)');
+      alert('Erreur', 'Veuillez entrer un code valide (6 chiffres)');
       return;
     }
 
@@ -106,13 +106,13 @@ export default function VerificationScreen() {
         throw new Error(response.error?.message || 'Code invalide ou expiré');
       }
 
-      Alert.alert('Succès', 'Email vérifié avec succès');
+      alert('Succès', 'Email vérifié avec succès');
       await refreshUser();
       await loadVerificationStatus();
       setEmailCode('');
       setEmailCodeSent(false);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export default function VerificationScreen() {
 
   const requestPhoneVerification = async () => {
     if (!user?.phone) {
-      Alert.alert('Erreur', 'Veuillez d\'abord ajouter un numéro de téléphone dans votre profil');
+      alert('Erreur', 'Veuillez d\'abord ajouter un numéro de téléphone dans votre profil');
       return;
     }
 
@@ -129,12 +129,12 @@ export default function VerificationScreen() {
       const response = await apiService.post('/api/buyer/verification/phone');
       if (response.success) {
         setPhoneCodeSent(true);
-        Alert.alert('Succès', 'Code de vérification envoyé par SMS');
+        alert('Succès', 'Code de vérification envoyé par SMS');
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de l\'envoi');
+        alert('Erreur', response.error?.message || 'Erreur lors de l\'envoi');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ export default function VerificationScreen() {
 
   const verifyPhoneCode = async () => {
     if (!phoneCode || phoneCode.length !== 6) {
-      Alert.alert('Erreur', 'Veuillez entrer un code valide (6 chiffres)');
+      alert('Erreur', 'Veuillez entrer un code valide (6 chiffres)');
       return;
     }
 
@@ -156,13 +156,13 @@ export default function VerificationScreen() {
         throw new Error(response.error?.message || 'Code invalide ou expiré');
       }
 
-      Alert.alert('Succès', 'Téléphone vérifié avec succès');
+      alert('Succès', 'Téléphone vérifié avec succès');
       await refreshUser();
       await loadVerificationStatus();
       setPhoneCode('');
       setPhoneCodeSent(false);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setLoading(false);
     }
@@ -186,7 +186,7 @@ export default function VerificationScreen() {
       }
 
       // Mobile: camera / galerie (comme produits)
-      Alert.alert(
+      alert(
         'Choisir un document',
         'Choisissez une option',
         [
@@ -196,7 +196,7 @@ export default function VerificationScreen() {
               try {
                 const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
                 if (cameraStatus !== 'granted') {
-                  Alert.alert('Permissions requises', 'Autorisez l’accès à la caméra.');
+                  alert('Permissions requises', 'Autorisez l’accès à la caméra.');
                   return;
                 }
 
@@ -210,7 +210,7 @@ export default function VerificationScreen() {
                   setKycField(field, result.assets[0].uri);
                 }
               } catch {
-                Alert.alert('Erreur', "Impossible d'accéder à la caméra");
+                alert('Erreur', "Impossible d'accéder à la caméra");
               }
             },
           },
@@ -220,7 +220,7 @@ export default function VerificationScreen() {
               try {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== 'granted') {
-                  Alert.alert('Permissions requises', 'Autorisez l’accès à la galerie.');
+                  alert('Permissions requises', 'Autorisez l’accès à la galerie.');
                   return;
                 }
 
@@ -234,7 +234,7 @@ export default function VerificationScreen() {
                   setKycField(field, result.assets[0].uri);
                 }
               } catch {
-                Alert.alert('Erreur', "Impossible d'ouvrir la galerie");
+                alert('Erreur', "Impossible d'ouvrir la galerie");
               }
             },
           },
@@ -242,13 +242,13 @@ export default function VerificationScreen() {
         ]
       );
     } catch {
-      Alert.alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
+      alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
     }
   };
 
   const submitKYC = async () => {
     if (!kycData.documentType || !kycData.documentNumber) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -297,7 +297,7 @@ export default function VerificationScreen() {
       }
 
       if (response.success) {
-        Alert.alert(
+        alert(
           'Succès',
           'Votre demande KYC a été soumise. Elle sera examinée sous 24-48h.',
           [
@@ -327,10 +327,10 @@ export default function VerificationScreen() {
           ]
         );
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la soumission');
+        alert('Erreur', response.error?.message || 'Erreur lors de la soumission');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setKycSubmitting(false);
     }

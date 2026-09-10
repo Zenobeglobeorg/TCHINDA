@@ -13,6 +13,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -274,9 +275,7 @@ export default function TransactionsScreen() {
           <ThemedText style={styles.headerTitle}>Historique des transactions</ThemedText>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
-        </View>
+        <LoadingView message="Chargement des transactions..." />
       </ThemedView>
     );
   }

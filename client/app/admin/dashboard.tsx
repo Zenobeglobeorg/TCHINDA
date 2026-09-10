@@ -79,6 +79,17 @@ export default function AdminDashboardScreen() {
     { id: 9, title: 'Rapports', icon: 'chart.bar.fill' as const, route: '/admin/reports' as const },
     { id: 10, title: 'Alertes', icon: 'bell.badge.fill' as const, route: '/admin/alerts' as const },
     { id: 11, title: 'Chat', icon: 'message.fill' as const, route: '/chat' as const },
+    // Pages existantes mais jusqu'ici sans lien nulle part dans l'app
+    { id: 12, title: 'Modération produits', icon: 'checkmark.shield.fill' as const, route: '/admin/products' as const },
+    { id: 13, title: 'Commandes', icon: 'bag.fill' as const, route: '/admin/orders' as const },
+    { id: 14, title: 'Catégories', icon: 'folder.fill' as const, route: '/admin/categories' as const },
+    { id: 15, title: 'Moyens de paiement', icon: 'creditcard.fill' as const, route: '/admin/payments' as const },
+    { id: 16, title: 'Taux & Commissions', icon: 'dollarsign.circle.fill' as const, route: '/admin/rates' as const },
+    { id: 17, title: 'Config. sponsoring', icon: 'star.fill' as const, route: '/admin/sponsorship-config' as const },
+    { id: 18, title: 'Personnel', icon: 'person.3.fill' as const, route: '/admin/staff-management' as const },
+    { id: 19, title: 'Support', icon: 'info.circle.fill' as const, route: '/admin/support' as const },
+    { id: 20, title: 'Paramètres', icon: 'gearshape.fill' as const, route: '/admin/settings' as const },
+    { id: 21, title: 'Utilisateurs (autre liste)', icon: 'person.fill' as const, route: '/admin/users' as const },
   ];
 
   return (

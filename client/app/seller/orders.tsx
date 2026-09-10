@@ -5,7 +5,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   FlatList,
@@ -18,6 +17,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { sellerService, OrderFilters } from '@/services/seller.service';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 interface Order {
   id: string;
@@ -87,7 +88,7 @@ export default function OrdersManagement() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des commandes:', error);
-      Alert.alert('Erreur', 'Impossible de charger les commandes');
+      alert('Erreur', 'Impossible de charger les commandes');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -109,7 +110,7 @@ export default function OrdersManagement() {
         trackingNumber || undefined
       );
       if (response.success) {
-        Alert.alert('Succès', 'Statut de la commande mis à jour');
+        alert('Succès', 'Statut de la commande mis à jour');
         setShowStatusModal(false);
         setSelectedOrder(null);
         setNewStatus('');
@@ -117,7 +118,7 @@ export default function OrdersManagement() {
         loadOrders();
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de mettre à jour le statut');
+      alert('Erreur', error.message || 'Impossible de mettre à jour le statut');
     }
   };
 
@@ -203,7 +204,7 @@ export default function OrdersManagement() {
   if (loading && orders.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement des commandes..." />
       </ThemedView>
     );
   }
@@ -218,7 +219,7 @@ export default function OrdersManagement() {
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: tintColor }]}
             onPress={() => {
-              Alert.alert(
+              alert(
                 'Filtrer par statut',
                 '',
                 [
@@ -239,7 +240,7 @@ export default function OrdersManagement() {
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: tintColor }]}
             onPress={() => {
-              Alert.alert(
+              alert(
                 'Filtrer par paiement',
                 '',
                 [

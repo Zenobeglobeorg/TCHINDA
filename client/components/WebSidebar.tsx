@@ -20,7 +20,6 @@ const navItems: NavItem[] = [
   { name: 'cart', title: 'Panier', icon: 'cart.fill', route: '/cart' },
   { name: 'wallet', title: 'Portefeuille', icon: 'creditcard.fill', route: '/wallet' },
   { name: 'settings', title: 'Paramètres', icon: 'gearshape.fill', route: '/settings' },
-  { name: 'menu', title: 'Menu', icon: 'line.3.horizontal', route: '/menu' },
 ];
 
 // Breakpoint pour déterminer mobile/desktop

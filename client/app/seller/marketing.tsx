@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Modal,
   FlatList,
@@ -18,6 +17,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { sellerService, Promotion } from '@/services/seller.service';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function MarketingManagement() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -44,7 +45,7 @@ export default function MarketingManagement() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des promotions:', error);
-      Alert.alert('Erreur', 'Impossible de charger les promotions');
+      alert('Erreur', 'Impossible de charger les promotions');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,7 +58,7 @@ export default function MarketingManagement() {
   };
 
   const handleDelete = async (promotionId: string) => {
-    Alert.alert(
+    alert(
       'Supprimer la promotion',
       'Êtes-vous sûr de vouloir supprimer cette promotion ?',
       [
@@ -69,13 +70,13 @@ export default function MarketingManagement() {
             try {
               const response = await sellerService.deletePromotion(promotionId);
               if (response.success) {
-                Alert.alert('Succès', 'Promotion supprimée');
+                alert('Succès', 'Promotion supprimée');
                 loadPromotions();
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Impossible de supprimer la promotion');
+                alert('Erreur', response.error?.message || 'Impossible de supprimer la promotion');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+              alert('Erreur', error.message || 'Une erreur est survenue');
             }
           },
         },
@@ -93,7 +94,7 @@ export default function MarketingManagement() {
   if (loading && promotions.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement du marketing..." />
       </ThemedView>
     );
   }
@@ -311,7 +312,7 @@ function MarketingReporting() {
   if (loading) {
     return (
       <View style={styles.reportingContainer}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement des statistiques..." />
       </View>
     );
   }
@@ -424,7 +425,7 @@ function PromotionFormModal({
 
   const handleSave = async () => {
     if (!formData.name || !formData.discountValue) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -432,14 +433,14 @@ function PromotionFormModal({
       setSaving(true);
       if (promotion && promotion.id) {
         await sellerService.updatePromotion(promotion.id, formData);
-        Alert.alert('Succès', 'Promotion mise à jour');
+        alert('Succès', 'Promotion mise à jour');
       } else {
         await sellerService.createPromotion(formData as Promotion);
-        Alert.alert('Succès', 'Promotion créée');
+        alert('Succès', 'Promotion créée');
       }
       onSave();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder la promotion');
+      alert('Erreur', error.message || 'Impossible de sauvegarder la promotion');
     } finally {
       setSaving(false);
     }

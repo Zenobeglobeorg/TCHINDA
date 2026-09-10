@@ -17,6 +17,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Colors } from '@/constants/Colors';
 import { useRouter, useSegments } from 'expo-router';
 import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function SettingsScreen() {
   const { user, refreshUser, logout, isLoading: authLoading } = useAuth();
@@ -195,9 +196,7 @@ export default function SettingsScreen() {
   if (authLoading) {
     return (
       <ThemedView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.tint} />
-        </View>
+        <LoadingView message="Chargement..." />
       </ThemedView>
     );
   }
@@ -384,6 +383,45 @@ export default function SettingsScreen() {
               Voir et modifier mon profil complet
             </ThemedText>
           </TouchableOpacity>
+        </View>
+
+        {/* Raccourcis (anciennement dans l'onglet Menu) */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Raccourcis
+          </ThemedText>
+
+          <View style={styles.shortcutsList}>
+            <TouchableOpacity
+              style={styles.shortcutItem}
+              onPress={() => router.push('/(tabs)/orders')}
+              accessibilityRole="button"
+              accessibilityLabel="Mes Commandes"
+            >
+              <IconSymbol name="bag.fill" size={22} color={colors.tint} />
+              <ThemedText style={styles.shortcutText}>Mes Commandes</ThemedText>
+              <IconSymbol name="chevron.right" size={18} color={colors.placeholder} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.shortcutItem, { borderBottomWidth: 0 }]}
+              onPress={() => router.push('/(tabs)/wishlist')}
+              accessibilityRole="button"
+              accessibilityLabel="Mes Favoris"
+            >
+              <IconSymbol name="heart.fill" size={22} color={colors.tint} />
+              <ThemedText style={styles.shortcutText}>Mes Favoris</ThemedText>
+              <IconSymbol name="chevron.right" size={18} color={colors.placeholder} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.serviceCard}>
+            <IconSymbol name="storefront.fill" size={32} color={colors.tint} />
+            <ThemedText style={styles.serviceTitle}>Services Locaux</ThemedText>
+            <ThemedText style={styles.serviceDesc}>
+              Paiement Eneo, Camwater, etc. (à venir)
+            </ThemedText>
+          </View>
         </View>
 
         {/* Changement de type de compte */}
@@ -621,6 +659,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   scrollContainer: {
     padding: 20,
+    paddingTop: 60,
   },
   header: {
     marginBottom: 30,
@@ -788,6 +827,45 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  shortcutsList: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  shortcutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  shortcutText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  serviceCard: {
+    backgroundColor: colors.background,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  serviceTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    color: colors.text,
+  },
+  serviceDesc: {
+    fontSize: 13,
+    color: colors.placeholder,
+    marginTop: 6,
+    textAlign: 'center',
   },
 });
 

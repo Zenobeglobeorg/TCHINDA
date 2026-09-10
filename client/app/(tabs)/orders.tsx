@@ -15,6 +15,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -107,7 +108,7 @@ export default function OrdersScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement de vos commandes..." />
       </ThemedView>
     );
   }

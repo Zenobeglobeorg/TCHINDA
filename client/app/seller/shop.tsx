@@ -6,7 +6,6 @@ import {
   TextInput,
   Text,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Image,
   Platform,
@@ -20,6 +19,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function ShopManagement() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function ShopManagement() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données de la boutique');
+      alert('Erreur', 'Impossible de charger les données de la boutique');
     } finally {
       setLoading(false);
     }
@@ -72,12 +73,12 @@ export default function ShopManagement() {
       setSaving(true);
       const response = await sellerService.updateShopInfo(shopInfo);
       if (response.success) {
-        Alert.alert('Succès', 'Informations de la boutique mises à jour');
+        alert('Succès', 'Informations de la boutique mises à jour');
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de sauvegarder les informations');
+      alert('Erreur', 'Impossible de sauvegarder les informations');
     } finally {
       setSaving(false);
     }
@@ -88,12 +89,12 @@ export default function ShopManagement() {
       setSaving(true);
       const response = await sellerService.updateShopHours(shopHours);
       if (response.success) {
-        Alert.alert('Succès', 'Horaires de la boutique mis à jour');
+        alert('Succès', 'Horaires de la boutique mis à jour');
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de sauvegarder les horaires');
+      alert('Erreur', 'Impossible de sauvegarder les horaires');
     } finally {
       setSaving(false);
     }
@@ -110,7 +111,7 @@ export default function ShopManagement() {
   };
 
   const handleSwitchToBuyer = async () => {
-    Alert.alert(
+    alert(
       'Revenir en mode client',
       'Voulez-vous revenir en mode client (acheteur) ? Vous pourrez toujours revenir en mode vendeur plus tard.',
       [
@@ -130,7 +131,7 @@ export default function ShopManagement() {
                 await refreshUser();
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
-                Alert.alert(
+                alert(
                   'Succès',
                   'Vous êtes maintenant en mode client',
                   [
@@ -143,10 +144,10 @@ export default function ShopManagement() {
                   ]
                 );
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Une erreur est survenue');
+                alert('Erreur', response.error?.message || 'Une erreur est survenue');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+              alert('Erreur', error.message || 'Une erreur est survenue');
             } finally {
               setIsChanging(false);
             }
@@ -170,7 +171,7 @@ export default function ShopManagement() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement de la boutique..." />
       </ThemedView>
     );
   }

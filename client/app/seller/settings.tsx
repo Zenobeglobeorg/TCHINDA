@@ -17,6 +17,15 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
+
+const MANAGEMENT_LINKS = [
+  { label: 'Marketing', description: 'Promotions & codes', icon: 'megaphone.fill', route: '/seller/marketing' },
+  { label: 'Boutique', description: 'Infos & horaires', icon: 'storefront.fill', route: '/seller/shop' },
+  { label: 'Sponsorisation', description: 'Mettre en avant', icon: 'star.fill', route: '/seller/sponsorship' },
+  { label: 'Inventaire', description: 'Stocks & entrepôts', icon: 'cube.box.fill', route: '/seller/inventory' },
+  { label: 'Profil vendeur', description: 'Identité publique', icon: 'person.fill', route: '/seller/profile' },
+] as const;
 
 export default function SellerSettingsScreen() {
   const { user, refreshUser, logout, isLoading: authLoading } = useAuth();
@@ -145,9 +154,7 @@ export default function SellerSettingsScreen() {
   if (authLoading) {
     return (
       <ThemedView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.tint} />
-        </View>
+        <LoadingView message="Chargement..." />
       </ThemedView>
     );
   }
@@ -307,6 +314,38 @@ export default function SellerSettingsScreen() {
           <View style={styles.infoRow}>
             <ThemedText style={styles.infoLabel}>Type de compte:</ThemedText>
             <ThemedText style={styles.infoValue}>{getAccountTypeLabel(user.accountType)}</ThemedText>
+          </View>
+        </View>
+
+        {/* Gestion de la boutique */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Gestion de la boutique
+          </ThemedText>
+          <ThemedText style={styles.sectionDescription}>
+            Marketing, boutique, sponsorisation, inventaire et profil se gèrent ici pour laisser la barre du bas légère.
+          </ThemedText>
+
+          <View style={styles.managementGrid}>
+            {MANAGEMENT_LINKS.map((item) => (
+              <TouchableOpacity
+                key={item.route}
+                style={styles.managementCard}
+                onPress={() => router.push(item.route as any)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+              >
+                <View style={[styles.managementIconWrap, { backgroundColor: colors.tint + '18' }]}>
+                  <IconSymbol name={item.icon as any} size={22} color={colors.tint} />
+                </View>
+                <ThemedText style={styles.managementLabel} numberOfLines={1}>
+                  {item.label}
+                </ThemedText>
+                <ThemedText style={styles.managementDescription} numberOfLines={1}>
+                  {item.description}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -651,5 +690,34 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  managementGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  managementCard: {
+    width: '47%',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 14,
+  },
+  managementIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  managementLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  managementDescription: {
+    fontSize: 12,
+    color: colors.placeholder,
   },
 });

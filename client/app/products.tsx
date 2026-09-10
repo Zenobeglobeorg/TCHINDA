@@ -17,6 +17,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 const { width } = Dimensions.get('window');
 
@@ -133,7 +134,7 @@ export default function ProductsScreen() {
   if (loading && products.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement des produits..." />
       </ThemedView>
     );
   }

@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Image,
   Modal,
@@ -27,6 +26,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function ProductsManagement() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function ProductsManagement() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des produits:', error);
-      Alert.alert('Erreur', 'Impossible de charger les produits');
+      alert('Erreur', 'Impossible de charger les produits');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,7 +82,7 @@ export default function ProductsManagement() {
   };
 
   const handleSwitchToBuyer = async () => {
-    Alert.alert(
+    alert(
       'Revenir en mode client',
       'Voulez-vous revenir en mode client (acheteur) ? Vous pourrez toujours revenir en mode vendeur plus tard.',
       [
@@ -102,7 +103,7 @@ export default function ProductsManagement() {
                 await refreshUser();
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
-                Alert.alert(
+                alert(
                   'Succès',
                   'Vous êtes maintenant en mode client',
                   [
@@ -115,10 +116,10 @@ export default function ProductsManagement() {
                   ]
                 );
               } else {
-                Alert.alert('Erreur', response.error?.message || 'Une erreur est survenue');
+                alert('Erreur', response.error?.message || 'Une erreur est survenue');
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+              alert('Erreur', error.message || 'Une erreur est survenue');
             } finally {
               setIsChanging(false);
             }
@@ -142,21 +143,21 @@ export default function ProductsManagement() {
         const res = await inventoryService.importProducts(file.uri, file.name, file.mimeType || 'text/csv');
         
         if (res.success) {
-          Alert.alert('Succès', `${res.data.successCount} produits importés sur ${res.data.total}.`);
+          alert('Succès', `${res.data.successCount} produits importés sur ${res.data.total}.`);
           loadProducts();
         } else {
-          Alert.alert('Erreur', res.message || 'Erreur lors de l\'importation');
+          alert('Erreur', res.message || 'Erreur lors de l\'importation');
         }
       }
     } catch (error: any) {
-      Alert.alert('Erreur', 'Impossible de lire le fichier: ' + error.message);
+      alert('Erreur', 'Impossible de lire le fichier: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = (productId: string) => {
-    Alert.alert(
+    alert(
       'Supprimer le produit',
       'Êtes-vous sûr de vouloir supprimer ce produit ?',
       [
@@ -168,11 +169,11 @@ export default function ProductsManagement() {
             try {
               const response = await sellerService.deleteProduct(productId);
               if (response.success) {
-                Alert.alert('Succès', 'Produit supprimé');
+                alert('Succès', 'Produit supprimé');
                 loadProducts();
               }
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer le produit');
+              alert('Erreur', 'Impossible de supprimer le produit');
             }
           },
         },
@@ -214,7 +215,7 @@ export default function ProductsManagement() {
     return (
       <ThemedView style={styles.container}>
         <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement de vos produits..." />
       </ThemedView>
     );
   }
@@ -252,7 +253,7 @@ export default function ProductsManagement() {
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: tintColor }]}
             onPress={() => {
-              Alert.alert(
+              alert(
                 'Filtrer par statut',
                 '',
                 [
@@ -466,13 +467,13 @@ function ProductFormModal({
 
   const handleSave = async () => {
     if (!formData.name || !formData.name.trim()) {
-      Alert.alert('Champs obligatoires', 'Veuillez renseigner le nom du produit.');
+      alert('Champs obligatoires', 'Veuillez renseigner le nom du produit.');
       return;
     }
 
     const priceNum = Number(formData.price);
     if (formData.price === undefined || formData.price === null || isNaN(priceNum) || priceNum < 0) {
-      Alert.alert('Champs obligatoires', 'Veuillez indiquer un prix valide (nombre supérieur ou égal à 0).');
+      alert('Champs obligatoires', 'Veuillez indiquer un prix valide (nombre supérieur ou égal à 0).');
       return;
     }
 
@@ -507,7 +508,7 @@ function ProductFormModal({
         const uploadRes = await apiService.upload<{ urls: string[] }>('/api/seller/uploads/images', fd);
         if (!uploadRes.success) {
           const uploadMotif = uploadRes.error?.message || "Impossible d'uploader les images du produit";
-          Alert.alert('Échec de l\'envoi des images', `Motif : ${uploadMotif}`);
+          alert('Échec de l\'envoi des images', `Motif : ${uploadMotif}`);
           setSaving(false);
           return;
         }
@@ -533,25 +534,25 @@ function ProductFormModal({
       if (product) {
         const response = await sellerService.updateProduct(product.id, payload);
         if (response.success) {
-          Alert.alert('Succès', 'Le produit a été mis à jour avec succès dans la base de données.');
+          alert('Succès', 'Le produit a été mis à jour avec succès dans la base de données.');
           onSave();
         } else {
           const motif = response.error?.message || 'Motif inconnu';
-          Alert.alert('Échec de la modification', `Le produit n'a pas pu être mis à jour.\n\nMotif : ${motif}`);
+          alert('Échec de la modification', `Le produit n'a pas pu être mis à jour.\n\nMotif : ${motif}`);
         }
       } else {
         const response = await sellerService.createProduct(payload as Product);
         if (response.success) {
-          Alert.alert('Succès', 'Le produit a été créé et enregistré dans la base de données avec succès.');
+          alert('Succès', 'Le produit a été créé et enregistré dans la base de données avec succès.');
           onSave();
         } else {
           const motif = response.error?.message || 'Motif inconnu';
-          Alert.alert('Échec de la création', `Le produit n'a pas pu être créé.\n\nMotif : ${motif}`);
+          alert('Échec de la création', `Le produit n'a pas pu être créé.\n\nMotif : ${motif}`);
         }
       }
     } catch (error: any) {
       const motif = error.message || 'Une erreur inattendue est survenue lors de la communication avec le serveur.';
-      Alert.alert('Erreur', `Erreur lors de la sauvegarde du produit.\n\nMotif : ${motif}`);
+      alert('Erreur', `Erreur lors de la sauvegarde du produit.\n\nMotif : ${motif}`);
     } finally {
       setSaving(false);
     }
@@ -579,7 +580,7 @@ function ProductFormModal({
       const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
-        Alert.alert(
+        alert(
           'Permissions requises',
           'Nous avons besoin de votre permission pour accéder à la caméra et à la galerie.'
         );
@@ -608,7 +609,7 @@ function ProductFormModal({
 
       input.click();
     } catch (e) {
-      Alert.alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
+      alert('Erreur', "Impossible d'ouvrir le sélecteur de fichiers");
     }
   };
 
@@ -620,7 +621,7 @@ function ProductFormModal({
     const hasPermission = await requestImagePickerPermissions();
     if (!hasPermission) return;
 
-    Alert.alert(
+    alert(
       'Sélectionner une image',
       'Choisissez une option',
       [
@@ -640,7 +641,7 @@ function ProductFormModal({
                 addImageToProduct(imageUri);
               }
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible d\'accéder à la caméra');
+              alert('Erreur', 'Impossible d\'accéder à la caméra');
             }
           },
         },
@@ -664,7 +665,7 @@ function ProductFormModal({
                 });
               }
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible d\'accéder à la galerie');
+              alert('Erreur', 'Impossible d\'accéder à la galerie');
             }
           },
         },

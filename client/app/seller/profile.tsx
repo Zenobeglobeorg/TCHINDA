@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Image,
   Platform,
@@ -17,6 +16,8 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function SellerProfileScreen() {
   const { user, refreshUser } = useAuth();
@@ -77,7 +78,7 @@ export default function SellerProfileScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos.');
+        alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos.');
         return;
       }
 
@@ -93,7 +94,7 @@ export default function SellerProfileScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Erreur', 'Impossible de sélectionner une image');
+      alert('Erreur', 'Impossible de sélectionner une image');
     }
   };
 
@@ -124,13 +125,13 @@ export default function SellerProfileScreen() {
       
       if (response.success) {
         await refreshUser();
-        Alert.alert('Succès', 'Profil mis à jour avec succès');
+        alert('Succès', 'Profil mis à jour avec succès');
         await loadProfile();
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setSaving(false);
     }
@@ -139,7 +140,7 @@ export default function SellerProfileScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement du profil vendeur..." />
       </ThemedView>
     );
   }

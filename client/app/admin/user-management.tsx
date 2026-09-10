@@ -452,6 +452,7 @@ export default function UserManagementScreen() {
                 { label: 'Acheteurs', value: 'BUYER' },
                 { label: 'Vendeurs', value: 'SELLER' },
                 { label: 'Administrateurs', value: 'ADMIN' },
+                { label: 'Modérateurs', value: 'MODERATOR' },
                 { label: 'Commerciaux', value: 'COMMERCIAL' },
                 { label: 'Livreurs', value: 'DELIVERY' },
                 { label: 'Factureurs', value: 'ACCOUNTANT' },

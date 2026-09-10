@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingTop: Platform.OS === 'web' ? 12 : 60,
     borderBottomWidth: StyleSheet.hairlineWidth,
     ...(Platform.OS === 'web' && {
       // @ts-ignore

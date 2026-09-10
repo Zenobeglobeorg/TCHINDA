@@ -16,6 +16,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function WalletScreen() {
   const { user } = useAuth();
@@ -105,7 +106,7 @@ export default function WalletScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement du portefeuille..." />
       </ThemedView>
     );
   }

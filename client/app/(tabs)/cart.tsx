@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -17,6 +16,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function CartScreen() {
   const { user } = useAuth();
@@ -81,17 +82,17 @@ export default function CartScreen() {
       if (response.success) {
         await loadCart();
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
+        alert('Erreur', response.error?.message || 'Erreur lors de la mise à jour');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     } finally {
       setUpdating(null);
     }
   };
 
   const removeItem = async (itemId: string) => {
-    Alert.alert(
+    alert(
       'Supprimer',
       'Voulez-vous retirer cet article du panier ?',
       [
@@ -106,7 +107,7 @@ export default function CartScreen() {
                 await loadCart();
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message);
+              alert('Erreur', error.message);
             }
           },
         },
@@ -115,7 +116,7 @@ export default function CartScreen() {
   };
 
   const clearCart = async () => {
-    Alert.alert(
+    alert(
       'Vider le panier',
       'Voulez-vous supprimer tous les articles du panier ?',
       [
@@ -130,7 +131,7 @@ export default function CartScreen() {
                 await loadCart();
               }
             } catch (error: any) {
-              Alert.alert('Erreur', error.message);
+              alert('Erreur', error.message);
             }
           },
         },
@@ -140,14 +141,14 @@ export default function CartScreen() {
 
   const proceedToCheckout = () => {
     if (!cart || !cart.items || cart.items.length === 0) {
-      Alert.alert('Panier vide', 'Votre panier est vide');
+      alert('Panier vide', 'Votre panier est vide');
       return;
     }
 
     try {
       router.push({ pathname: '/buyer/checkout' } as any);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
+      alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
     }
   };
 
@@ -174,7 +175,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement du panier..." />
       </ThemedView>
     );
   }

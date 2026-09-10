@@ -20,9 +20,10 @@ import {
   toggleAdminCategoryActive,
 } from '../controllers/admin.category.controller.js';
 import {
-  listPendingProducts,
+  listProducts,
   approveProduct,
   rejectProduct,
+  updateProductStatus,
 } from '../controllers/admin.product.controller.js';
 
 const router = express.Router();
@@ -124,14 +125,15 @@ router.delete('/categories/:id', deleteAdminCategory);
 
 /**
  * @route   GET /api/admin/products/pending
- * @desc    Lister les produits en attente de validation
+ * @desc    Lister les produits pour modération, filtrables par status/categoryId/sellerId/search
+ *          (le nom de la route reste "pending" pour compat, mais status=ACTIVE|INACTIVE fonctionne aussi)
  * @access  Private (ADMIN)
  */
-router.get('/products/pending', listPendingProducts);
+router.get('/products/pending', listProducts);
 
 /**
  * @route   POST /api/admin/products/:id/approve
- * @desc    Approuver un produit et le rendre visible
+ * @desc    Approuver un produit en attente et le rendre visible
  * @access  Private (ADMIN)
  */
 router.post('/products/:id/approve', approveProduct);
@@ -142,6 +144,13 @@ router.post('/products/:id/approve', approveProduct);
  * @access  Private (ADMIN)
  */
 router.post('/products/:id/reject', rejectProduct);
+
+/**
+ * @route   PUT /api/admin/products/:id/status
+ * @desc    Changer librement le statut d'un produit (ACTIVE/PENDING/INACTIVE)
+ * @access  Private (ADMIN)
+ */
+router.put('/products/:id/status', updateProductStatus);
 
 export default router;
 

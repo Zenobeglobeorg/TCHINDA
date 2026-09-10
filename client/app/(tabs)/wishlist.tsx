@@ -15,6 +15,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function WishlistScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement de vos favoris..." />
       </ThemedView>
     );
   }

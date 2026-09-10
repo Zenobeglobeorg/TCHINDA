@@ -1,4 +1,5 @@
 import { Platform, Alert as RNAlert, AccessibilityInfo } from 'react-native';
+import { showCustomAlert, type AlertButton } from '@/components/ui/AlertHost';
 
 const nativeAlert = RNAlert.alert;
 
@@ -10,6 +11,7 @@ const announceForAccessibility = (text?: string) => {
   AccessibilityInfo.announceForAccessibility(text);
 };
 
+// Accessibilité pour les écrans pas encore migrés vers alert() (voir Alert.alert direct).
 if (Platform.OS !== 'web' && typeof nativeAlert === 'function') {
   RNAlert.alert = (title: string, message?: string, buttons?: any, options?: any) => {
     announceForAccessibility(`${title}${message ? `. ${message}` : ''}`);
@@ -18,49 +20,16 @@ if (Platform.OS !== 'web' && typeof nativeAlert === 'function') {
 }
 
 /**
- * Utilitaire d'alerte compatible avec toutes les plateformes (Web, iOS, Android)
- * Utilise window.alert sur le web et Alert.alert sur les plateformes natives
+ * Boîte de dialogue personnalisée de l'app (mêmes signature/usage que Alert.alert),
+ * rendue via AlertHost (voir components/ui/AlertHost.tsx) plutôt que la boîte
+ * système, pour un rendu cohérent sur web, iOS et Android.
  */
 export const alert = (
   title: string,
   message?: string,
-  buttons?: Array<{
-    text?: string;
-    onPress?: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }>,
-  options?: any
+  buttons?: AlertButton[],
+  _options?: any
 ) => {
-  const announcement = `${title}${message ? `. ${message}` : ''}`;
-
-  if (Platform.OS !== 'web') {
-    announceForAccessibility(announcement);
-  }
-
-  if (Platform.OS === 'web') {
-    // Sur le web, utiliser window.alert ou window.confirm
-    if (buttons && buttons.length > 1) {
-      // Si plusieurs boutons, utiliser confirm pour le premier bouton
-      const confirmButton = buttons.find(b => b.style !== 'cancel') || buttons[0];
-      const cancelButton = buttons.find(b => b.style === 'cancel');
-      
-      const result = window.confirm(`${title}\n\n${message || ''}`);
-      if (result && confirmButton?.onPress) {
-        confirmButton.onPress();
-      } else if (!result && cancelButton?.onPress) {
-        cancelButton.onPress();
-      }
-    } else {
-      // Un seul bouton, utiliser alert
-      window.alert(`${title}\n\n${message || ''}`);
-      if (buttons && buttons[0]?.onPress) {
-        buttons[0].onPress();
-      }
-    }
-  } else {
-    // Sur les plateformes natives, utiliser Alert.alert
-    RNAlert.alert(title, message, buttons, options);
-  }
+  announceForAccessibility(`${title}${message ? `. ${message}` : ''}`);
+  showCustomAlert(title, message, buttons);
 };
-
-

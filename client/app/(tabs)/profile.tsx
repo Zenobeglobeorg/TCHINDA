@@ -18,6 +18,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function ProfileScreen() {
   const { user, refreshUser } = useAuth();
@@ -166,7 +167,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement du profil..." />
       </ThemedView>
     );
   }

@@ -23,6 +23,7 @@ import PaymentInfoForm from '@/components/PaymentInfoForm';
 import WithdrawConfirmationForm from '@/components/WithdrawConfirmationForm';
 import { alert } from '@/utils/alert';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 interface Wallet {
   id: string;
@@ -164,7 +165,7 @@ export default function SellerWallet() {
   if (loading && !wallet) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tintColor} />
+        <LoadingView message="Chargement du portefeuille..." />
       </ThemedView>
     );
   }

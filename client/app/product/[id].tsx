@@ -18,6 +18,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { Picker } from '@react-native-picker/picker';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 const { width } = Dimensions.get('window');
 
@@ -88,7 +89,7 @@ export default function ProductScreen() {
     try {
       if (product?.hasVariants) {
         if (!selectedVariantId) {
-          Alert.alert('Variante requise', 'Veuillez sélectionner une variante.');
+          alert('Variante requise', 'Veuillez sélectionner une variante.');
           return false;
         }
       }
@@ -104,7 +105,7 @@ export default function ProductScreen() {
 
       if (response.success) {
         if (!opts?.silent) {
-          Alert.alert('Succès', 'Produit ajouté au panier', [
+          alert('Succès', 'Produit ajouté au panier', [
             {
               text: 'Voir le panier',
               onPress: () => router.push('/(tabs)/cart'),
@@ -114,11 +115,11 @@ export default function ProductScreen() {
         }
         return true;
       } else {
-        Alert.alert('Erreur', response.error?.message || 'Erreur lors de l\'ajout au panier');
+        alert('Erreur', response.error?.message || 'Erreur lors de l\'ajout au panier');
         return false;
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
       return false;
     } finally {
       setAddingToCart(false);
@@ -140,27 +141,27 @@ export default function ProductScreen() {
       } else {
         await apiService.post('/api/buyer/wishlist', { productId: id });
         setIsInWishlist(true);
-        Alert.alert('Succès', 'Ajouté à la liste de souhaits');
+        alert('Succès', 'Ajouté à la liste de souhaits');
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      alert('Erreur', error.message);
     }
   };
 
   const buyNow = async () => {
     if (!user) {
-      Alert.alert('Connectez-vous', 'Veuillez vous connecter pour acheter.', [
+      alert('Connectez-vous', 'Veuillez vous connecter pour acheter.', [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Se connecter', onPress: () => router.push('/Login') },
       ]);
       return;
     }
     if (user.accountType !== 'BUYER') {
-      Alert.alert('Accès refusé', 'Cette action est réservée aux acheteurs.');
+      alert('Accès refusé', 'Cette action est réservée aux acheteurs.');
       return;
     }
     if (product?.hasVariants && !selectedVariantId) {
-      Alert.alert('Variante requise', 'Veuillez sélectionner une variante.');
+      alert('Variante requise', 'Veuillez sélectionner une variante.');
       return;
     }
 
@@ -177,14 +178,14 @@ export default function ProductScreen() {
         params,
       } as any);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
+      alert('Erreur', e?.message || 'Impossible d’ouvrir le paiement');
     }
   };
 
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
+        <LoadingView message="Chargement du produit..." />
       </ThemedView>
     );
   }
@@ -214,7 +215,7 @@ export default function ProductScreen() {
 
   const startChat = async () => {
     if (!product?.seller?.id) {
-      Alert.alert('Erreur', 'Vendeur introuvable.');
+      alert('Erreur', 'Vendeur introuvable.');
       return;
     }
     try {
@@ -225,10 +226,10 @@ export default function ProductScreen() {
       if (res.success && res.data?.id) {
         router.push(`/chat/${res.data.id}`);
       } else {
-        Alert.alert('Erreur', res.error?.message || 'Impossible de démarrer la conversation');
+        alert('Erreur', res.error?.message || 'Impossible de démarrer la conversation');
       }
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Une erreur est survenue');
+      alert('Erreur', e.message || 'Une erreur est survenue');
     }
   };
 
@@ -507,7 +508,7 @@ export default function ProductScreen() {
 
           <TouchableOpacity 
             style={[styles.actionIconButton, styles.joinitoButton]} 
-            onPress={() => Alert.alert('Joinito', 'Rejoignez la ligne d\'achat groupé communautaire !')}
+            onPress={() => alert('Joinito', 'Rejoignez la ligne d\'achat groupé communautaire !')}
             accessible={true} accessibilityLabel="Action communautaire Joinito" accessibilityRole="button">
             <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color="#FFF" />
             <ThemedText style={[styles.actionIconText, {color: '#FFF'}]}>Joinito</ThemedText>

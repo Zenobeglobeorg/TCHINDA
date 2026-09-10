@@ -125,15 +125,7 @@ function TabLayoutContent() {
                 tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
               }}
             />
-            <Tabs.Screen
-              name="menu"
-              options={{
-                title: 'Menu',
-                tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
-              }}
-            />
 
-            
             {/* Hidden tabs */}
             <Tabs.Screen
               name="wishlist"
@@ -205,15 +197,7 @@ function TabLayoutContent() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="menu"
-        options={{
-          title: 'Menu',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
-        }}
-      />
 
-      
       {/* Hidden tabs that still need to be accessible within the tabs layout */}
       <Tabs.Screen
         name="wishlist"

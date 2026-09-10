@@ -39,67 +39,72 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     available: true,
   },
   {
+    id: 'mtn_money',
+    name: 'MTN Mobile Money',
+    icon: 'creditcard.fill',
+    description: 'Paiement via MTN Mobile Money (sandbox)',
+    available: true,
+  },
+  // Les méthodes ci-dessous n'ont aucune intégration réelle côté serveur pour
+  // l'instant (elles finissaient soit sur un crédit instantané fictif du
+  // wallet, soit sur le même appel MTN mal étiqueté) : marquées indisponibles
+  // tant qu'elles ne sont pas réellement branchées, pour ne plus laisser
+  // l'utilisateur cliquer sur un bouton qui ne fait rien de réel.
+  {
     id: 'orange_money',
     name: 'Orange Money',
     icon: 'creditcard.fill',
     description: 'Paiement via Orange Money',
-    available: true,
-  },
-  {
-    id: 'mtn_money',
-    name: 'MTN Mobile Money',
-    icon: 'creditcard.fill',
-    description: 'Paiement via MTN Mobile Money',
-    available: true,
+    available: false,
   },
   {
     id: 'moov_money',
     name: 'Moov Money',
     icon: 'creditcard.fill',
     description: 'Paiement via Moov Money',
-    available: true,
+    available: false,
   },
   {
     id: 'paypal',
     name: 'PayPal',
     icon: 'creditcard.fill',
     description: 'Paiement sécurisé via PayPal',
-    available: true,
+    available: false,
   },
   {
     id: 'paseecard',
     name: 'Paseecard',
     icon: 'creditcard.fill',
     description: 'Paiement via Paseecard',
-    available: true,
+    available: false,
   },
   {
     id: 'bank_transfer',
     name: 'Virement bancaire',
     icon: 'building.columns.fill',
     description: 'Virement bancaire direct',
-    available: true,
+    available: false,
   },
   {
     id: 'card',
     name: 'Carte bancaire',
     icon: 'creditcard.fill',
     description: 'Visa, Mastercard, etc.',
-    available: true,
+    available: false,
   },
   {
     id: 'wave',
     name: 'Wave',
     icon: 'creditcard.fill',
     description: 'Paiement via Wave',
-    available: true,
+    available: false,
   },
   {
     id: 'free_money',
     name: 'Free Money',
     icon: 'creditcard.fill',
     description: 'Paiement via Free Money',
-    available: true,
+    available: false,
   },
 ];
 

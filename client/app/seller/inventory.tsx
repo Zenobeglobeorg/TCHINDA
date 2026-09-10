@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, RefreshControl } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { inventoryService, Warehouse, StockMovement } from '@/services/inventory.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function InventoryScreen() {
   const [activeTab, setActiveTab] = useState<'STOCK' | 'MOVEMENTS' | 'WAREHOUSES' | 'ALERTS'>('STOCK');
@@ -31,7 +33,7 @@ export default function InventoryScreen() {
         if (res.success) setAlerts(res.data);
       }
     } catch (err) {
-      Alert.alert('Erreur', 'Impossible de charger les données');
+      alert('Erreur', 'Impossible de charger les données');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -71,7 +73,7 @@ export default function InventoryScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {loading && !refreshing ? (
-          <ThemedText style={{ textAlign: 'center', marginTop: 20 }}>Chargement...</ThemedText>
+          <LoadingView message="Chargement..." fullscreen={false} />
         ) : (
           <>
             {activeTab === 'ALERTS' && (

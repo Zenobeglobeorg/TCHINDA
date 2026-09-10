@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,6 +15,7 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { alert } from '@/utils/alert';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 export default function UsersScreen() {
   const router = useRouter();
@@ -30,36 +31,38 @@ export default function UsersScreen() {
 
   useEffect(() => {
     loadUsers();
-  }, [filterType]);
+  }, []);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Pour l'instant, utiliser un endpoint générique - à remplacer par /api/admin/users
-      const response = await apiService.get('/api/users');
+      const response = await apiService.get('/api/admin/users');
       if (response.success) {
-        let usersData = response.data || [];
-        if (filterType) {
-          usersData = usersData.filter((user: any) => user.accountType === filterType);
-        }
-        if (searchQuery) {
-          usersData = usersData.filter(
-            (user: any) =>
-              user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        }
-        setUsers(usersData);
+        setUsers((response.data as any[]) || []);
+      } else {
+        alert('Erreur', response.error?.message || 'Impossible de charger les utilisateurs');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
-      alert('Erreur', 'Impossible de charger les utilisateurs');
+      alert('Erreur', error.message || 'Impossible de charger les utilisateurs');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user: any) => {
+      const matchesType = !filterType || user.accountType === filterType;
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !q ||
+        user.email?.toLowerCase().includes(q) ||
+        user.firstName?.toLowerCase().includes(q) ||
+        user.lastName?.toLowerCase().includes(q);
+      return matchesType && matchesSearch;
+    });
+  }, [users, filterType, searchQuery]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -171,9 +174,7 @@ export default function UsersScreen() {
           <ThemedText style={[styles.headerTitle, { color: textColor }]}>Gérer les utilisateurs</ThemedText>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
-        </View>
+        <LoadingView message="Chargement des utilisateurs..." />
       </ThemedView>
     );
   }
@@ -200,10 +201,7 @@ export default function UsersScreen() {
             placeholder="Rechercher un utilisateur..."
             placeholderTextColor={textColor + '60'}
             value={searchQuery}
-            onChangeText={(text) => {
-              setSearchQuery(text);
-              loadUsers();
-            }}
+            onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -236,7 +234,7 @@ export default function UsersScreen() {
 
       {/* Users List */}
       <FlatList
-        data={users}
+        data={filteredUsers}
         keyExtractor={(item) => item.id}
         renderItem={renderUser}
         contentContainerStyle={styles.listContent}
