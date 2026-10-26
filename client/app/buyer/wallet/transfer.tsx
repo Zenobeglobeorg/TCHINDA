@@ -14,10 +14,12 @@ import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { alert } from '@/utils/alert';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export default function TransferScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { rates, loadingRates } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState<any>(null);
   const [fromCurrency, setFromCurrency] = useState('XOF');
@@ -47,7 +49,7 @@ export default function TransferScreen() {
   };
 
   const currencies = wallet?.walletCurrencies?.map((wc: any) => wc.currency) || ['XOF'];
-  const availableCurrencies = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
+  const availableCurrencies = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'].filter((c) => !!rates[c]);
 
   const getAvailableBalance = (currency: string) => {
     if (!wallet?.walletCurrencies) return 0;
@@ -55,24 +57,16 @@ export default function TransferScreen() {
     return walletCurrency ? parseFloat(walletCurrency.balance) : 0;
   };
 
-  // Simple exchange rate (in production, use real-time rates)
-  const getExchangeRate = (from: string, to: string) => {
-    // Example rates (should be fetched from API in production)
-    const rates: { [key: string]: number } = {
-      'XOF-EUR': 0.0015,
-      'EUR-XOF': 655.957,
-      'XOF-USD': 0.0017,
-      'USD-XOF': 588.235,
-      'XOF-XAF': 1,
-      'XAF-XOF': 1,
-    };
-    return rates[`${from}-${to}`] || 1;
+  // Taux réels fournis par le serveur (base XAF) ; undefined si la paire n'est pas convertible
+  const getExchangeRate = (from: string, to: string): number | undefined => {
+    if (!rates[from] || !rates[to]) return undefined;
+    return rates[to] / rates[from];
   };
 
   const calculateConvertedAmount = () => {
     if (!amount || parseFloat(amount) <= 0) return 0;
     const rate = getExchangeRate(fromCurrency, toCurrency);
-    return parseFloat(amount) * rate;
+    return rate ? parseFloat(amount) * rate : 0;
   };
 
   const handleTransfer = async () => {
@@ -93,6 +87,11 @@ export default function TransferScreen() {
       return;
     }
 
+    const rate = getExchangeRate(fromCurrency, toCurrency);
+    if (!rate) {
+      alert('Erreur', loadingRates ? 'Les taux de change sont en cours de chargement' : 'Taux de change indisponible pour ces devises');
+      return;
+    }
     const convertedAmount = calculateConvertedAmount();
 
     alert(
@@ -100,7 +99,7 @@ export default function TransferScreen() {
       `Voulez-vous transférer ${parseFloat(amount).toLocaleString('fr-FR')} ${fromCurrency} vers ${convertedAmount.toLocaleString('fr-FR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      })} ${toCurrency} ?\n\nTaux de change: 1 ${fromCurrency} = ${getExchangeRate(fromCurrency, toCurrency).toFixed(4)} ${toCurrency}`,
+      })} ${toCurrency} ?\n\nTaux de change: 1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}\n(le montant final est calculé par le serveur)`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -262,10 +261,17 @@ export default function TransferScreen() {
           <View style={styles.infoContent}>
             <ThemedText style={styles.infoTitle}>Taux de change</ThemedText>
             <ThemedText style={styles.infoText}>
-              1 {fromCurrency} = {getExchangeRate(fromCurrency, toCurrency).toFixed(4)} {toCurrency}
+              {(() => {
+                const rate = getExchangeRate(fromCurrency, toCurrency);
+                return rate
+                  ? `1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`
+                  : loadingRates
+                  ? 'Chargement des taux…'
+                  : 'Taux indisponible pour cette paire';
+              })()}
             </ThemedText>
             <ThemedText style={styles.infoNote}>
-              Les taux de change sont indicatifs et peuvent varier
+              Les taux de change évoluent ; le montant exact est calculé par le serveur au moment de la conversion
             </ThemedText>
           </View>
         </View>

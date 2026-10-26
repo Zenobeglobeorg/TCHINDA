@@ -14,7 +14,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api.service';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { LoadingView } from '@/components/ui/LoadingView';
 
@@ -32,9 +32,11 @@ export default function WalletScreen() {
   const [fromCurrency, setFromCurrency] = useState('XAF');
   const [toCurrency, setToCurrency] = useState('EUR');
 
-  useEffect(() => {
-    loadWalletData();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWalletData();
+    }, [])
+  );
 
   const loadWalletData = async () => {
     try {
@@ -88,6 +90,9 @@ export default function WalletScreen() {
       PAYMENT: 'creditcard.fill',
       REFUND: 'arrow.counterclockwise.circle.fill',
       COMMISSION: 'percent',
+      SALE: 'arrow.down.circle.fill',
+      CONVERSION_IN: 'arrow.left.arrow.right',
+      CONVERSION_OUT: 'arrow.left.arrow.right',
     };
     return icons[type] || 'circle.fill';
   };
@@ -99,6 +104,9 @@ export default function WalletScreen() {
       PAYMENT: '#624cacff',
       REFUND: '#17A2B8',
       COMMISSION: '#FFC107',
+      SALE: '#28A745',
+      CONVERSION_IN: '#6C757D',
+      CONVERSION_OUT: '#6C757D',
     };
     return colors[type] || '#666';
   };
@@ -303,6 +311,9 @@ export default function WalletScreen() {
                       {transaction.type === 'PAYMENT' && 'Paiement'}
                       {transaction.type === 'REFUND' && 'Remboursement'}
                       {transaction.type === 'COMMISSION' && 'Commission'}
+                      {transaction.type === 'SALE' && 'Vente'}
+                      {transaction.type === 'CONVERSION_IN' && 'Conversion (reçu)'}
+                      {transaction.type === 'CONVERSION_OUT' && 'Conversion (envoyé)'}
                     </ThemedText>
                     <ThemedText style={styles.transactionDate}>
                       {new Date(transaction.createdAt).toLocaleDateString('fr-FR', {
@@ -319,13 +330,13 @@ export default function WalletScreen() {
                       styles.transactionAmount,
                       {
                         color:
-                          transaction.type === 'DEPOSIT' || transaction.type === 'REFUND'
+                          ['DEPOSIT', 'REFUND', 'SALE', 'CONVERSION_IN'].includes(transaction.type)
                             ? '#28A745'
                             : '#DC3545',
                       },
                     ]}
                   >
-                    {transaction.type === 'DEPOSIT' || transaction.type === 'REFUND' ? '+' : '-'}
+                    {['DEPOSIT', 'REFUND', 'SALE', 'CONVERSION_IN'].includes(transaction.type) ? '+' : '-'}
                     {formatAmount(parseFloat(transaction.amount), transaction.currency)}
                   </ThemedText>
                   <View

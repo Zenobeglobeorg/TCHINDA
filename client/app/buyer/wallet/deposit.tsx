@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -27,7 +28,15 @@ export default function DepositScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
 
-  const currencies = ['XOF', 'XAF', 'EUR', 'USD'];
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [depositStatus, setDepositStatus] = useState<'PENDING' | 'SUCCESSFUL' | 'FAILED' | 'CANCELLED' | 'EXPIRED' | null>(null);
+  const [failureReason, setFailureReason] = useState<string | null>(null);
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [credited, setCredited] = useState<{ amount: number; currency: string } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const currencies = ['XOF', 'XAF', 'EUR'];
   const quickAmounts = [5000, 10000, 25000, 50000, 100000];
 
   const handlePaymentMethodSelect = (method: PaymentMethod) => {
@@ -36,92 +45,97 @@ export default function DepositScreen() {
     setShowPaymentInfoForm(true);
   };
 
+  const stopPolling = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    pollRef.current = null;
+    pollTimeoutRef.current = null;
+  };
+
+  useEffect(() => () => stopPolling(), []);
+
+  const startPolling = (refId: string) => {
+    stopPolling();
+    const poll = async () => {
+      try {
+        const res = await apiService.get<any>(`/api/wallet/deposit/${refId}/status`);
+        if (!res.success) return;
+        const status = res.data?.status;
+        setDepositStatus(status);
+        if (status !== 'PENDING') {
+          setFailureReason(res.data?.failureReason || null);
+          stopPolling();
+        }
+      } catch (e) {
+        // erreur réseau passagère : on réessaie au prochain tour
+      }
+    };
+    poll();
+    pollRef.current = setInterval(poll, 4000);
+    pollTimeoutRef.current = setTimeout(() => {
+      stopPolling();
+      setDepositStatus((current) => (current === 'PENDING' ? 'EXPIRED' : current));
+    }, 10 * 60 * 1000);
+  };
+
   const handlePaymentInfoSubmit = async (paymentInfo: any) => {
-    if (!amount || parseFloat(amount) <= 0) {
+    const value = parseFloat(amount);
+    if (!value || value <= 0) {
       alert('Erreur', 'Veuillez entrer un montant valide');
       return;
     }
-
-    if (!paymentMethod) {
-      alert('Erreur', 'Méthode de paiement non sélectionnée');
+    if (!paymentMethod || paymentMethod.id !== 'mtn_money') {
+      alert('Info', "Seul MTN Mobile Money est disponible pour recharger pour l'instant");
       return;
     }
 
     setLoading(true);
     try {
-      // Si c'est MTN ou Orange, utiliser le service mobile money
-      if (paymentMethod.id === 'mtn_money' || paymentMethod.id === 'orange_money') {
-        const provider = paymentMethod.id === 'mtn_money' ? 'MTN' : 'ORANGE';
-        
-        const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
-          amount: parseFloat(amount),
-          currency,
-          provider,
-          phoneNumber: paymentInfo.phoneNumber,
-          type: 'DEPOSIT',
-        });
+      const res = await apiService.post<any>('/api/wallet/deposit/mobile-money', {
+        amount: value,
+        currency,
+        provider: 'MTN',
+        phoneNumber: paymentInfo.phoneNumber,
+      });
 
-        if (paymentRes.success) {
-          alert(
-            'Paiement initié',
-            `Un SMS de confirmation a été envoyé au ${paymentInfo.phoneNumber}. Veuillez confirmer le paiement avec le code reçu.`,
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // En production, ouvrir un modal pour entrer le code de confirmation
-                  // Pour l'instant, on simule la confirmation automatique
-                  setTimeout(async () => {
-                    try {
-                      const confirmRes = await apiService.post(
-                        `/api/buyer/payments/mobile-money/${paymentRes.data.paymentId}/confirm`,
-                        { confirmationCode: '123456' } // Code de test
-                      );
-                      if (confirmRes.success) {
-                        alert('Succès', 'Dépôt effectué avec succès', [
-                          { text: 'OK', onPress: () => router.back() },
-                        ]);
-                      }
-                    } catch (error: any) {
-                      alert('Erreur', error.message || 'Erreur lors de la confirmation');
-                    }
-                  }, 2000);
-                },
-              },
-            ]
-          );
-        } else {
-          alert('Erreur', paymentRes.error?.message || 'Erreur lors de l\'initiation du paiement');
-        }
-      } else {
-        // Autres méthodes de paiement (carte, virement, etc.)
-        const response = await apiService.post('/api/buyer/wallet/deposit', {
-          amount: parseFloat(amount),
-          currency,
-          paymentMethod: paymentMethod.id,
-          paymentInfo,
-        });
-
-        if (response.success) {
-          alert(
-            'Succès',
-            `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`,
-            [
-              {
-                text: 'OK',
-                onPress: () => router.back(),
-              },
-            ]
-          );
-        } else {
-          alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
-        }
+      if (!res.success) {
+        alert('Erreur', res.error?.message || "Impossible d'initier la recharge");
+        return;
       }
+
+      setCredited({ amount: value, currency });
+      setReferenceId(res.data.referenceId);
+      setDepositStatus('PENDING');
+      setFailureReason(null);
+      setShowPaymentInfoForm(false);
+      setShowStatusModal(true);
+      startPolling(res.data.referenceId);
     } catch (error: any) {
       alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelDeposit = async () => {
+    stopPolling();
+    if (referenceId) {
+      try {
+        await apiService.post(`/api/wallet/deposit/${referenceId}/cancel`, {});
+      } catch (e) {
+        // sans conséquence : le paiement expirera de toute façon
+      }
+    }
+    closeStatusModal();
+  };
+
+  const closeStatusModal = () => {
+    const wasSuccess = depositStatus === 'SUCCESSFUL';
+    stopPolling();
+    setShowStatusModal(false);
+    setReferenceId(null);
+    setDepositStatus(null);
+    if (wasSuccess) router.back();
   };
 
   const handleDeposit = () => {
@@ -231,7 +245,7 @@ export default function DepositScreen() {
         <View style={styles.infoCard}>
           <IconSymbol name="info.circle.fill" size={20} color="#624cacff" />
           <ThemedText style={styles.infoText}>
-            Les fonds seront crédités sur votre portefeuille après confirmation du paiement.
+            Les fonds sont crédités sur votre portefeuille uniquement après confirmation du paiement par MTN Mobile Money.
           </ThemedText>
         </View>
 
@@ -258,7 +272,79 @@ export default function DepositScreen() {
         onSelect={handlePaymentMethodSelect}
         title="Choisir un mode de paiement"
         loading={loading}
+        excludeIds={['wallet']}
       />
+
+      {/* Formulaire du numéro de téléphone */}
+      {paymentMethod && (
+        <PaymentInfoForm
+          visible={showPaymentInfoForm}
+          paymentMethod={paymentMethod}
+          amount={parseFloat(amount) || 0}
+          currency={currency}
+          onClose={() => setShowPaymentInfoForm(false)}
+          onSubmit={handlePaymentInfoSubmit}
+          loading={loading}
+          transactionType="deposit"
+        />
+      )}
+
+      {/* Suivi de la recharge (le portefeuille n'est crédité qu'après confirmation de MTN) */}
+      <Modal visible={showStatusModal} animationType="slide" transparent>
+        <View style={styles.statusOverlay}>
+          <View style={styles.statusCard}>
+            {depositStatus === 'PENDING' && (
+              <>
+                <ActivityIndicator size="large" color="#624cacff" style={{ marginBottom: 16 }} />
+                <ThemedText style={styles.statusTitle}>En attente de confirmation</ThemedText>
+                <ThemedText style={styles.statusText}>
+                  Une demande MTN Mobile Money a été envoyée sur votre téléphone.{'\n'}Entrez votre code PIN pour confirmer.
+                </ThemedText>
+              </>
+            )}
+            {depositStatus === 'SUCCESSFUL' && (
+              <>
+                <ThemedText style={styles.statusIcon}>✅</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#4CAF50' }]}>Recharge réussie !</ThemedText>
+                <ThemedText style={styles.statusText}>
+                  {credited ? `${credited.amount.toLocaleString('fr-FR')} ${credited.currency}` : 'Le montant'} ajouté à votre portefeuille.
+                </ThemedText>
+              </>
+            )}
+            {(depositStatus === 'FAILED' || depositStatus === 'CANCELLED') && (
+              <>
+                <ThemedText style={styles.statusIcon}>❌</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#F44336' }]}>Recharge non effectuée</ThemedText>
+                <ThemedText style={styles.statusText}>
+                  Le paiement a été refusé ou annulé. Aucun montant n'a été ajouté.
+                  {failureReason ? `\n(${failureReason})` : ''}
+                </ThemedText>
+              </>
+            )}
+            {depositStatus === 'EXPIRED' && (
+              <>
+                <ThemedText style={styles.statusIcon}>⏰</ThemedText>
+                <ThemedText style={[styles.statusTitle, { color: '#FF9800' }]}>Délai expiré</ThemedText>
+                <ThemedText style={styles.statusText}>
+                  Vous n'avez pas confirmé à temps. Relancez une recharge.
+                </ThemedText>
+              </>
+            )}
+
+            {depositStatus === 'PENDING' ? (
+              <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#F44336' }]} onPress={handleCancelDeposit}>
+                <ThemedText style={styles.statusButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#624cacff' }]} onPress={closeStatusModal}>
+                <ThemedText style={styles.statusButtonText}>
+                  {depositStatus === 'SUCCESSFUL' ? 'Terminer' : 'Fermer'}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -413,6 +499,23 @@ const styles = StyleSheet.create({
   depositButtonDisabled: {
     opacity: 0.6,
   },
+  statusOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  statusCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+  },
+  statusIcon: { fontSize: 48, marginBottom: 12 },
+  statusTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, color: '#222', textAlign: 'center' },
+  statusText: { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  statusButton: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, alignSelf: 'stretch', alignItems: 'center' },
+  statusButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
   depositButtonText: {
     color: '#FFF',
     fontSize: 16,

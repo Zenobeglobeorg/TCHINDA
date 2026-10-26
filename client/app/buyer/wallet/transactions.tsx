@@ -100,6 +100,9 @@ export default function TransactionsScreen() {
       REFUND: 'arrow.counterclockwise.circle.fill',
       COMMISSION: 'percent',
       TRANSFER: 'arrow.left.arrow.right',
+      SALE: 'arrow.down.circle.fill',
+      CONVERSION_IN: 'arrow.left.arrow.right',
+      CONVERSION_OUT: 'arrow.left.arrow.right',
     };
     return icons[type] || 'circle.fill';
   };
@@ -112,6 +115,9 @@ export default function TransactionsScreen() {
       REFUND: '#17A2B8',
       COMMISSION: '#FFC107',
       TRANSFER: '#6C757D',
+      SALE: '#28A745',
+      CONVERSION_IN: '#6C757D',
+      CONVERSION_OUT: '#6C757D',
     };
     return colors[type] || '#666';
   };
@@ -124,6 +130,9 @@ export default function TransactionsScreen() {
       REFUND: 'Remboursement',
       COMMISSION: 'Commission',
       TRANSFER: 'Transfert',
+      SALE: 'Vente',
+      CONVERSION_IN: 'Conversion (reçu)',
+      CONVERSION_OUT: 'Conversion (envoyé)',
     };
     return labels[type] || type;
   };
@@ -210,7 +219,7 @@ export default function TransactionsScreen() {
             styles.transactionAmount,
             {
               color:
-                item.type === 'DEPOSIT' || item.type === 'REFUND'
+                ['DEPOSIT', 'REFUND', 'SALE', 'CONVERSION_IN'].includes(item.type)
                   ? '#28A745'
                   : item.type === 'WITHDRAWAL' || item.type === 'PAYMENT'
                   ? '#DC3545'
@@ -218,7 +227,7 @@ export default function TransactionsScreen() {
             },
           ]}
         >
-          {item.type === 'DEPOSIT' || item.type === 'REFUND' ? '+' : '-'}
+          {['DEPOSIT', 'REFUND', 'SALE', 'CONVERSION_IN'].includes(item.type) ? '+' : '-'}
           {formatAmount(parseFloat(item.amount), item.currency)}
         </ThemedText>
         <View

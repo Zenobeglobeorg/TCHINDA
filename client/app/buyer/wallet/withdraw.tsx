@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
 import WithdrawConfirmationForm from '@/components/WithdrawConfirmationForm';
 import { alert } from '@/utils/alert';
+import { WITHDRAWALS_AVAILABLE, WITHDRAWALS_UNAVAILABLE_TITLE, WITHDRAWALS_UNAVAILABLE_MESSAGE } from '@/constants/Features';
 
 export default function WithdrawScreen() {
   const router = useRouter();
@@ -96,6 +97,10 @@ export default function WithdrawScreen() {
   };
 
   const handleWithdraw = () => {
+    if (!WITHDRAWALS_AVAILABLE) {
+      alert(WITHDRAWALS_UNAVAILABLE_TITLE, WITHDRAWALS_UNAVAILABLE_MESSAGE);
+      return;
+    }
     // Ouvrir directement le modal de sélection de méthode de paiement
     setShowPaymentModal(true);
   };
@@ -132,6 +137,15 @@ export default function WithdrawScreen() {
             Sélectionnez un mode de retrait, puis entrez le montant et confirmez avec votre mot de passe.
           </ThemedText>
         </View>
+
+        {!WITHDRAWALS_AVAILABLE && (
+          <View style={{ backgroundColor: '#FFF4E5', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <ThemedText style={{ fontWeight: 'bold', color: '#B26A00', marginBottom: 4 }}>
+              {WITHDRAWALS_UNAVAILABLE_TITLE}
+            </ThemedText>
+            <ThemedText style={{ color: '#7A5200', lineHeight: 20 }}>{WITHDRAWALS_UNAVAILABLE_MESSAGE}</ThemedText>
+          </View>
+        )}
 
         {/* Withdraw Button */}
         <TouchableOpacity

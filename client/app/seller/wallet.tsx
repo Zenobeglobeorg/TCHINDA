@@ -16,12 +16,13 @@ import {
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { apiService } from '@/services/api.service';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import PaymentMethodModal, { PaymentMethod } from '@/components/PaymentMethodModal';
 import PaymentInfoForm from '@/components/PaymentInfoForm';
 import WithdrawConfirmationForm from '@/components/WithdrawConfirmationForm';
 import { alert } from '@/utils/alert';
+import { WITHDRAWALS_AVAILABLE, WITHDRAWALS_UNAVAILABLE_TITLE, WITHDRAWALS_UNAVAILABLE_MESSAGE } from '@/constants/Features';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { LoadingView } from '@/components/ui/LoadingView';
 
@@ -33,6 +34,7 @@ interface Wallet {
   walletCurrencies?: Array<{
     currency: string;
     balance: number;
+    pendingBalance?: number;
   }>;
 }
 
@@ -50,21 +52,23 @@ interface Transaction {
 export default function SellerWallet() {
   const router = useRouter();
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  const mainCurrency = wallet?.walletCurrencies?.find((wc) => wc.currency === (wallet?.currency || 'XOF'));
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'currencies'>('overview');
-  const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
 
-  useEffect(() => {
-    loadWallet();
-    loadTransactions();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWallet();
+      loadTransactions();
+    }, [])
+  );
 
   const loadWallet = async () => {
     try {
@@ -227,10 +231,17 @@ export default function SellerWallet() {
         >
           {/* Solde principal */}
           <View style={[styles.balanceCard, { backgroundColor }]}>
-            <Text style={[styles.balanceLabel, { color: textColor }]}>Solde principal</Text>
+            <Text style={[styles.balanceLabel, { color: textColor }]}>Solde disponible</Text>
             <Text style={[styles.balanceAmount, { color: tintColor }]}>
-              {wallet?.balance?.toLocaleString() || 0} {wallet?.currency || 'XOF'}
+              {mainCurrency ? Number(mainCurrency.balance).toLocaleString() : wallet?.balance?.toLocaleString() || 0}{' '}
+              {wallet?.currency || 'XOF'}
             </Text>
+            {Number(mainCurrency?.pendingBalance || 0) > 0 && (
+              <Text style={[styles.balanceLimit, { color: textColor }]}>
+                En séquestre : {Number(mainCurrency?.pendingBalance).toLocaleString()} {wallet?.currency || 'XOF'}
+                {' '}(libéré à la confirmation de livraison)
+              </Text>
+            )}
             {wallet?.limit && (
               <Text style={[styles.balanceLimit, { color: textColor }]}>
                 Limite: {wallet.limit.toLocaleString()} {wallet.currency}
@@ -242,7 +253,7 @@ export default function SellerWallet() {
           <View style={styles.quickActions}>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: tintColor }]}
-              onPress={() => setShowDepositModal(true)}
+              onPress={() => router.push('/buyer/wallet/deposit')}
             >
               <Text style={styles.actionButtonText}>Déposer</Text>
             </TouchableOpacity>
@@ -379,19 +390,6 @@ export default function SellerWallet() {
         </ScrollView>
       )}
 
-      {/* Modal de dépôt */}
-      {showDepositModal && (
-        <DepositModal
-          visible={showDepositModal}
-          onClose={() => setShowDepositModal(false)}
-          onSuccess={() => {
-            setShowDepositModal(false);
-            loadWallet();
-            loadTransactions();
-          }}
-        />
-      )}
-
       {/* Modal de retrait */}
       {showWithdrawModal && (
         <WithdrawModal
@@ -406,192 +404,6 @@ export default function SellerWallet() {
         />
       )}
     </ThemedView>
-  );
-}
-
-// Modal de dépôt
-function DepositModal({
-  visible,
-  onClose,
-  onSuccess,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('XOF');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showPaymentInfoForm, setShowPaymentInfoForm] = useState(false);
-
-  const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const tintColor = useThemeColor({}, 'tint');
-
-  const handlePaymentMethodSelect = (method: PaymentMethod) => {
-    setPaymentMethod(method);
-    // Après sélection, afficher le formulaire d'informations
-    setShowPaymentInfoForm(true);
-  };
-
-  const handlePaymentInfoSubmit = async (paymentInfo: any) => {
-    if (!amount || parseFloat(amount) <= 0) {
-      alert('Erreur', 'Veuillez entrer un montant valide');
-      return;
-    }
-
-    if (!paymentMethod) {
-      alert('Erreur', 'Méthode de paiement non sélectionnée');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await apiService.post('/api/buyer/wallet/deposit', {
-        amount: parseFloat(amount),
-        currency,
-        paymentMethod: paymentMethod.id,
-        paymentInfo, // Informations de paiement
-      });
-
-      if (response.success) {
-        alert('Succès', `Dépôt de ${parseFloat(amount).toLocaleString('fr-FR')} ${currency} via ${paymentMethod.name} effectué avec succès`);
-        onSuccess();
-      } else {
-        alert('Erreur', response.error?.message || 'Erreur lors du dépôt');
-      }
-    } catch (error: any) {
-      alert('Erreur', error.message || 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeposit = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      alert('Erreur', 'Veuillez entrer un montant valide');
-      return;
-    }
-
-    // Ouvrir le modal de sélection de méthode de paiement
-    setShowPaymentModal(true);
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor }]}>
-          <ThemedText type="title" style={styles.modalTitle}>
-            Déposer des fonds
-          </ThemedText>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: textColor }]}>Montant</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor, color: textColor, borderColor: tintColor }]}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: textColor }]}>Devise</Text>
-            <View style={styles.currencySelector}>
-              {['XOF', 'XAF', 'EUR', 'USD'].map((curr) => (
-                <TouchableOpacity
-                  key={curr}
-                  style={[
-                    styles.currencyButton,
-                    currency === curr && { backgroundColor: tintColor },
-                  ]}
-                  onPress={() => setCurrency(curr)}
-                >
-                  <Text
-                    style={[
-                      styles.currencyButtonText,
-                      { color: currency === curr ? '#FFFFFF' : textColor },
-                    ]}
-                  >
-                    {curr}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: textColor }]}>Mode de paiement</Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { 
-                  backgroundColor, 
-                  color: textColor, 
-                  borderColor: tintColor,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 12,
-                },
-              ]}
-              onPress={() => setShowPaymentModal(true)}
-            >
-              <Text style={{ color: paymentMethod ? textColor : textColor + '80', flex: 1 }}>
-                {paymentMethod ? paymentMethod.name : 'Choisir un mode de paiement'}
-              </Text>
-              <IconSymbol name="chevron.right" size={20} color={textColor + '60'} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
-              onPress={onClose}
-            >
-              <Text style={styles.modalButtonText}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: tintColor }]}
-              onPress={handleDeposit}
-              disabled={loading || !amount}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.modalButtonText}>Déposer</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Payment Method Selection Modal */}
-      <PaymentMethodModal
-        visible={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSelect={handlePaymentMethodSelect}
-        title="Choisir un mode de paiement"
-        loading={loading}
-      />
-
-      {/* Payment Info Form Modal */}
-      {paymentMethod && (
-        <PaymentInfoForm
-          visible={showPaymentInfoForm}
-          paymentMethod={paymentMethod}
-          amount={parseFloat(amount) || 0}
-          currency={currency}
-          onClose={() => setShowPaymentInfoForm(false)}
-          onSubmit={handlePaymentInfoSubmit}
-          loading={loading}
-          transactionType="deposit"
-        />
-      )}
-    </Modal>
   );
 }
 
@@ -674,6 +486,10 @@ function WithdrawModal({
   };
 
   const handleWithdraw = () => {
+    if (!WITHDRAWALS_AVAILABLE) {
+      alert(WITHDRAWALS_UNAVAILABLE_TITLE, WITHDRAWALS_UNAVAILABLE_MESSAGE);
+      return;
+    }
     // Ouvrir directement le modal de sélection de méthode de paiement
     setShowPaymentModal(true);
   };
@@ -722,6 +538,13 @@ function WithdrawModal({
                 Sélectionnez un mode de retrait, puis entrez le montant et confirmez avec votre mot de passe.
               </Text>
             </View>
+
+            {!WITHDRAWALS_AVAILABLE && (
+              <View style={{ backgroundColor: '#FFF4E5', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <Text style={{ fontWeight: 'bold', color: '#B26A00', marginBottom: 4 }}>{WITHDRAWALS_UNAVAILABLE_TITLE}</Text>
+                <Text style={{ color: '#7A5200', lineHeight: 20 }}>{WITHDRAWALS_UNAVAILABLE_MESSAGE}</Text>
+              </View>
+            )}
 
             {/* Withdraw Button */}
             <View style={styles.modalActions}>
