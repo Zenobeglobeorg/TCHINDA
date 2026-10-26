@@ -245,7 +245,7 @@ export default function ProductScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-            <IconSymbol name="chevron.right" size={24} color="#333" />
+            <IconSymbol name="chevron.right" size={24} color="#333" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleWishlist} style={styles.headerButton}>
             <IconSymbol
