@@ -27,6 +27,7 @@ interface PaymentMethodModalProps {
   onSelect: (method: PaymentMethod) => void;
   title?: string;
   loading?: boolean;
+  excludeIds?: string[];
 }
 
 // Liste complète des méthodes de paiement
@@ -114,6 +115,7 @@ export default function PaymentMethodModal({
   onSelect,
   title = 'Choisir un mode de paiement',
   loading = false,
+  excludeIds = [],
 }: PaymentMethodModalProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -144,7 +146,7 @@ export default function PaymentMethodModal({
 
           {/* Payment Methods List */}
           <ScrollView style={styles.methodsList} showsVerticalScrollIndicator={false}>
-            {PAYMENT_METHODS.map((method) => (
+            {PAYMENT_METHODS.filter((m) => !excludeIds.includes(m.id)).map((method) => (
               <TouchableOpacity
                 key={method.id}
                 style={[

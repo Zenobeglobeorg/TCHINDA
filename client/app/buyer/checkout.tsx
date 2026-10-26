@@ -256,22 +256,9 @@ export default function CheckoutScreen() {
 
       const orderId = orderRes.data?.id;
 
-      // Étape 2 : Initier le paiement MoMo
-      // MTN sandbox n'accepte que EUR — on convertit toujours le montant vers EUR
-      const rawCurrency = isBuyNow ? buyNowItem?.currency || 'XOF' : cart?.currency || 'XOF';
-      const momoTargetCurrency = 'EUR'; // sandbox MTN impose EUR
-      // Convertir rawCurrency → EUR via le CurrencyContext
-      // convertPrice(amount, from) → vers selectedCurrency
-      // Taux de secours si les rates ne sont pas chargés
-      const EUR_RATE = 0.00152; // 1 XOF ≈ 0.00152 EUR
-      const amountInEUR = rawCurrency === momoTargetCurrency
-        ? total
-        : Math.round(total * EUR_RATE * 100) / 100;
-
+      // Étape 2 : Initier le paiement MoMo (le serveur calcule le montant et la devise à partir de la commande)
       const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
         orderId,
-        amount: amountInEUR,
-        currency: momoTargetCurrency, // ← toujours EUR pour sandbox MTN
         provider: paymentMethod, // 'MTN'
         phoneNumber: paymentInfo.phoneNumber,
       });

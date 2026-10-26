@@ -8,6 +8,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LoadingView } from '@/components/ui/LoadingView';
+import { alert } from '@/utils/alert';
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
@@ -43,6 +44,49 @@ export default function OrderDetailsScreen() {
     setRefreshing(true);
     await loadOrder();
   };
+
+  const [acting, setActing] = useState(false);
+
+  const runAction = async (endpoint: string, successTitle: string, successMsg: string) => {
+    setActing(true);
+    try {
+      const res: any = await apiService.put(endpoint);
+      if (res.success) {
+        alert(successTitle, successMsg);
+        await loadOrder();
+      } else {
+        alert('Erreur', res.message || res.error || "L'action a échoué");
+      }
+    } catch (e: any) {
+      alert('Erreur', e?.message || "L'action a échoué");
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const confirmReception = () =>
+    alert(
+      'Confirmer la réception',
+      "En confirmant, l'argent est versé au vendeur. Ne confirmez que si vous avez bien reçu votre commande.",
+      [
+        { text: 'Pas encore', style: 'cancel' },
+        {
+          text: 'Oui, reçu',
+          onPress: () =>
+            runAction(`/api/buyer/orders/${id}/confirm-delivery`, 'Merci !', 'Réception confirmée, le vendeur a été payé.'),
+        },
+      ]
+    );
+
+  const cancelOrder = () =>
+    alert('Annuler la commande', 'Vous serez remboursé sur votre portefeuille.', [
+      { text: 'Non', style: 'cancel' },
+      {
+        text: "Oui, annuler",
+        style: 'destructive',
+        onPress: () => runAction(`/api/buyer/orders/${id}/cancel`, 'Commande annulée', 'Le montant a été remboursé sur votre portefeuille.'),
+      },
+    ]);
 
   if (loading) {
     return (
@@ -101,6 +145,32 @@ export default function OrderDetailsScreen() {
             Total: {parseFloat(order.total).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {order.currency || 'XOF'}
           </ThemedText>
         </View>
+
+        {order.paymentStatus === 'PAID' && ['SHIPPED', 'DELIVERED'].includes(order.status) && (
+          <View style={[styles.card, { backgroundColor }]}>
+            <ThemedText style={[styles.subLine, { color: textColor + '80', marginTop: 0, marginBottom: 12 }]}>
+              Votre paiement est sécurisé : le vendeur n'est payé qu'après votre confirmation de réception
+              (ou automatiquement 7 jours après la livraison).
+            </ThemedText>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: tintColor, alignItems: 'center', opacity: acting ? 0.6 : 1 }]}
+              onPress={confirmReception}
+              disabled={acting}
+            >
+              <ThemedText style={styles.buttonText}>Confirmer la réception</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {order.paymentStatus === 'PAID' && ['CONFIRMED', 'PROCESSING'].includes(order.status) && (
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor, alignItems: 'center', opacity: acting ? 0.6 : 1 }]}
+            onPress={cancelOrder}
+            disabled={acting}
+          >
+            <ThemedText style={{ color: '#D32F2F', fontWeight: 'bold' }}>Annuler la commande</ThemedText>
+          </TouchableOpacity>
+        )}
 
         <View style={[styles.card, { backgroundColor }]}>
           <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Articles</ThemedText>
