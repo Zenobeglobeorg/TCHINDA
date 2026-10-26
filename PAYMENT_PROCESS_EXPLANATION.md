@@ -29,8 +29,7 @@
 
 1. **Inscription sur MTN Developer Portal** :
    - URL : https://momodeveloper.mtn.com
-   - Email : tchindagroupe@gmail.com
-   - Mot de passe : Zidane1234
+   - Identifiants : à ne jamais écrire dans le dépôt (voir le gestionnaire de mots de passe de l'équipe)
 
 2. **Obtenir les clés API** :
    - Subscription Key (Primary/Secondary)
@@ -54,25 +53,14 @@
 5. Backend met à jour le statut du paiement
 ```
 
-## Identifiants Fournis
+### Obtenir les clés (sandbox)
 
-- **Portal URL** : https://momodeveloper.mtn.com
-- **Email** : tchindagroupe@gmail.com
-- **Mot de passe** : Zidane1234
-
-### Prochaines étapes nécessaires :
-
-1. Se connecter au portal MTN Developer
-2. Créer une application
-3. S'abonner à l'API "Request to Pay" ou "Disbursements"
-4. Obtenir les clés API (Subscription Key, API User, API Key)
-5. Configurer les webhooks
-6. Intégrer dans le code backend
+1. Créer un compte sur le portail, puis s'abonner au produit « Collections » : la Subscription Key (Primary) est dans Profile > Subscriptions.
+2. Générer l'API User et l'API Key avec le script fourni, depuis le dossier `server` :
+   `node scripts/momo-setup.mjs <SUBSCRIPTION_KEY>`
+3. Copier les lignes `MOMO_*` affichées dans `server/.env` (fichier ignoré par git, ne jamais le commiter).
+4. Webhooks : `MOMO_CALLBACK_URL` est optionnel, l'application vérifie déjà le statut par polling.
 
 ## Note Importante
 
-Les identifiants fournis (email/mot de passe) sont **insuffisants** pour intégrer l'API. Il faut également :
-- Les clés API (Subscription Key, API User, API Key)
-- L'environnement (sandbox ou production)
-- La configuration des webhooks
-- L'URL de callback pour recevoir les notifications
+Ne jamais écrire de mot de passe ou de clé API dans ce dépôt : uniquement dans `server/.env`.
