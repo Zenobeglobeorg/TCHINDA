@@ -32,7 +32,9 @@ foreach ($img in $sourceImages) {
     if (Test-Path $img) {
         # Copier dans tous les dossiers de densité (ou choisissez le bon)
         foreach ($dir in $resDirs) {
-            Copy-Item -Path $img -Destination "$dir/" -Force
+            # Android n'accepte que des minuscules, chiffres et _ dans les noms de ressources
+            $destName = (Split-Path $img -Leaf).ToLower()
+            Copy-Item -Path $img -Destination (Join-Path $dir $destName) -Force
             Write-Host "Copié: $img -> $dir" -ForegroundColor Green
         }
     } else {
