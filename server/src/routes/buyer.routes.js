@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
 import * as buyerController from '../controllers/buyer.controller.js';
 import multer from 'multer';
+import { openOrderDispute } from '../controllers/dispute.controller.js';
 
 const router = express.Router();
 
@@ -34,7 +35,6 @@ router.put('/addresses/:id/default', buyerController.setDefaultAddress);
 // Wallet routes
 router.get('/wallet', buyerController.getWallet);
 router.get('/wallet/transactions', buyerController.getTransactions);
-router.post('/wallet/deposit', buyerController.deposit);
 router.post('/wallet/withdraw', buyerController.withdraw);
 router.post('/wallet/transfer', buyerController.transfer);
 
@@ -56,6 +56,8 @@ router.get('/orders/:id', buyerController.getOrder);
 router.post('/orders', buyerController.createOrder);
 router.post('/orders/buy-now', buyerController.createBuyNowOrder);
 router.put('/orders/:id/cancel', buyerController.cancelOrder);
+router.put('/orders/:id/confirm-delivery', buyerController.confirmDelivery);
+router.post('/orders/:id/dispute', openOrderDispute);
 
 // Verification routes
 router.get('/verification', buyerController.getVerificationStatus);

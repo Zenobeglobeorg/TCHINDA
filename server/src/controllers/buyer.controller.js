@@ -158,24 +158,6 @@ export const getTransactions = async (req, res, next) => {
 };
 
 /**
- * Deposit to wallet
- */
-export const deposit = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const { amount, currency = 'XOF', paymentMethod } = req.body;
-    const transaction = await buyerService.deposit(userId, {
-      amount: parseFloat(amount),
-      currency,
-      paymentMethod,
-    });
-    res.status(201).json({ success: true, data: transaction, message: 'Dépôt effectué avec succès' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
  * Withdraw from wallet
  */
 export const withdraw = async (req, res, next) => {
@@ -396,6 +378,18 @@ export const cancelOrder = async (req, res, next) => {
 };
 
 /**
+ * Confirm delivery (releases escrow to sellers)
+ */
+export const confirmDelivery = async (req, res, next) => {
+  try {
+    const result = await buyerService.confirmDelivery(req.user.id, req.params.id);
+    res.json({ success: true, data: result, message: 'Réception confirmée, fonds libérés au vendeur' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get verification status
  */
 export const getVerificationStatus = async (req, res, next) => {
@@ -528,7 +522,7 @@ export const cancelSubscription = async (req, res, next) => {
 export const initiateMobileMoneyPayment = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { orderId, amount, currency, phoneNumber, provider = 'MTN', message } = req.body;
+    const { orderId, phoneNumber, provider = 'MTN', message } = req.body;
 
     if (!orderId) {
       return res.status(400).json({
@@ -545,8 +539,6 @@ export const initiateMobileMoneyPayment = async (req, res, next) => {
 
     const result = await initiateMomoPayment(userId, {
       orderId,
-      amount: parseFloat(amount),
-      currency: currency || process.env.MOMO_CURRENCY || 'EUR',
       phoneNumber,
       provider,
       message,
@@ -569,7 +561,7 @@ export const initiateMobileMoneyPayment = async (req, res, next) => {
 export const checkMobileMoneyPaymentStatus = async (req, res, next) => {
   try {
     const { referenceId } = req.params;
-    const status = await getMomoPaymentStatus(referenceId);
+    const status = await getMomoPaymentStatus(referenceId, req.user.id);
     res.json({ success: true, data: status });
   } catch (error) {
     next(error);

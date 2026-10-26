@@ -216,7 +216,8 @@ model WalletCurrency {
   id       String  @id @default(uuid())
   walletId String
   currency String // XOF, XAF, USD, EUR, etc.
-  balance  Decimal @default(0) @db.Decimal(15, 2)
+  balance  Decimal @default(0) @db.Decimal(15, 2) // Solde disponible (retirable / dépensable)
+  pendingBalance Decimal @default(0) @db.Decimal(15, 2) // Fonds en séquestre (ventes non encore libérées)
 
   // Relations
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -844,7 +845,8 @@ model Order {
   id          String      @id @default(uuid())
   orderNumber String      @unique
   userId      String
-  sellerId    String? // Vendeur (pour les commandes multi-vendeurs)
+  sellerId    String? // Vendeur de cette commande (une commande = un seul vendeur)
+  checkoutGroupId String? // Regroupe les commandes créées par un même paiement de panier
   status      OrderStatus @default(PENDING)
 
   // Informations de livraison
@@ -881,6 +883,8 @@ model Order {
   user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items    OrderItem[]
   payments Payment[]
+  escrows  Escrow[]
+  disputes Dispute[]
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -888,6 +892,7 @@ model Order {
 
   @@index([userId])
   @@index([sellerId])
+  @@index([checkoutGroupId])
   @@index([orderNumber])
   @@index([status])
   @@index([paymentStatus])
@@ -922,10 +927,75 @@ model OrderItem {
   @@index([variantId])
 }
 
+// Séquestre : part d'une commande bloquée pour un vendeur jusqu'à confirmation de livraison
+model Escrow {
+  id               String       @id @default(uuid())
+  orderId          String
+  sellerId         String // User.id du vendeur
+  currency         String       @default("XOF")
+  grossAmount      Decimal      @db.Decimal(15, 2) // Total des articles de ce vendeur
+  commissionRate   Decimal      @db.Decimal(5, 2) // Taux appliqué (%) au moment du paiement
+  commissionAmount Decimal      @db.Decimal(15, 2)
+  netAmount        Decimal      @db.Decimal(15, 2) // Ce que le vendeur reçoit (gross - commission)
+  status           EscrowStatus @default(HELD)
+  transactionId    String? // Transaction (type SALE) du wallet vendeur
+  releaseAfter     DateTime? // Libération automatique si l'acheteur ne confirme pas
+  heldAt           DateTime     @default(now())
+  releasedAt       DateTime?
+  refundedAt       DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, sellerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([releaseAfter])
+}
+
+// Litige ouvert par l'acheteur sur une commande payée (gèle le séquestre jusqu'à décision admin)
+model Dispute {
+  id             String        @id @default(uuid())
+  orderId        String
+  openedById     String // User.id de l'acheteur
+  reason         String
+  status         DisputeStatus @default(OPEN)
+  resolutionNote String?
+  resolvedById   String? // User.id de l'admin
+  resolvedAt     DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED_RELEASE // Tranché en faveur du vendeur : fonds libérés
+  RESOLVED_REFUND // Tranché en faveur de l'acheteur : remboursé
+}
+
+enum EscrowStatus {
+  HELD // Fonds bloqués (visibles en "en attente" côté vendeur)
+  DISPUTED // Gelés : litige ouvert, ni libération auto ni libération par l'acheteur
+  RELEASED // Libérés vers le solde disponible
+  REFUNDED // Remboursés à l'acheteur
+}
+
 // Table des paiements Mobile Money
 model Payment {
   id                String        @id @default(uuid())
-  orderId           String
+  orderId           String? // Null pour une recharge de portefeuille
+  userId            String? // Propriétaire du paiement (renseigné pour les recharges)
+  purpose           String        @default("ORDER") // ORDER | DEPOSIT
+  creditedAmount    Decimal?      @db.Decimal(15, 2) // Recharge : montant crédité au portefeuille
+  creditedCurrency  String? // Recharge : devise du portefeuille crédité
   referenceId       String        @unique // UUID envoyé à MTN comme X-Reference-Id
   amount            Decimal       @db.Decimal(15, 2)
   currency          String        @default("EUR") // EUR en sandbox, XOF en production
@@ -937,13 +1007,14 @@ model Payment {
   metadata          Json? // Réponse complète de l'API MoMo
 
   // Relations
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([orderId])
+  @@index([userId])
   @@index([referenceId])
   @@index([status])
   @@index([createdAt])

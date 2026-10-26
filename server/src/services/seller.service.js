@@ -1,4 +1,5 @@
 import { prisma } from '../utils/prisma.js';
+import { scheduleAutoRelease, refundOrderFunds, hasOpenDispute } from './escrow.service.js';
 
 /**
  * Service pour la gestion de boutique
@@ -891,7 +892,14 @@ export const sellerService = {
       ...(status === 'DELIVERED' && { deliveredAt: new Date() }),
     };
 
-    return await prisma.order.update({
+    if (['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order.status)) {
+      throw new Error('Cette commande est clôturée, son statut ne peut plus être modifié');
+    }
+    if (await hasOpenDispute(orderId)) {
+      throw new Error('Un litige est ouvert sur cette commande, son statut ne peut pas être modifié');
+    }
+
+    const updated = await prisma.order.update({
       where: { id: orderId },
       data: updateData,
       include: {
@@ -903,6 +911,14 @@ export const sellerService = {
         },
       },
     });
+
+    if (status === 'DELIVERED') {
+      await scheduleAutoRelease(orderId);
+    } else if (status === 'CANCELLED' || status === 'REFUNDED') {
+      await refundOrderFunds(orderId);
+    }
+
+    return updated;
   },
 
   // ========== STATISTIQUES AVANCÉES ==========

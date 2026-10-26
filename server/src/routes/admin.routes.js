@@ -26,6 +26,8 @@ import {
   updateProductStatus,
 } from '../controllers/admin.product.controller.js';
 
+import { adminListDisputes, adminResolveDispute } from '../controllers/dispute.controller.js';
+
 const router = express.Router();
 
 // Toutes les routes admin nécessitent une authentification + un compte ADMIN
@@ -38,6 +40,10 @@ router.use(requireAccountType('ADMIN'));
  * @access  Private (ADMIN)
  */
 router.post('/users', createUser);
+
+// Litiges (séquestre gelé)
+router.get('/disputes', adminListDisputes);
+router.put('/disputes/:id/resolve', adminResolveDispute);
 
 /**
  * @route   GET /api/admin/users/:id

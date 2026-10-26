@@ -2,6 +2,8 @@ import { prisma } from '../utils/prisma.js';
 import { generateOrderNumber } from '../utils/order.utils.js';
 import { randomUUID } from 'crypto';
 import { sendEmailVerificationCode, sendPhoneVerificationCode } from './auth.service.js';
+import { convertAmount } from './currency.service.js';
+import { holdOrderFunds, releaseOrderFunds, refundOrderFunds, hasOpenDispute } from './escrow.service.js';
 
 const normalizeMoney = (value) => {
   const n = Number(value);
@@ -39,7 +41,7 @@ const getMaxAmountForUser = (user) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const enforceWalletTxLimits = async ({ userId, walletId, amount, currency }) => {
+export const enforceWalletTxLimits = async ({ userId, walletId, amount, currency }) => {
   const user = await getVerificationContext(userId);
   if (!user) {
     const err = new Error('Utilisateur non trouvé');
@@ -347,177 +349,88 @@ export const getTransactions = async (userId, options = {}) => {
 };
 
 /**
- * Deposit to wallet
+ * Withdraw from wallet — disabled until real payouts (MTN MoMo Disbursements) exist.
+ * Previously this debited the wallet and created a PENDING transaction nobody processed.
  */
-export const deposit = async (userId, { amount, currency, paymentMethod }) => {
-  const wallet = await getWallet(userId);
-  await enforceWalletTxLimits({ userId, walletId: wallet.id, amount, currency });
-
-  // Find or create currency wallet
-  let walletCurrency = await prisma.walletCurrency.findUnique({
-    where: {
-      walletId_currency: {
-        walletId: wallet.id,
-        currency,
-      },
-    },
-  });
-
-  if (!walletCurrency) {
-    walletCurrency = await prisma.walletCurrency.create({
-      data: {
-        walletId: wallet.id,
-        currency,
-        balance: 0,
-      },
-    });
-  }
-
-  // Update balance
-  const newBalance = parseFloat(walletCurrency.balance) + amount;
-  await prisma.walletCurrency.update({
-    where: { id: walletCurrency.id },
-    data: { balance: newBalance },
-  });
-
-  // Create transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      walletId: wallet.id,
-      type: 'DEPOSIT',
-      amount,
-      currency,
-      status: 'COMPLETED',
-      paymentMethod,
-      description: `Dépôt de ${amount} ${currency}`,
-    },
-  });
-
-  return transaction;
+export const withdraw = async () => {
+  const err = new Error(
+    "Les retraits ne sont pas encore disponibles. Votre solde reste intact sur votre portefeuille. Cette fonctionnalité sera activée très prochainement."
+  );
+  err.statusCode = 503;
+  throw err;
 };
 
 /**
- * Withdraw from wallet
- */
-export const withdraw = async (userId, { amount, currency, paymentMethod }) => {
-  const wallet = await getWallet(userId);
-  await enforceWalletTxLimits({ userId, walletId: wallet.id, amount, currency });
-
-  const walletCurrency = await prisma.walletCurrency.findUnique({
-    where: {
-      walletId_currency: {
-        walletId: wallet.id,
-        currency,
-      },
-    },
-  });
-
-  if (!walletCurrency || parseFloat(walletCurrency.balance) < amount) {
-    throw new Error('Solde insuffisant');
-  }
-
-  // Update balance
-  const newBalance = parseFloat(walletCurrency.balance) - amount;
-  await prisma.walletCurrency.update({
-    where: { id: walletCurrency.id },
-    data: { balance: newBalance },
-  });
-
-  // Create transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      walletId: wallet.id,
-      type: 'WITHDRAWAL',
-      amount,
-      currency,
-      status: 'PENDING', // Will be updated when payment is confirmed
-      paymentMethod,
-      description: `Retrait de ${amount} ${currency}`,
-    },
-  });
-
-  return transaction;
-};
-
-/**
- * Transfer between currencies
+ * Convert between the user's wallet currencies at the real exchange rate (computed server-side).
+ * Atomic: the debit only happens if the balance is sufficient at that very moment.
  */
 export const transfer = async (userId, { fromCurrency, toCurrency, amount }) => {
-  const wallet = await getWallet(userId);
-
-  // Get source currency
-  const fromWalletCurrency = await prisma.walletCurrency.findUnique({
-    where: {
-      walletId_currency: {
-        walletId: wallet.id,
-        currency: fromCurrency,
-      },
-    },
-  });
-
-  if (!fromWalletCurrency || parseFloat(fromWalletCurrency.balance) < amount) {
-    throw new Error('Solde insuffisant');
+  const value = normalizeMoney(amount);
+  if (!(value > 0)) {
+    const err = new Error('Montant invalide');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) {
+    const err = new Error('Veuillez choisir deux devises différentes');
+    err.statusCode = 400;
+    throw err;
   }
 
-  // Get or create destination currency
-  let toWalletCurrency = await prisma.walletCurrency.findUnique({
-    where: {
-      walletId_currency: {
-        walletId: wallet.id,
-        currency: toCurrency,
-      },
-    },
-  });
+  const wallet = await getWallet(userId);
+  const { converted, rate } = await convertAmount(value, fromCurrency, toCurrency);
+  if (!(converted > 0)) {
+    const err = new Error('Montant trop faible pour être converti');
+    err.statusCode = 400;
+    throw err;
+  }
+  const groupRef = randomUUID();
 
-  if (!toWalletCurrency) {
-    toWalletCurrency = await prisma.walletCurrency.create({
+  await prisma.$transaction(async (tx) => {
+    const debited = await tx.walletCurrency.updateMany({
+      where: { walletId: wallet.id, currency: fromCurrency, balance: { gte: value } },
+      data: { balance: { decrement: value } },
+    });
+    if (debited.count !== 1) {
+      const err = new Error('Solde insuffisant');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    await tx.walletCurrency.upsert({
+      where: { walletId_currency: { walletId: wallet.id, currency: toCurrency } },
+      update: { balance: { increment: converted } },
+      create: { walletId: wallet.id, currency: toCurrency, balance: converted },
+    });
+
+    const metadata = { conversionId: groupRef, rate, fromCurrency, toCurrency };
+    await tx.transaction.create({
       data: {
         walletId: wallet.id,
-        currency: toCurrency,
-        balance: 0,
+        type: 'CONVERSION_OUT',
+        amount: value,
+        currency: fromCurrency,
+        status: 'COMPLETED',
+        reference: `CVT-${groupRef}-OUT`,
+        description: `Conversion vers ${toCurrency}`,
+        metadata,
       },
     });
-  }
+    await tx.transaction.create({
+      data: {
+        walletId: wallet.id,
+        type: 'CONVERSION_IN',
+        amount: converted,
+        currency: toCurrency,
+        status: 'COMPLETED',
+        reference: `CVT-${groupRef}-IN`,
+        description: `Conversion depuis ${fromCurrency}`,
+        metadata,
+      },
+    });
+  }, { timeout: 30000, maxWait: 10000 });
 
-  // Simple conversion (in production, use real exchange rates)
-  const exchangeRate = 1; // TODO: Implement real exchange rate
-  const convertedAmount = amount * exchangeRate;
-
-  // Update balances
-  await prisma.walletCurrency.update({
-    where: { id: fromWalletCurrency.id },
-    data: { balance: parseFloat(fromWalletCurrency.balance) - amount },
-  });
-
-  await prisma.walletCurrency.update({
-    where: { id: toWalletCurrency.id },
-    data: { balance: parseFloat(toWalletCurrency.balance) + convertedAmount },
-  });
-
-  // Create transactions
-  await prisma.transaction.create({
-    data: {
-      walletId: wallet.id,
-      type: 'WITHDRAWAL',
-      amount,
-      currency: fromCurrency,
-      status: 'COMPLETED',
-      description: `Transfert vers ${toCurrency}`,
-    },
-  });
-
-  await prisma.transaction.create({
-    data: {
-      walletId: wallet.id,
-      type: 'DEPOSIT',
-      amount: convertedAmount,
-      currency: toCurrency,
-      status: 'COMPLETED',
-      description: `Transfert depuis ${fromCurrency}`,
-    },
-  });
-
-  return { fromCurrency, toCurrency, amount, convertedAmount };
+  return { fromCurrency, toCurrency, amount: value, convertedAmount: converted, rate };
 };
 
 /**
@@ -894,51 +807,88 @@ export const getOrder = async (userId, orderId) => {
 };
 
 /**
- * Create order from cart
+ * Create orders from cart: one order per seller (grouped by checkoutGroupId), paid in a single operation.
+ * The first order is returned as the "primary" one, with `groupOrders` and `groupTotal` for the full picture.
  */
 export const createOrder = async (userId, orderData) => {
-  // Get cart
   const cart = await getCart(userId);
 
   if (!cart.items || cart.items.length === 0) {
     throw new Error('Le panier est vide');
   }
 
-  // Calculate totals
-  const subtotal = cart.items.reduce((sum, item) => {
-    return sum + parseFloat(item.price) * item.quantity;
-  }, 0);
-
-  // Get user to check subscription for free shipping
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
 
   const shippingCost =
     user?.subscriptionType === 'GOLD' || user?.subscriptionType === 'DIAMOND' ? 0 : orderData.shippingCost || 0;
 
-  const total = subtotal + shippingCost;
-
   const paymentMethod = orderData.paymentMethod || 'WALLET';
   const currency = orderData.currency || 'XOF';
 
+  // Group cart items by seller; shipping is charged once, on the first order.
+  const bySeller = new Map();
+  for (const item of cart.items) {
+    const sellerId = item.product?.sellerId || null;
+    if (!bySeller.has(sellerId)) bySeller.set(sellerId, []);
+    bySeller.get(sellerId).push(item);
+  }
+  const drafts = [...bySeller.entries()].map(([sellerId, items], index) => {
+    const subtotal = items.reduce((sum, it) => sum + parseFloat(it.price) * it.quantity, 0);
+    const shipping = index === 0 ? shippingCost : 0;
+    return { sellerId, items, subtotal, shipping, total: subtotal + shipping };
+  });
+  const groupTotal = drafts.reduce((sum, d) => sum + d.total, 0);
+  const checkoutGroupId = randomUUID();
+
   await enforceOrderLimits({
     userId,
-    total,
+    total: groupTotal,
     currency,
     isWalletPayment: paymentMethod === 'WALLET',
   });
 
-  // IMPORTANT: la page checkout affiche "Payer maintenant".
-  // Donc si paymentMethod=WALLET, on débite réellement le wallet et on marque la commande comme payée.
+  const buildOrderData = (draft, extra) => ({
+    orderNumber: generateOrderNumber(),
+    userId,
+    sellerId: draft.sellerId,
+    checkoutGroupId,
+    subtotal: draft.subtotal,
+    shippingCost: draft.shipping,
+    total: draft.total,
+    currency,
+    shippingAddressId: orderData.shippingAddressId,
+    billingAddressId: orderData.billingAddressId,
+    paymentMethod,
+    ...extra,
+    items: {
+      create: draft.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId || null,
+        quantity: item.quantity,
+        price: item.price,
+        currency: item.currency,
+        total: parseFloat(item.price) * item.quantity,
+        productSnapshot: {
+          name: item.product?.name,
+          image: item.variant?.images?.[0] || item.product?.images?.[0],
+          sku: item.variant?.sku || item.product?.sku,
+          variantName: item.variant?.name || null,
+        },
+      })),
+    },
+  });
+  const orderInclude = { items: { include: { product: true } } };
+  const withGroup = (orders) => ({ ...orders[0], groupOrders: orders, groupTotal });
+
+  // Wallet: real debit of the whole group, then one paid order (+ escrow) per seller.
   if (paymentMethod === 'WALLET') {
     const wallet = await getWallet(userId);
-    await enforceWalletTxLimits({ userId, walletId: wallet.id, amount: total, currency });
-    const safeTotal = normalizeMoney(total);
+    await enforceWalletTxLimits({ userId, walletId: wallet.id, amount: groupTotal, currency });
+    const safeTotal = normalizeMoney(groupTotal);
     const now = new Date();
     const paymentReference = `PAY-${randomUUID()}`;
 
-    const paidOrder = await prisma.$transaction(async (tx) => {
+    const orders = await prisma.$transaction(async (tx) => {
       const walletCurrency = await ensureWalletCurrency(tx, wallet.id, currency);
       const currentBalance = normalizeMoney(walletCurrency.balance);
       if (currentBalance < safeTotal) {
@@ -952,113 +902,59 @@ export const createOrder = async (userId, orderData) => {
         data: { balance: currentBalance - safeTotal },
       });
 
-      const order = await tx.order.create({
-        data: {
-          orderNumber: generateOrderNumber(),
-          userId,
-          status: 'CONFIRMED',
-          subtotal,
-          shippingCost,
-          total,
-          currency,
-          shippingAddressId: orderData.shippingAddressId,
-          billingAddressId: orderData.billingAddressId,
-          paymentMethod,
-          paymentStatus: 'PAID',
-          paymentReference,
-          paidAt: now,
-          items: {
-            create: cart.items.map((item) => ({
-              productId: item.productId,
-              variantId: item.variantId || null,
-              quantity: item.quantity,
-              price: item.price,
-              currency: item.currency,
-              total: parseFloat(item.price) * item.quantity,
-              productSnapshot: {
-                name: item.product?.name,
-                image: item.variant?.images?.[0] || item.product?.images?.[0],
-                sku: item.variant?.sku || item.product?.sku,
-                variantName: item.variant?.name || null,
-              },
-            })),
-          },
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
-      });
+      const created = [];
+      for (const [index, draft] of drafts.entries()) {
+        const order = await tx.order.create({
+          data: buildOrderData(draft, {
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID',
+            paymentReference,
+            paidAt: now,
+          }),
+          include: orderInclude,
+        });
 
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          type: 'PAYMENT',
-          amount: safeTotal,
-          currency,
-          status: 'COMPLETED',
-          reference: paymentReference,
-          description: `Paiement commande ${order.orderNumber}`,
-          paymentMethod: 'WALLET',
-          metadata: { orderId: order.id },
-        },
-      });
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            type: 'PAYMENT',
+            amount: normalizeMoney(draft.total),
+            currency,
+            status: 'COMPLETED',
+            reference: index === 0 ? paymentReference : `${paymentReference}-${index}`,
+            description: `Paiement commande ${order.orderNumber}`,
+            paymentMethod: 'WALLET',
+            metadata: { orderId: order.id, checkoutGroupId },
+          },
+        });
 
-      // Clear cart only after successful payment + order creation
+        await holdOrderFunds(tx, order.id);
+        created.push(order);
+      }
+
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+      return created;
+    }, { timeout: 30000, maxWait: 10000 });
 
-      return order;
-    });
-
-    return paidOrder;
+    return withGroup(orders);
   }
 
-  // Autres méthodes (non implémentées): on crée une commande en attente de paiement, puis on vide le panier
-  // (flux classique: "commande créée" -> paiement externe plus tard).
-  const order = await prisma.order.create({
-    data: {
-      orderNumber: generateOrderNumber(),
-      userId,
-      status: 'PENDING',
-      subtotal,
-      shippingCost,
-      total,
-      currency,
-      shippingAddressId: orderData.shippingAddressId,
-      billingAddressId: orderData.billingAddressId,
-      paymentMethod,
-      paymentStatus: 'PENDING',
-      items: {
-        create: cart.items.map((item) => ({
-          productId: item.productId,
-          variantId: item.variantId || null,
-          quantity: item.quantity,
-          price: item.price,
-          currency: item.currency,
-          total: parseFloat(item.price) * item.quantity,
-          productSnapshot: {
-            name: item.product?.name,
-            image: item.variant?.images?.[0] || item.product?.images?.[0],
-            sku: item.variant?.sku || item.product?.sku,
-            variantName: item.variant?.name || null,
-          },
-        })),
-      },
-    },
-    include: {
-      items: {
-        include: {
-          product: true,
-        },
-      },
-    },
-  });
+  // Other methods (e.g. MoMo): pending orders, paid later by the payment flow (whole group at once).
+  const orders = await prisma.$transaction(async (tx) => {
+    const created = [];
+    for (const draft of drafts) {
+      created.push(
+        await tx.order.create({
+          data: buildOrderData(draft, { status: 'PENDING', paymentStatus: 'PENDING' }),
+          include: orderInclude,
+        })
+      );
+    }
+    return created;
+  }, { timeout: 30000, maxWait: 10000 });
 
   await clearCart(userId);
-  return order;
+  return withGroup(orders);
 };
 
 /**
@@ -1227,8 +1123,10 @@ export const createBuyNowOrder = async (userId, orderData) => {
         },
       });
 
+      await holdOrderFunds(tx, order.id);
+
       return order;
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     return paidOrder;
   }
@@ -1285,17 +1183,52 @@ export const createBuyNowOrder = async (userId, orderData) => {
 export const cancelOrder = async (userId, orderId) => {
   const order = await getOrder(userId, orderId);
 
-  if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
-    throw new Error('Cette commande ne peut pas être annulée');
+  if (['SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order.status)) {
+    throw new Error('Cette commande ne peut plus être annulée');
   }
 
-  return await prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderId },
     data: { status: 'CANCELLED' },
     include: {
       items: true,
     },
   });
+
+  await refundOrderFunds(orderId);
+  return updated;
+};
+
+/**
+ * Buyer confirms receipt: releases the escrow to the sellers' available balance
+ */
+export const confirmDelivery = async (userId, orderId) => {
+  const order = await getOrder(userId, orderId);
+
+  if (order.paymentStatus !== 'PAID') {
+    const err = new Error("Cette commande n'est pas payée");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!['SHIPPED', 'DELIVERED'].includes(order.status)) {
+    const err = new Error("La commande n'a pas encore été expédiée");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (await hasOpenDispute(orderId)) {
+    const err = new Error("Un litige est ouvert sur cette commande : les fonds sont gelés jusqu'à la décision de l'administrateur");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'DELIVERED', deliveredAt: order.deliveredAt || new Date() },
+  });
+  const released = await releaseOrderFunds(orderId);
+
+  return { orderId, status: 'DELIVERED', releasedEscrows: released.length };
 };
 
 /**
