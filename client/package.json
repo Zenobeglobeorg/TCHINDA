@@ -13,7 +13,7 @@
     "convert:logo": "node scripts/convert-logo-to-webp.mjs",
     "prepare:android": "powershell -ExecutionPolicy Bypass -File ./prepare-assets.ps1",
     "prebuild": "npm run prepare:android && npx expo prebuild --clean",
-    "build:eas": "npm run prepare:android && eas build -p android --profile preview --clear-cache"
+    "build:eas": "npm run prepare:android && npx eas-cli build -p android --profile preview --clear-cache"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
