@@ -16,6 +16,7 @@ import commercialRoutes from './routes/commercial.routes.js';
 import catalogRoutes from './routes/catalog.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 
 // Import controllers (pour les routes publiques)
 import { momoCallback } from './controllers/buyer.controller.js';
@@ -283,6 +284,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/commercial', commercialRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Route publique MoMo callback (sans JWT - MTN appelle directement ce endpoint)
 app.post('/api/payments/callback', momoCallback);
@@ -300,6 +302,15 @@ if (process.env.ENABLE_CLEANUP_JOBS === 'true') {
     console.warn('⚠️  Impossible de démarrer les jobs de nettoyage (node-cron peut-être non installé):', error.message);
     console.warn('   Pour activer les jobs de nettoyage, installez node-cron: npm install node-cron');
   }
+}
+
+// Libération automatique des séquestres dont le délai de confirmation acheteur est écoulé
+{
+  const { releaseDueEscrows } = await import('./services/escrow.service.js');
+  const runEscrowRelease = () =>
+    releaseDueEscrows().catch((err) => console.error('[Escrow] Job de libération en échec:', err.message));
+  setInterval(runEscrowRelease, 60 * 60 * 1000).unref();
+  runEscrowRelease();
 }
 
 // Créer le serveur HTTP pour Socket.IO
