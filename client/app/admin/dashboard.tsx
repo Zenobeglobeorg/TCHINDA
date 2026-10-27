@@ -90,6 +90,7 @@ export default function AdminDashboardScreen() {
     { id: 19, title: 'Support', icon: 'info.circle.fill' as const, route: '/admin/support' as const },
     { id: 20, title: 'Paramètres', icon: 'gearshape.fill' as const, route: '/admin/settings' as const },
     { id: 21, title: 'Utilisateurs (autre liste)', icon: 'person.fill' as const, route: '/admin/users' as const },
+    { id: 22, title: 'Litiges', icon: 'exclamationmark.triangle.fill' as const, route: '/admin/disputes' as const },
   ];
 
   return (

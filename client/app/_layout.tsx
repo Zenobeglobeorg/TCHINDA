@@ -121,6 +121,7 @@ function AppContent() {
         <Stack.Screen name="admin/orders" options={{ headerShown: false }} />
         <Stack.Screen name="admin/payments" options={{ headerShown: false }} />
         <Stack.Screen name="admin/products" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/disputes" options={{ headerShown: false }} />
         <Stack.Screen name="admin/rates" options={{ headerShown: false }} />
         <Stack.Screen name="admin/reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin/settings" options={{ headerShown: false }} />
