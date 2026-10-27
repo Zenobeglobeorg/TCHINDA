@@ -777,6 +777,11 @@ export const getOrders = async (userId, options = {}) => {
           },
         },
       },
+      escrows: { select: { sellerId: true, status: true, releaseAfter: true } },
+      disputes: {
+        select: { id: true, status: true, reason: true, resolutionNote: true, createdAt: true, resolvedAt: true },
+        orderBy: { createdAt: 'desc' },
+      },
     },
     orderBy: { createdAt: 'desc' },
     take: options.limit || 50,
@@ -796,6 +801,11 @@ export const getOrder = async (userId, orderId) => {
           product: true,
         },
       },
+      escrows: { select: { sellerId: true, status: true, releaseAfter: true } },
+      disputes: {
+        select: { id: true, status: true, reason: true, resolutionNote: true, createdAt: true, resolvedAt: true },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
 
@@ -803,7 +813,30 @@ export const getOrder = async (userId, orderId) => {
     throw new Error('Commande non trouvée');
   }
 
-  return order;
+  // Le paiement MTN couvre tout le panier : on regarde donc les commandes du même groupe
+  const group = order.checkoutGroupId
+    ? await prisma.order.findMany({
+        where: { checkoutGroupId: order.checkoutGroupId, userId },
+        select: { id: true, total: true },
+      })
+    : [{ id: order.id, total: order.total }];
+  const pendingTtlMs = Number(process.env.MOMO_PENDING_TTL_MINUTES || 10) * 60 * 1000;
+  const pendingPayment = await prisma.payment.findFirst({
+    where: {
+      orderId: { in: group.map((o) => o.id) },
+      status: 'PENDING',
+      createdAt: { gt: new Date(Date.now() - pendingTtlMs) },
+    },
+    select: { referenceId: true, amount: true, currency: true, createdAt: true },
+  });
+
+  return {
+    ...order,
+    groupOrderIds: group.map((o) => o.id),
+    groupCount: group.length,
+    groupTotal: group.reduce((sum, o) => sum + parseFloat(o.total), 0),
+    pendingPayment,
+  };
 };
 
 /**
@@ -1185,6 +1218,27 @@ export const cancelOrder = async (userId, orderId) => {
 
   if (['SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order.status)) {
     throw new Error('Cette commande ne peut plus être annulée');
+  }
+
+  // Commande jamais payée : rien à rembourser, on abandonne tout le panier (le paiement MTN couvre le groupe)
+  if (order.paymentStatus !== 'PAID') {
+    if (order.pendingPayment) {
+      const err = new Error(
+        'Un paiement Mobile Money est en cours. Confirmez-le sur votre téléphone, ou attendez qu\'il expire avant d\'annuler.'
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+    await prisma.order.updateMany({
+      where: {
+        id: { in: order.groupOrderIds },
+        userId,
+        paymentStatus: { not: 'PAID' },
+        status: { notIn: ['SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] },
+      },
+      data: { status: 'CANCELLED' },
+    });
+    return prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   }
 
   const updated = await prisma.order.update({

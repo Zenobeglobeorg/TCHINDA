@@ -274,13 +274,42 @@ export const resolveDispute = async (adminId, disputeId, resolution, note) => {
   return prisma.dispute.findUnique({ where: { id: disputeId } });
 };
 
-export const listDisputes = async ({ status } = {}) =>
-  prisma.dispute.findMany({
+export const listDisputes = async ({ status } = {}) => {
+  const disputes = await prisma.dispute.findMany({
     where: status ? { status } : {},
     orderBy: { createdAt: 'desc' },
     include: {
       order: {
-        select: { id: true, orderNumber: true, total: true, currency: true, status: true, sellerId: true, userId: true },
+        select: {
+          id: true,
+          orderNumber: true,
+          total: true,
+          currency: true,
+          status: true,
+          sellerId: true,
+          createdAt: true,
+          shippedAt: true,
+          deliveredAt: true,
+          user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+          items: { select: { quantity: true, total: true, productSnapshot: true } },
+          escrows: {
+            select: { sellerId: true, grossAmount: true, commissionAmount: true, netAmount: true, status: true, currency: true },
+          },
+        },
       },
     },
   });
+
+  const sellerIds = [...new Set(disputes.flatMap((d) => d.order.escrows.map((e) => e.sellerId)))];
+  const sellers = sellerIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: sellerIds } },
+        select: { id: true, firstName: true, lastName: true, phone: true, sellerProfile: { select: { shopName: true } } },
+      })
+    : [];
+  const byId = new Map(sellers.map((u) => [u.id, u]));
+  return disputes.map((d) => ({
+    ...d,
+    sellers: d.order.escrows.map((e) => byId.get(e.sellerId)).filter(Boolean),
+  }));
+};

@@ -817,6 +817,14 @@ export const sellerService = {
       prisma.order.findMany({
         where,
         include: {
+          escrows: {
+            where: { sellerId: userId },
+            select: { status: true, netAmount: true, commissionAmount: true, currency: true, releaseAfter: true },
+          },
+          disputes: {
+            select: { id: true, status: true, reason: true, createdAt: true, resolvedAt: true },
+            orderBy: { createdAt: 'desc' },
+          },
           user: {
             select: {
               id: true,

@@ -82,7 +82,15 @@ const applyPaymentOutcome = (payment, newStatus, details = {}) =>
     if (newStatus === 'SUCCESSFUL') {
       const orderIds = await getGroupOrderIds(tx, payment.orderId);
       for (const id of orderIds) {
-        const order = await tx.order.findUnique({ where: { id }, select: { paymentStatus: true } });
+        const order = await tx.order.findUnique({ where: { id }, select: { paymentStatus: true, status: true } });
+        if (order && ['CANCELLED', 'REFUNDED'].includes(order.status) && order.paymentStatus !== 'PAID') {
+          console.warn(`⚠️ [MoMo] Paiement ${payment.referenceId} reçu après l'annulation de la commande ${id} — remboursement manuel à prévoir`);
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { failureReason: 'COMMANDE_ANNULEE: paiement reçu après annulation, à rembourser' },
+          });
+          continue;
+        }
         if (order?.paymentStatus === 'PAID') {
           console.warn(`⚠️ [MoMo] Double paiement: la commande ${id} était déjà payée (paiement ${payment.referenceId}) — remboursement manuel à prévoir`);
           await tx.payment.update({
