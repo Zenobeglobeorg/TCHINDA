@@ -47,6 +47,9 @@ export default function CheckoutScreen() {
   const [showPaymentStatusModal, setShowPaymentStatusModal] = useState(false);
   const pollingIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Nombre de commandes créées par le paiement (une par vendeur) et montant réellement débité par MTN
+  const orderCountRef = React.useRef(1);
+  const [chargeInfo, setChargeInfo] = useState<{ amount: number; currency: string } | null>(null);
 
   const isBuyNow = !!params?.productId;
 
@@ -186,7 +189,7 @@ export default function CheckoutScreen() {
           // Laisser 1.5s pour que l'utilisateur voit le succès
           setTimeout(() => {
             setShowPaymentStatusModal(false);
-            alert('✅ Paiement réussi !', 'Votre commande a été confirmée.', [
+            alert('✅ Paiement réussi !', orderCountRef.current > 1 ? `Vos ${orderCountRef.current} commandes (une par vendeur) ont été confirmées.` : 'Votre commande a été confirmée.', [
               {
                 text: 'Voir mes commandes',
                 onPress: () => router.replace('/(tabs)/orders'),
@@ -255,6 +258,7 @@ export default function CheckoutScreen() {
       }
 
       const orderId = orderRes.data?.id;
+      orderCountRef.current = (orderRes.data as any)?.groupOrders?.length || 1;
 
       // Étape 2 : Initier le paiement MoMo (le serveur calcule le montant et la devise à partir de la commande)
       const paymentRes = await apiService.post('/api/buyer/payments/mobile-money/initiate', {
@@ -269,6 +273,10 @@ export default function CheckoutScreen() {
         return;
       }
 
+      const charged = paymentRes.data as any;
+      setChargeInfo(
+        charged?.amount != null ? { amount: Number(charged.amount), currency: String(charged.currency || '') } : null
+      );
       const refId = paymentRes.data?.referenceId;
       setReferenceId(refId);
       setPaymentStatus('PENDING');
@@ -335,7 +343,8 @@ export default function CheckoutScreen() {
           alert('Erreur', res.error?.message || 'Impossible de créer la commande');
           return;
         }
-        alert('Succès', 'Commande créée !', [
+        const createdCount = (res.data as any)?.groupOrders?.length || 1;
+        alert('Succès', createdCount > 1 ? `${createdCount} commandes créées, une par vendeur !` : 'Commande créée !', [
           {
             text: 'Voir mes commandes',
             onPress: () => router.replace('/(tabs)/orders'),
@@ -644,6 +653,12 @@ export default function CheckoutScreen() {
                 <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
                   Une notification MTN MoMo a été envoyée sur votre téléphone.{"\n"}Entrez votre code PIN pour confirmer.
                 </ThemedText>
+                {chargeInfo && (
+                  <ThemedText style={[styles.statusText, { color: textColor, fontWeight: '700', marginTop: 8 }]}>
+                    Montant débité : {chargeInfo.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {chargeInfo.currency}
+                    {chargeInfo.currency === 'EUR' ? '\n(le test MTN fonctionne en euros)' : ''}
+                  </ThemedText>
+                )}
                 <ThemedText style={[styles.statusHint, { color: textColor + '50' }]}>
                   Cette fenêtre se fermera automatiquement…
                 </ThemedText>
@@ -658,7 +673,9 @@ export default function CheckoutScreen() {
                   Paiement réussi !
                 </ThemedText>
                 <ThemedText style={[styles.statusText, { color: textColor + '80' }]}>
-                  Votre commande a été confirmée.
+                  {orderCountRef.current > 1
+                    ? `Vos ${orderCountRef.current} commandes (une par vendeur) ont été confirmées.`
+                    : 'Votre commande a été confirmée.'}
                 </ThemedText>
               </View>
             )}

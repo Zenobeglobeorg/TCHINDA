@@ -54,7 +54,26 @@ interface Order {
     };
   }>;
   shippingAddress?: any;
+  escrows?: Array<{
+    status: 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
+    netAmount: number | string;
+    commissionAmount: number | string;
+    currency: string;
+    releaseAfter?: string | null;
+  }>;
+  disputes?: Array<{
+    id: string;
+    status: 'OPEN' | 'RESOLVED_RELEASE' | 'RESOLVED_REFUND';
+    reason: string;
+    createdAt: string;
+  }>;
 }
+
+const fmtMoney = (value: number | string, currency: string) =>
+  `${Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${currency}`;
+
+const hasOpenDispute = (order: Order) => !!order.disputes?.some((d) => d.status === 'OPEN');
+const isClosed = (order: Order) => ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order.status);
 
 export default function OrdersManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -116,6 +135,8 @@ export default function OrdersManagement() {
         setNewStatus('');
         setTrackingNumber('');
         loadOrders();
+      } else {
+        alert('Erreur', (response as any).error?.message || (response as any).message || 'Impossible de mettre à jour le statut');
       }
     } catch (error: any) {
       alert('Erreur', error.message || 'Impossible de mettre à jour le statut');
@@ -343,6 +364,51 @@ export default function OrdersManagement() {
               </View>
             </View>
 
+            {hasOpenDispute(item) && (
+              <View style={[styles.fundsBox, { backgroundColor: '#FFF4E5', borderColor: '#F0B35A' }]}>
+                <Text style={[styles.fundsTitle, { color: '#8A4B00' }]}>Litige ouvert : vos fonds sont gelés</Text>
+                <Text style={[styles.fundsText, { color: '#5A3A00' }]}>
+                  Motif de l'acheteur : {item.disputes?.find((d) => d.status === 'OPEN')?.reason}
+                </Text>
+                <Text style={[styles.fundsText, { color: '#5A3A00' }]}>
+                  Un administrateur va trancher. Vous ne pouvez pas modifier cette commande en attendant.
+                </Text>
+              </View>
+            )}
+
+            {!hasOpenDispute(item) && item.escrows && item.escrows.length > 0 && (() => {
+              const e = item.escrows![0];
+              const amount = fmtMoney(e.netAmount, e.currency);
+              if (e.status === 'HELD') {
+                return (
+                  <View style={[styles.fundsBox, { backgroundColor: '#E8F5E9', borderColor: '#81C784' }]}>
+                    <Text style={[styles.fundsTitle, { color: '#1B5E20' }]}>{amount} en séquestre</Text>
+                    <Text style={[styles.fundsText, { color: '#2E5E31' }]}>
+                      {e.releaseAfter
+                        ? `Libérés automatiquement le ${new Date(e.releaseAfter).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} si l'acheteur ne signale rien.`
+                        : "Libérés quand l'acheteur confirme la réception, ou 7 jours après le statut « Livrée »."}
+                      {' '}Après commission de {fmtMoney(e.commissionAmount, e.currency)}.
+                    </Text>
+                  </View>
+                );
+              }
+              if (e.status === 'RELEASED') {
+                return (
+                  <View style={[styles.fundsBox, { backgroundColor: '#E3F2FD', borderColor: '#90CAF9' }]}>
+                    <Text style={[styles.fundsTitle, { color: '#0D47A1' }]}>{amount} libérés sur votre solde</Text>
+                  </View>
+                );
+              }
+              if (e.status === 'REFUNDED') {
+                return (
+                  <View style={[styles.fundsBox, { backgroundColor: '#F5F5F5', borderColor: '#BDBDBD' }]}>
+                    <Text style={[styles.fundsTitle, { color: '#424242' }]}>Remboursé à l'acheteur : aucun versement</Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
             {item.trackingNumber && (
               <View style={styles.trackingInfo}>
                 <Text style={[styles.trackingLabel, { color: textColor }]}>
@@ -373,6 +439,16 @@ export default function OrdersManagement() {
                   Commande #{selectedOrder.orderNumber}
                 </Text>
 
+                {(hasOpenDispute(selectedOrder) || isClosed(selectedOrder)) ? (
+                  <View style={[styles.fundsBox, { backgroundColor: '#FFF4E5', borderColor: '#F0B35A' }]}>
+                    <Text style={[styles.fundsText, { color: '#5A3A00' }]}>
+                      {hasOpenDispute(selectedOrder)
+                        ? "Un litige est ouvert sur cette commande : son statut ne peut pas être modifié en attendant la décision de l'administrateur."
+                        : 'Cette commande est clôturée : son statut ne peut plus être modifié.'}
+                    </Text>
+                  </View>
+                ) : (
+                <>
                 <View style={styles.formGroup}>
                   <Text style={[styles.label, { color: textColor }]}>Nouveau statut</Text>
                   <View style={styles.statusOptions}>
@@ -398,6 +474,12 @@ export default function OrdersManagement() {
                   </View>
                 </View>
 
+                {newStatus === 'DELIVERED' && (
+                  <Text style={[styles.fundsText, { color: textColor, marginBottom: 12 }]}>
+                    Après « Livrée », l'acheteur a 7 jours pour confirmer ou signaler un problème. Vos fonds sont ensuite libérés. Le statut ne pourra plus être modifié.
+                  </Text>
+                )}
+
                 {(newStatus === 'SHIPPED' || newStatus === 'DELIVERED') && (
                   <View style={styles.formGroup}>
                     <Text style={[styles.label, { color: textColor }]}>Numéro de suivi</Text>
@@ -410,6 +492,9 @@ export default function OrdersManagement() {
                   </View>
                 )}
 
+                </>
+                )}
+
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={[styles.modalButton, { backgroundColor: '#9E9E9E' }]}
@@ -420,14 +505,18 @@ export default function OrdersManagement() {
                       setTrackingNumber('');
                     }}
                   >
-                    <Text style={styles.modalButtonText}>Annuler</Text>
+                    <Text style={styles.modalButtonText}>
+                      {hasOpenDispute(selectedOrder) || isClosed(selectedOrder) ? 'Fermer' : 'Annuler'}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: tintColor }]}
-                    onPress={handleUpdateStatus}
-                  >
-                    <Text style={styles.modalButtonText}>Mettre à jour</Text>
-                  </TouchableOpacity>
+                  {!(hasOpenDispute(selectedOrder) || isClosed(selectedOrder)) && (
+                    <TouchableOpacity
+                      style={[styles.modalButton, { backgroundColor: tintColor }]}
+                      onPress={handleUpdateStatus}
+                    >
+                      <Text style={styles.modalButtonText}>Mettre à jour</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}
@@ -439,6 +528,9 @@ export default function OrdersManagement() {
 }
 
 const styles = StyleSheet.create({
+  fundsBox: { borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 10 },
+  fundsTitle: { fontSize: 14, fontWeight: '700' },
+  fundsText: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   container: {
     flex: 1,
   },

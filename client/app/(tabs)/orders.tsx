@@ -105,6 +105,118 @@ export default function OrdersScreen() {
     return icons[status] || 'circle.fill';
   };
 
+  type Badge = { label: string; color: string };
+  const getBadges = (order: any): Badge[] => {
+    const out: Badge[] = [];
+    const dispute = order.disputes?.[0];
+    if (dispute?.status === 'OPEN') {
+      out.push({ label: 'Litige en cours', color: '#E65100' });
+    } else if (dispute) {
+      out.push({
+        label: dispute.status === 'RESOLVED_REFUND' ? 'Litige : remboursé' : 'Litige : vendeur payé',
+        color: '#6C757D',
+      });
+    } else if (order.paymentStatus === 'PAID' && (order.escrows || []).some((e: any) => e.status === 'HELD')) {
+      out.push({ label: 'Paiement sécurisé', color: '#2E7D32' });
+    }
+    if (order.paymentStatus === 'FAILED') out.push({ label: 'Paiement échoué', color: '#DC3545' });
+    if (order.paymentStatus === 'PENDING' && order.status === 'PENDING') {
+      out.push({ label: 'Paiement en attente', color: '#F59E0B' });
+    }
+    if (order.paymentStatus === 'REFUNDED' && !dispute) {
+      out.push({ label: 'Remboursée sur votre portefeuille', color: '#17A2B8' });
+    }
+    return out;
+  };
+
+  const renderOrderCard = (order: any) => (
+            <TouchableOpacity
+              key={order.id}
+              style={styles.orderCard}
+              onPress={() => router.push(`/buyer/orders/${order.id}`)}
+            >
+              <View style={styles.orderHeader}>
+                <View style={styles.orderInfo}>
+                  <ThemedText style={styles.orderNumber}>
+                    Commande #{order.orderNumber}
+                  </ThemedText>
+                  <ThemedText style={styles.orderDate}>
+                    {new Date(order.createdAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </ThemedText>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(order.status) + '20' },
+                  ]}
+                >
+                  <IconSymbol
+                    name={getStatusIcon(order.status)}
+                    size={16}
+                    color={getStatusColor(order.status)}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColor(order.status) },
+                    ]}
+                  >
+                    {getStatusLabel(order.status)}
+                  </ThemedText>
+                </View>
+              </View>
+
+              {getBadges(order).length > 0 && (
+                <View style={styles.badgesRow}>
+                  {getBadges(order).map((b) => (
+                    <View key={b.label} style={[styles.badge, { backgroundColor: b.color + '20' }]}>
+                      <ThemedText style={[styles.badgeText, { color: b.color }]}>{b.label}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <View style={styles.orderItems}>
+                {order.items?.slice(0, 3).map((item: any, index: number) => (
+                  <View key={item.id || index} style={styles.orderItem}>
+                    <ThemedText style={styles.orderItemName} numberOfLines={1}>
+                      {(item.productSnapshot?.name || item.product?.name || 'Produit') +
+                        ((item.productSnapshot?.variantName || item.variant?.name)
+                          ? ` • ${item.productSnapshot?.variantName || item.variant?.name}`
+                          : '')}
+                    </ThemedText>
+                    <ThemedText style={styles.orderItemQuantity}>
+                      x{item.quantity}
+                    </ThemedText>
+                  </View>
+                ))}
+                {order.items && order.items.length > 3 && (
+                  <ThemedText style={styles.moreItems}>
+                    +{order.items.length - 3} autre{order.items.length - 3 > 1 ? 's' : ''}
+                  </ThemedText>
+                )}
+              </View>
+
+              <View style={styles.orderFooter}>
+                <ThemedText style={styles.orderTotal}>
+                  Total: {formatPrice(parseFloat(order.total), order.currency || 'XOF')}
+                </ThemedText>
+                {order.trackingNumber && (
+                  <View style={styles.tracking}>
+                    <IconSymbol name="location.fill" size={14} color="#624cacff" />
+                    <ThemedText style={styles.trackingText}>
+                      {order.trackingNumber}
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -130,6 +242,23 @@ export default function OrdersScreen() {
     );
   }
 
+  // Les commandes d'un même paiement de panier (une par vendeur) sont regroupées visuellement
+  const grouped: { key: string; orders: any[] }[] = [];
+  const byGroup = new Map<string, { key: string; orders: any[] }>();
+  for (const o of orders) {
+    if (o.checkoutGroupId) {
+      let g = byGroup.get(o.checkoutGroupId);
+      if (!g) {
+        g = { key: o.checkoutGroupId, orders: [] };
+        byGroup.set(o.checkoutGroupId, g);
+        grouped.push(g);
+      }
+      g.orders.push(o);
+    } else {
+      grouped.push({ key: o.id, orders: [o] });
+    }
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -148,7 +277,7 @@ export default function OrdersScreen() {
           style={styles.filters}
           contentContainerStyle={styles.filtersContent}
         >
-          {['ALL', 'PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].map((status) => (
+          {['ALL', 'PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].map((status) => (
             <TouchableOpacity
               key={status}
               style={[
@@ -197,83 +326,24 @@ export default function OrdersScreen() {
             )}
           </View>
         ) : (
-          orders.map((order) => (
-            <TouchableOpacity
-              key={order.id}
-              style={styles.orderCard}
-              onPress={() => router.push(`/buyer/orders/${order.id}`)}
-            >
-              <View style={styles.orderHeader}>
-                <View style={styles.orderInfo}>
-                  <ThemedText style={styles.orderNumber}>
-                    Commande #{order.orderNumber}
-                  </ThemedText>
-                  <ThemedText style={styles.orderDate}>
-                    {new Date(order.createdAt).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
+          grouped.map((g) =>
+            g.orders.length > 1 ? (
+              <View key={g.key} style={styles.groupBox}>
+                <View style={styles.groupHeader}>
+                  <ThemedText style={styles.groupTitle}>Même panier · {g.orders.length} commandes</ThemedText>
+                  <ThemedText style={styles.groupTotal}>
+                    {formatPrice(
+                      g.orders.reduce((sum: number, o: any) => sum + parseFloat(o.total), 0),
+                      g.orders[0].currency || 'XOF'
+                    )}
                   </ThemedText>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(order.status) + '20' },
-                  ]}
-                >
-                  <IconSymbol
-                    name={getStatusIcon(order.status)}
-                    size={16}
-                    color={getStatusColor(order.status)}
-                  />
-                  <ThemedText
-                    style={[
-                      styles.statusText,
-                      { color: getStatusColor(order.status) },
-                    ]}
-                  >
-                    {getStatusLabel(order.status)}
-                  </ThemedText>
-                </View>
+                {g.orders.map((o: any) => renderOrderCard(o))}
               </View>
-
-              <View style={styles.orderItems}>
-                {order.items?.slice(0, 3).map((item: any, index: number) => (
-                  <View key={item.id || index} style={styles.orderItem}>
-                    <ThemedText style={styles.orderItemName} numberOfLines={1}>
-                      {(item.productSnapshot?.name || item.product?.name || 'Produit') +
-                        ((item.productSnapshot?.variantName || item.variant?.name)
-                          ? ` • ${item.productSnapshot?.variantName || item.variant?.name}`
-                          : '')}
-                    </ThemedText>
-                    <ThemedText style={styles.orderItemQuantity}>
-                      x{item.quantity}
-                    </ThemedText>
-                  </View>
-                ))}
-                {order.items && order.items.length > 3 && (
-                  <ThemedText style={styles.moreItems}>
-                    +{order.items.length - 3} autre{order.items.length - 3 > 1 ? 's' : ''}
-                  </ThemedText>
-                )}
-              </View>
-
-              <View style={styles.orderFooter}>
-                <ThemedText style={styles.orderTotal}>
-                  Total: {formatPrice(parseFloat(order.total), order.currency || 'XOF')}
-                </ThemedText>
-                {order.trackingNumber && (
-                  <View style={styles.tracking}>
-                    <IconSymbol name="location.fill" size={14} color="#624cacff" />
-                    <ThemedText style={styles.trackingText}>
-                      {order.trackingNumber}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))
+            ) : (
+              renderOrderCard(g.orders[0])
+            )
+          )
         )}
       </ScrollView>
     </ThemedView>
@@ -356,6 +426,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  groupBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#624cac40',
+    backgroundColor: '#624cac0D',
+    padding: 10,
+    marginBottom: 16,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  groupTitle: { fontSize: 13, fontWeight: '700', color: '#624cacff', flexShrink: 1 },
+  groupTotal: { fontSize: 13, fontWeight: '700' },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeText: { fontSize: 11, fontWeight: '700' },
   orderCard: {
     backgroundColor: '#FFF',
     borderRadius: 12,
